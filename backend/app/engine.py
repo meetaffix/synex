@@ -34,7 +34,6 @@ ACTION_TASKS = {
     "follow_profile": "follow_profile",
 }
 
-STOP_STATES = {"replied", "interested", "not_interested", "bounced"}
 ACCEPTED_STATES = {"connected", "replied", "interested", "not_interested"}
 ACTIVE_RUN_STATES = ("running", "waiting_connection", "awaiting_agent", "needs_review")
 # Task states that still count against an account's limits.

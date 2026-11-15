@@ -181,21 +181,6 @@ export interface Message {
   deliveryError?: string | null;
 }
 
-/** Whether a queued reply will go out now or wait for the extension. */
-export interface Delivery {
-  queued: boolean;
-  accountLive: boolean;
-  note?: string | null;
-}
-
-export type SentMessage = Message & { delivery?: Delivery };
-
-export interface ComposeResult {
-  conversation: Conversation;
-  message: Message;
-  delivery: Delivery;
-}
-
 export type TemplateCategory =
   | "connection"
   | "first_message"
@@ -227,13 +212,6 @@ export interface DashboardStats {
   replyRate: number;
 }
 
-export interface TimeSeriesPoint {
-  date: string;
-  invites: number;
-  connections: number;
-  replies: number;
-}
-
 export interface ActivityItem {
   id: ID;
   type:
@@ -249,38 +227,9 @@ export interface ActivityItem {
   leadName?: string;
 }
 
-export interface CampaignPerformance {
-  campaignId: ID;
-  name: string;
-  status: CampaignStatus;
-  sent: number;
-  connected: number;
-  replied: number;
-  connectionRate: number;
-  replyRate: number;
-}
-
-export interface FunnelStage {
-  stage: string;
-  value: number;
-}
-
-export interface AnalyticsOverview {
-  series: TimeSeriesPoint[];
-  funnel: FunnelStage[];
-  campaigns: CampaignPerformance[];
-  replyRateByDay: { day: string; rate: number }[];
-}
-
 /* --------------------------- Auth payloads -------------------------- */
 
 export interface AuthResponse {
   user: User;
 }
 
-export interface Paginated<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}

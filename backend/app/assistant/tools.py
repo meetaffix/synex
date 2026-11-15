@@ -29,8 +29,6 @@ from .registry import Plan, Tool, ToolContext, ToolError, _errors_text, register
 
 INVITE_CEILING = DAILY_TYPE_CEILINGS["send_invite"]
 MESSAGE_CEILING = DAILY_TYPE_CEILINGS["send_message"]
-STEP_TYPES = ("connection_request", "message", "follow_up", "wait", "profile_visit", "follow")
-STATUSES = ("draft", "active", "paused", "completed")
 
 
 class Args(BaseModel):

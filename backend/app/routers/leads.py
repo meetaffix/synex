@@ -16,7 +16,7 @@ from ..schemas import (
     LeadImportIn, ProspectReviewIn,
 )
 from .. import models, engine
-from ..dedup import normalize_linkedin_url, lead_dedup_key
+from ..dedup import lead_dedup_key
 
 
 def _parse(model, body: dict):
@@ -31,10 +31,6 @@ URL_SOURCES = {"search_url", "sales_navigator_url", "post_url", "company_url"}
 _PROFILE_RE = re.compile(r"linkedin\.com/in/", re.I)
 
 router = APIRouter(prefix="/leads", tags=["leads"])
-
-
-def _norm_url(url: str | None) -> str:
-    return normalize_linkedin_url(url)
 
 
 def _merge_into(lead: models.Lead, *, company=None, job_title=None, headline=None,

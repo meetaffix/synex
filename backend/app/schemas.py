@@ -56,24 +56,6 @@ class ProfileUpdateIn(CamelIn):
     avatar_url: str | None = None
 
 
-# ------------------------------- Accounts --------------------------------
-class AccountCreateIn(CamelIn):
-    name: str
-    email: str | None = None
-    headline: str | None = None
-    avatar_url: str | None = None
-    daily_action_limit: int | None = None
-
-
-class AccountUpdateIn(CamelIn):
-    name: str | None = None
-    email: str | None = None
-    headline: str | None = None
-    avatar_url: str | None = None
-    status: str | None = None
-    daily_action_limit: int | None = None
-
-
 # --------------------------------- Leads ---------------------------------
 class LeadIn(CamelIn):
     first_name: str | None = ""
