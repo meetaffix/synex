@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { CommandPalette, usePaletteShortcut } from "./CommandPalette";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { AssistantProvider } from "@/features/assistant/AssistantProvider";
+import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 
 const STORAGE_KEY = "synex.sidebar.collapsed";
 
@@ -18,6 +20,15 @@ function readCollapsed(): boolean {
 }
 
 export function AppShell() {
+  return (
+    <AssistantProvider>
+      <Shell />
+      <AssistantPanel />
+    </AssistantProvider>
+  );
+}
+
+function Shell() {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);

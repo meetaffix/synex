@@ -20,6 +20,8 @@ import { OthersPage } from "@/features/others/OthersPage";
 import { HelpPage } from "@/features/help/HelpPage";
 import { WelcomePage } from "@/features/onboarding/WelcomePage";
 import { DesignPage } from "@/features/design/DesignPage";
+import { AssistantSettings } from "@/features/assistant/AssistantSettings";
+import { PrivacyPage } from "@/features/assistant/PrivacyPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
 import { Overview, AccountsPage, Studio, CalendarPage, AutomationPage, ActivityPage, AnalyticsPage, SettingsPage } from "@/features/publishing/Workspace";
@@ -82,7 +84,7 @@ export function App() {
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="connections" element={<AccountsPage />} />
             </Route>
-            <Route path="/settings" element={<Stack><SettingsPage /></Stack>} />
+            <Route path="/settings" element={<Stack><AssistantSettings /><SettingsPage /></Stack>} />
             <Route path="/help" element={<HelpPage />} />
             {redirects.map(([from, to]) => (
               <Route key={from} path={from} element={<Redirect to={to} />} />
@@ -94,6 +96,7 @@ export function App() {
         {import.meta.env.DEV && <Route path="/design" element={<DesignPage />} />}
 
         {/* Public: opened from a single-use link, no session needed */}
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/reconnect/:token" element={<ReconnectPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

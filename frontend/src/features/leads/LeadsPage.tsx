@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useAssistantPage } from "@/features/assistant/AssistantProvider";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -108,6 +109,7 @@ export function LeadsPage() {
     }
   }, [params, setParams]);
   const [editLead, setEditLead] = useState<Lead | null>(null);
+  useAssistantPage(editLead ? { leadId: editLead.id } : null);
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
