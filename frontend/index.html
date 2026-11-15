@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/synex.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Synex: reach the right people on LinkedIn, safely. Connect accounts, run campaigns inside daily limits, and answer every reply from one inbox."
+    />
+    <script>
+      // Apply the stored theme before the first paint, so a dark page never flashes white. src/lib/theme.ts owns the rules.
+      (function () {
+        try {
+          var choice = localStorage.getItem("synex.theme") || "system";
+          var dark = choice === "dark" || (choice !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
+    <title>Synex</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

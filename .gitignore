@@ -1,0 +1,55 @@
+# Secrets: every .env file except the examples
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Databases (real user data) and their journals / WAL files
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+backend/backups/
+**/backups/
+
+# Python
+.venv/
+**/.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.py[cod]
+.pytest_cache/
+
+# Node / build output
+node_modules/
+**/node_modules/
+dist/
+dist-ssr/
+dist-e2e/
+build/
+*.tsbuildinfo
+.vite/
+
+# Test output and coverage
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+logs/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~

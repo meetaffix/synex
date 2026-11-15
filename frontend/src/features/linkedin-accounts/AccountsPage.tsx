@@ -1,0 +1,186 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { EmptyState as SharedEmptyState } from "@/components/shared/EmptyState";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { AccountRow, type RowActions } from "./AccountRow";
+import { ConnectDialog } from "./ConnectDialog";
+import { EditAccountDialog } from "./EditAccountDialog";
+import { ReconnectLinkDialog, type LinkState } from "./ReconnectLinkDialog";
+import { complianceNote, requestFailureMessage } from "./copy";
+import { useAccountActions, useSenderAccounts } from "./hooks";
+import type { SenderAccount } from "./schemas";
+
+export function SenderAccountsPage() {
+  const accounts = useSenderAccounts();
+  const actions = useAccountActions();
+  const [params, setParams] = useSearchParams();
+  // "Connect your first account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
+  const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" ? {} : null);
+  useEffect(() => {
+    if (params.get("connect") === "1") {
+      params.delete("connect");
+      setParams(params, { replace: true });
+    }
+  }, [params, setParams]);
+  const [editing, setEditing] = useState<SenderAccount | null>(null);
+  const [disconnecting, setDisconnecting] = useState<SenderAccount | null>(null);
+  const [link, setLink] = useState<{ account: SenderAccount; state: LinkState } | null>(null);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+
+  const setRowError = (id: string, message?: string) =>
+    setRowErrors((current) => {
+      const { [id]: _removed, ...rest } = current;
+      return message ? { ...rest, [id]: message } : rest;
+    });
+
+  const createLink = (account: SenderAccount) => {
+    setLink({ account, state: { kind: "loading" } });
+    actions.reconnectLink.mutate(account.id, {
+      onSuccess: (created) => setLink({ account, state: { kind: "ready", link: created } }),
+      onError: (error) => setLink({ account, state: { kind: "error", message: requestFailureMessage(error) } }),
+    });
+  };
+
+  const rowActions = (account: SenderAccount): RowActions => ({
+    onCheck: () =>
+      actions.check.mutate(account.id, {
+        onSuccess: (checked) => {
+          setRowError(account.id);
+          toast.success(`${checked.name} checked: ${checked.status.replaceAll("_", " ")}.`);
+        },
+        onError: (error) => setRowError(account.id, `The last check failed. ${requestFailureMessage(error)}`),
+      }),
+    onTogglePause: () =>
+      actions.update.mutate(
+        { id: account.id, changes: { paused: account.status !== "paused" } },
+        {
+          onSuccess: () => setRowError(account.id),
+          onError: (error) => setRowError(account.id, `Could not change sending. ${requestFailureMessage(error)}`),
+        },
+      ),
+    onEdit: () => {
+      actions.update.reset();
+      setEditing(account);
+    },
+    onReconnect: () => setConnecting({ reconnecting: account.name }),
+    onCopyLink: () => createLink(account),
+    onDisconnect: () => setDisconnecting(account),
+  });
+
+  return (
+    <div className="grid gap-6">
+      <PageHeader
+        title="Sender accounts"
+        description="The LinkedIn profiles Synex sends connection requests and messages from."
+        // One primary action per view: while the list is empty, the empty state carries it.
+        actions={accounts.data?.length === 0 ? undefined : <Button onClick={() => setConnecting({})}>Connect account</Button>}
+      />
+
+      {accounts.isLoading && <LoadingList />}
+      {accounts.isError && !accounts.data && (
+        <Problem message={requestFailureMessage(accounts.error)} onRetry={() => void accounts.refetch()} />
+      )}
+      {accounts.isError && accounts.data && (
+        <Problem
+          message={`Showing the last list Synex loaded. It could not refresh: ${requestFailureMessage(accounts.error)}`}
+          onRetry={() => void accounts.refetch()}
+        />
+      )}
+      {accounts.data?.length === 0 && <EmptyState onConnect={() => setConnecting({})} />}
+      {!!accounts.data?.length && (
+        <ul aria-label="Connected accounts" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+          {accounts.data.map((account, index) => (
+            <AccountRow
+              key={account.id}
+              index={index}
+              account={account}
+              actions={rowActions(account)}
+              checking={actions.check.isPending && actions.check.variables === account.id}
+              error={rowErrors[account.id]}
+            />
+          ))}
+        </ul>
+      )}
+      {!!accounts.data?.length && <p className="text-xs text-muted-foreground">{complianceNote}</p>}
+
+      {connecting && (
+        <ConnectDialog open onOpenChange={(open) => !open && setConnecting(null)} reconnecting={connecting.reconnecting} />
+      )}
+      {editing && (
+        <EditAccountDialog
+          account={editing}
+          saving={actions.update.isPending}
+          error={actions.update.isError ? requestFailureMessage(actions.update.error) : undefined}
+          onClose={() => setEditing(null)}
+          onSave={(changes) =>
+            actions.update.mutate({ id: editing.id, changes }, { onSuccess: () => setEditing(null) })
+          }
+        />
+      )}
+      {link && (
+        <ReconnectLinkDialog accountName={link.account.name} state={link.state} onRetry={() => createLink(link.account)} onClose={() => setLink(null)} />
+      )}
+      <ConfirmDialog
+        open={!!disconnecting}
+        onOpenChange={(open) => !open && setDisconnecting(null)}
+        title={`Disconnect ${disconnecting?.name ?? "this account"}?`}
+        description="Synex removes the saved LinkedIn session and any reconnect link, so this account stops sending. It keeps the account's name, its campaigns, conversations and activity history. You can reconnect it later."
+        confirmLabel="Disconnect"
+        destructive
+        loading={actions.disconnect.isPending}
+        onConfirm={() =>
+          disconnecting &&
+          actions.disconnect.mutate(disconnecting.id, {
+            onSuccess: () => {
+              toast.success(`${disconnecting.name} disconnected.`);
+              setDisconnecting(null);
+            },
+            onError: (error) => toast.error(requestFailureMessage(error)),
+          })
+        }
+      />
+    </div>
+  );
+}
+
+function EmptyState({ onConnect }: { onConnect: () => void }) {
+  return (
+    <SharedEmptyState
+      illustration="accounts"
+      title="No sender accounts yet"
+      description="A sender account is a LinkedIn profile that Synex sends connection requests and messages from. You sign in once, Synex keeps the session, and each account has its own daily limit and optional proxy."
+      action={<Button onClick={onConnect}>Connect your first account</Button>}
+    />
+  );
+}
+
+function LoadingList() {
+  return (
+    <div role="status" aria-label="Loading accounts" className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6">
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex items-center gap-3">
+          <Skeleton className="size-10 rounded-full" />
+          <div className="grid flex-1 gap-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Problem({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col gap-3 rounded-lg bg-danger-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-danger">{message}</p>
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  );
+}
