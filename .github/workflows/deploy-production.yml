@@ -1,0 +1,56 @@
+# Production deploy of the frontend to Vercel. Manual only: nothing deploys to production by itself.
+# It refuses to run unless the commit is on main and its CI run succeeded, and the "production" environment
+# (owner-configured in GitHub with a required reviewer) must approve before the deploy job starts.
+name: Deploy frontend to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm a production deploy of this main commit'
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  check:
+    name: Check main and CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only main, only when confirmed
+        run: |
+          [ "${{ github.ref }}" = "refs/heads/main" ] || { echo "Production deploys run only from main."; exit 1; }
+          [ "${{ inputs.confirm }}" = "DEPLOY" ] || { echo "Type DEPLOY to confirm."; exit 1; }
+      - name: CI must have passed on this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          result=$(gh run list --repo "${{ github.repository }}" --workflow ci.yml --commit "${{ github.sha }}" --json conclusion --jq '[.[].conclusion] | join(",")')
+          echo "CI conclusions for ${{ github.sha }}: ${result:-none}"
+          echo "$result" | grep -q "success" || { echo "No successful CI run for this commit."; exit 1; }
+
+  deploy:
+    name: Deploy to Vercel (production)
+    needs: check
+    runs-on: ubuntu-latest
+    environment: production  # the owner adds required reviewers to this environment in GitHub settings
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --global vercel@latest
+      - name: Pull project settings and environment variables
+        working-directory: frontend
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Build
+        working-directory: frontend
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Deploy
+        working-directory: frontend
+        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"

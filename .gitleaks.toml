@@ -1,0 +1,16 @@
+# Secret scanning configuration (used by the CI "Secret scan" job).
+title = "Synex gitleaks config"
+
+[extend]
+useDefault = true
+
+# The tests use obviously fake placeholder keys (for example a sentinel that must never appear in a response).
+# Only these test files are allowed; a real-looking key anywhere else is still reported.
+[[allowlists]]
+description = "Fake keys used by the tests"
+paths = [
+  '''backend/tests/test_assistant\.py''',
+  '''backend/tests/test_drafting\.py''',
+  '''backend/tests/test_clerk\.py''',
+  '''backend/tests/browser_server\.py''',
+]
