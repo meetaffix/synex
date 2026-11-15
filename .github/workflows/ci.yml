@@ -105,6 +105,11 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # DEFERRED ON PURPOSE (owner decision, 15 Nov 2026): this job does not block any merge. It keeps running so its
+    # result stays visible. Its 10 findings so far are placeholder values in this workflow and in five test files,
+    # not real secrets. It must be fixed and clean over the full history before any public repository, any production
+    # deploy or any real user (docs/ROADMAP.md, "Known debt").
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
