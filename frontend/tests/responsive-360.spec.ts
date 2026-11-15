@@ -20,7 +20,7 @@ test.describe("360px", () => {
         const width = window.innerWidth;
         const past = [...document.querySelectorAll("body *")].filter((el) => {
           const box = el.getBoundingClientRect();
-          const clipped = el.closest("[class*=overflow-x-auto], [class*=overflow-hidden], datalist, [aria-hidden=true]");
+          const clipped = el.closest("[class*=overflow-x-auto], [class*=overflow-auto], [class*=overflow-hidden], datalist, [aria-hidden=true]");
           return !clipped && box.width > 0 && box.right > width + 1;
         });
         return { scroll: document.documentElement.scrollWidth, width, past: past.slice(0, 5).map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)}`) };

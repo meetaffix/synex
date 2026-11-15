@@ -15,7 +15,7 @@ export function ConnectDialog({ open, onOpenChange, reconnecting }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader className="space-y-2">
           <DialogTitle className="text-xl">
-            {reconnecting ? `Reconnect ${reconnecting}` : "Connect a LinkedIn account"}
+            {reconnecting ? `Reconnect ${reconnecting}` : "Connect LinkedIn account"}
           </DialogTitle>
           <DialogDescription>
             {reconnecting

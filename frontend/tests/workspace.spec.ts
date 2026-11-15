@@ -28,7 +28,7 @@ test("publishing journey, all routes, and responsive layouts", async ({
     );
   await page
     .getByLabel("Publish as")
-    .selectOption({ label: "Alex Morgan · Test account · connected" });
+    .selectOption({ label: "Alex Morgan · Test account · Connected" });
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
   await page.reload();

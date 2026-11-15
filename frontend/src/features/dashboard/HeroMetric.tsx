@@ -38,7 +38,7 @@ export function HeroMetric({ replies, contacted, rates, unit, loading }: Props) 
               <p className="max-w-xs text-sm text-brand-text-muted">It appears once Synex has contacted leads and the dashboard feed is connected.</p>
             </>
           ) : (
-            <p className="text-2xl font-bold text-brand-accent">
+            <p className="text-display font-semibold tabular-nums text-brand-accent">
               <span className="sr-only">{rate.toFixed(1)} percent</span>
               <span aria-hidden>{((counted ?? Math.round(rate * 10)) / 10).toFixed(1)}%</span>
             </p>

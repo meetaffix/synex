@@ -133,7 +133,7 @@ const callsTo = (api: Api, method: string, pattern: RegExp) => api.calls.filter(
 async function openConnect(page: Page, api: Api) {
   await mockApi(page, api);
   await page.goto("/linkedin-accounts");
-  await page.getByRole("button", { name: /^Connect (account|your first account)$/ }).click();
+  await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
 }
 
 async function fillCredentials(page: Page, identifier = "ada@example.com") {
@@ -141,7 +141,7 @@ async function fillCredentials(page: Page, identifier = "ada@example.com") {
   await page.getByLabel("LinkedIn password").fill("Sup3r-Secret-Pw");
 }
 
-const submit = (page: Page) => page.getByRole("dialog").getByRole("button", { name: "Connect account" }).click();
+const submit = (page: Page) => page.getByRole("dialog").getByRole("button", { name: "Connect LinkedIn account" }).click();
 
 test.describe("sender accounts", () => {
   test.setTimeout(60_000);
@@ -152,14 +152,14 @@ test.describe("sender accounts", () => {
     await expect(page.getByRole("heading", { name: "Sender accounts", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No sender accounts yet" })).toBeVisible();
     await expect(page.getByText("A sender account is a LinkedIn profile that Synex sends")).toBeVisible();
-    await page.getByRole("button", { name: "Connect your first account" }).click();
+    await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
   test("the connect dialog opens on the credentials form", async ({ page }) => {
     await openConnect(page, newApi());
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: "Connect a LinkedIn account" })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "Connect LinkedIn account" })).toBeVisible();
     await expect(page.getByLabel("Email or phone")).toBeFocused();
     await expect(page.getByLabel("LinkedIn password")).toBeVisible();
     await expect(dialog.getByText("Synex uses your password once to sign in. It is never saved.")).toBeVisible();
@@ -444,7 +444,7 @@ test.describe("sender accounts", () => {
     await page.goto("/linkedin-accounts");
     await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
     expect(await noOverflow()).toBe(true);
-    await page.getByRole("button", { name: /^Connect (account|your first account)$/ }).click();
+    await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
     await page.getByRole("dialog").getByText("Advanced: proxy").click();
     expect(await noOverflow()).toBe(true);
     await page.keyboard.press("Escape");
@@ -482,7 +482,7 @@ test.describe("public reconnect page", () => {
 
     await page.getByLabel("Email or phone").fill("+14155550123");
     await page.getByLabel("LinkedIn password").fill("Sup3r-Secret-Pw");
-    await page.getByRole("button", { name: "Connect account" }).click();
+    await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
     await expect(page.getByRole("heading", { name: "Account reconnected" })).toBeVisible({ timeout: 15_000 });
     const start = callsTo(api, "POST", /^\/reconnect\/tok123\/connect$/)[0];
     expect(start.body).toEqual({ identifier: "+14155550123", password: "Sup3r-Secret-Pw" });

@@ -3,8 +3,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 const topics = [
   {
-    title: "Connect a sender account",
-    body: "Open Sender accounts and choose Connect account. Sign in with the email or phone number you use on LinkedIn. Synex uses your password once to sign in and never saves it. If LinkedIn sends a code, enter it in the same window. If it asks you to approve the sign-in in the LinkedIn app, approve it there and the window continues on its own.",
+    title: "Connect LinkedIn account",
+    body: "Open Sender accounts and choose Connect LinkedIn account. Sign in with the email or phone number you use on LinkedIn. Synex uses your password once to sign in and never saves it. If LinkedIn sends a code, enter it in the same window. If it asks you to approve the sign-in in the LinkedIn app, approve it there and the window continues on its own.",
   },
   {
     title: "If LinkedIn asks for a security check",

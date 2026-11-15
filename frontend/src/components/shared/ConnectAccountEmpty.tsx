@@ -16,7 +16,7 @@ export function ConnectAccountEmpty({ title, description }: Props) {
       description={description}
       action={
         <Button asChild>
-          <Link to="/linkedin-accounts">Connect a sender account</Link>
+          <Link to="/linkedin-accounts?connect=1">Connect LinkedIn account</Link>
         </Button>
       }
     />

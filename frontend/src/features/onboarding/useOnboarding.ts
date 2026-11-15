@@ -40,7 +40,7 @@ export function useOnboarding() {
   const launched = (campaigns.data ?? []).some((campaign) => campaign.status === "active" || campaign.status === "completed");
 
   const steps: Step[] = [
-    { id: "account", title: "Connect a LinkedIn account", detail: "Sign in once; Synex keeps the session and sends within safe daily limits.", done: hasAccount, action: { label: "Connect account", to: "/linkedin-accounts?connect=1" } },
+    { id: "account", title: "Connect LinkedIn account", detail: "Sign in once; Synex keeps the session and sends within safe daily limits.", done: hasAccount, action: { label: "Connect LinkedIn account", to: "/linkedin-accounts?connect=1" } },
     { id: "leads", title: "Import your leads", detail: "Upload a CSV with their LinkedIn URLs, or add people one at a time.", done: hasLeads, action: { label: "Import leads", to: "/leads?import=1" } },
     {
       id: "campaign",

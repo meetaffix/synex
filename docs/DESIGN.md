@@ -131,6 +131,7 @@ Gradients are allowed in **brand moments only**: the sign-in brand panel and pho
 - **Family:** Plus Jakarta Sans for everything, bundled with the app from `@fontsource/plus-jakarta-sans` (weights 400, 500, 600, 700, latin). No runtime request to a font CDN.
 - **Figures:** tabular numerals everywhere (`font-variant-numeric: tabular-nums` on `body`), so columns of numbers line up.
 - **Scale (size/line height), nothing else:** 12/16 `text-xs`, 14/20 `text-sm`, 16/24 `text-base`, 20/28 `text-xl`, 24/32 `text-2xl`. Tailwind's other sizes are removed from the theme, so an off-scale size does not build.
+- **Hero metric display size:** 36/40 `text-display`, weight 600, tabular numerals (`--text-display`, `--text-display-leading`). One use only: the reply-rate figure in the dashboard hero metric (`HeroMetric.tsx`), plus its sample on the design page. No other screen, card or heading uses it; a new use needs a change to this line first.
 
 | Role | Style |
 |---|---|
@@ -199,7 +200,7 @@ Every component has default, hover, focus, active, disabled and (where it can wa
 
 ## Voice
 
-Plain, warm, short. Sentence case. No exclamation marks, no jargon, no emoji. Name things the way the person would ("Sender accounts", "Connect account", "Daily action limit"). Every message says what happened and what to do next.
+Plain, warm, short. Sentence case. No exclamation marks, no jargon, no emoji. Name things the way the person would ("Sender accounts", "Connect LinkedIn account", "Daily action limit"). Every message says what happened and what to do next.
 
 ## Do and don't
 

@@ -148,7 +148,7 @@ export function CredentialsStep({ defaults, withOptions, notice, onSubmit, onCan
             Cancel
           </Button>
         )}
-        <Button type="submit">Connect account</Button>
+        <Button type="submit">Connect LinkedIn account</Button>
       </div>
     </form>
   );

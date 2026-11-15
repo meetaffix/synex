@@ -190,7 +190,7 @@ test.describe("app shell", () => {
     await toggle.click();
     const collapsed = sidebar(page).getByRole("button", { name: "Expand sidebar" });
     await expect(collapsed).toHaveAttribute("aria-expanded", "false");
-    expect((await sidebar(page).boundingBox())?.width ?? 999).toBeLessThan(wide);
+    await expect.poll(async () => (await sidebar(page).boundingBox())?.width ?? 999).toBeLessThan(wide);  // the width animates
     await expect(primary(page).getByRole("link", { name: "Inbox" })).toBeVisible();
     await collapsed.click();
   });
@@ -224,7 +224,7 @@ test.describe("dashboard", () => {
     await mockApi(page, newApi());
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: "Get Synex working for you" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Connect account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
+    await expect(page.getByRole("link", { name: "Connect LinkedIn account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
     await expect(page.getByRole("region", { name: "Key metrics" })).toHaveCount(0);
   });
 
@@ -318,8 +318,8 @@ test.describe("inbox", () => {
   test("with no sender account it leads to connecting one", async ({ page }) => {
     await mockApi(page, newApi());
     await page.goto("/inbox");
-    await expect(page.getByRole("heading", { name: "Connect a sender account to receive replies" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Connect account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
+    await expect(page.getByRole("heading", { name: "Connect LinkedIn account to receive replies" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Connect LinkedIn account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
   });
 
   test("with an account but no conversations it explains the inbox", async ({ page }) => {
@@ -384,8 +384,8 @@ test.describe("campaigns", () => {
   test("with no sender account it leads to connecting one", async ({ page }) => {
     await mockApi(page, newApi());
     await page.goto("/campaigns");
-    await expect(page.getByRole("heading", { name: "Connect a sender account to run campaigns" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Connect account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
+    await expect(page.getByRole("heading", { name: "Connect LinkedIn account to run campaigns" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Connect LinkedIn account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
   });
 
   test("with an account but no campaigns it explains what a campaign is", async ({ page }) => {

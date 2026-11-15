@@ -37,8 +37,8 @@ export function InboxPage() {
       <div className="grid gap-6">
         <PageHeader title="Inbox" description="Replies from the people your campaigns contact." />
         <ConnectAccountEmpty
-          title="Connect a sender account to receive replies"
-          description="The inbox shows conversations from your connected LinkedIn accounts. Connect an account, run a campaign, and replies from leads appear here."
+          title="Connect LinkedIn account to receive replies"
+          description="The inbox shows conversations from your connected LinkedIn accounts. Connect LinkedIn account, run a campaign, and replies from leads appear here."
         />
       </div>
     );

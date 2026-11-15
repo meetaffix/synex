@@ -69,14 +69,14 @@ const richDashboard = (over: Partial<Api> = {}) => () =>
 const withAccount = (over: Partial<Api> = {}) => () => newApi({ accounts: [account("a1", "Ada Lovelace")], ...over });
 
 async function openConnect(page: Page) {
-  await page.getByRole("button", { name: /^Connect (account|your first account)$/ }).click();
+  await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
   await expect(page.getByRole("dialog").getByLabel("Email or phone")).toBeVisible();
 }
 
 async function submitCredentials(page: Page) {
   await page.getByLabel("Email or phone").fill("ada@example.com");
   await page.getByLabel("LinkedIn password").fill("Sup3r-Secret-Pw");
-  await page.getByRole("dialog").getByRole("button", { name: "Connect account" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Connect LinkedIn account" }).click();
 }
 
 const connectAt = (heading: string | RegExp): State["prepare"] => async (page) => {

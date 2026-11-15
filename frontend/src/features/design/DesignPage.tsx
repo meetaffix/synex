@@ -68,6 +68,7 @@ const COLOURS: [string, string][] = [
 ];
 
 const TYPE = [
+  { className: "text-display font-semibold tabular-nums", label: "Hero metric 36/40, 600, tabular (dashboard hero only)" },
   { className: "text-2xl font-semibold", label: "Page title 24/32, 600" },
   { className: "text-xl font-semibold", label: "Dialog title 20/28, 600" },
   { className: "text-base font-semibold", label: "Section title 16/24, 600" },
@@ -147,7 +148,7 @@ export function DesignPage() {
           <Row label="Gradient">
             <div className="grid h-24 w-full max-w-md content-end rounded-lg bg-brand p-4 text-brand-text">
               <span className="text-sm text-brand-text-muted">Brand moments only</span>
-              <span className="text-2xl font-bold text-brand-accent">16.3%</span>
+              <span className="text-display font-semibold tabular-nums text-brand-accent">16.3%</span>
             </div>
           </Row>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -227,7 +228,7 @@ export function DesignPage() {
         <Section title="Buttons">
           {(["default", "secondary", "ghost", "danger", "link"] as const).map((variant) => (
             <Row key={variant} label={variant === "default" ? "Primary" : variant[0].toUpperCase() + variant.slice(1)}>
-              <Button variant={variant}>Connect account</Button>
+              <Button variant={variant}>Connect LinkedIn account</Button>
               <Button variant={variant} className={variant === "default" ? "bg-primary-hover" : variant === "link" ? "text-primary-hover" : "bg-surface-muted"}>
                 Hover
               </Button>

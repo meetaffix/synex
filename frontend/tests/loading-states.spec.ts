@@ -30,7 +30,7 @@ test("the proxy test shows that it is running, then its result", async ({ page }
   const check = gate();
   await mockApi(page, newApi({ hold: { proxyTest: check.promise } }));
   await page.goto("/linkedin-accounts");
-  await page.getByRole("button", { name: /^Connect (account|your first account)$/ }).click();
+  await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByText("Advanced: proxy").click();
   await dialog.getByLabel("Paste a proxy URL").fill("socks5://user:pass@proxy.example.com:1080");

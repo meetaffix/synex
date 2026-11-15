@@ -18,7 +18,7 @@ export function SenderAccountsPage() {
   const accounts = useSenderAccounts();
   const actions = useAccountActions();
   const [params, setParams] = useSearchParams();
-  // "Connect your first account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
+  // "Connect LinkedIn account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
   const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" ? {} : null);
   useEffect(() => {
     if (params.get("connect") === "1") {
@@ -77,7 +77,7 @@ export function SenderAccountsPage() {
         title="Sender accounts"
         description="The LinkedIn profiles Synex sends connection requests and messages from."
         // One primary action per view: while the list is empty, the empty state carries it.
-        actions={accounts.data?.length === 0 ? undefined : <Button onClick={() => setConnecting({})}>Connect account</Button>}
+        actions={accounts.data?.length === 0 ? undefined : <Button onClick={() => setConnecting({})}>Connect LinkedIn account</Button>}
       />
 
       {accounts.isLoading && <LoadingList />}
@@ -153,7 +153,7 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
       illustration="accounts"
       title="No sender accounts yet"
       description="A sender account is a LinkedIn profile that Synex sends connection requests and messages from. You sign in once, Synex keeps the session, and each account has its own daily limit and optional proxy."
-      action={<Button onClick={onConnect}>Connect your first account</Button>}
+      action={<Button onClick={onConnect}>Connect LinkedIn account</Button>}
     />
   );
 }

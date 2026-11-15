@@ -7,7 +7,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { Reveal } from "@/lib/motion";
 
 const STEPS = [
-  { icon: Link2, title: "Connect a LinkedIn account", text: "Sign in once. Synex keeps the session and respects daily limits." },
+  { icon: Link2, title: "Connect LinkedIn account", text: "Sign in once. Synex keeps the session and respects daily limits." },
   { icon: Users, title: "Import your leads", text: "Upload a CSV or add people one by one." },
   { icon: Send, title: "Run a campaign", text: "Send connection requests and follow-ups inside working hours." },
 ];
@@ -43,7 +43,7 @@ export function WelcomePage() {
         <div className="flex flex-wrap items-center gap-4">
           <Button asChild>
             <Link to="/linkedin-accounts?connect=1">
-              Connect your first account
+              Connect LinkedIn account
               <ArrowRight />
             </Link>
           </Button>

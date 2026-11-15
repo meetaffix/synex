@@ -106,7 +106,6 @@ export function CalendarPage() {
               className={`calendar-cell ${selected === key(d) ? "selected-day" : ""} ${dayKey(new Date(), zone) === key(d) ? "today" : ""}`}
               key={d}
               onClick={() => setSelected(key(d))}
-              aria-label={`${d}, ${key(d)}: ${rows.length} ${rows.length === 1 ? "post" : "posts"}`}
             >
               <span>{d}</span>
               {rows.slice(0, 2).map((p) => (
@@ -115,6 +114,8 @@ export function CalendarPage() {
                 </span>
               ))}
               {rows.length > 2 && <small>+{rows.length - 2} more</small>}
+              {/* No aria-label: the name is built from what is shown, so it always contains it (WCAG 2.5.3). */}
+              <span className="sr-only">{`${key(d)}: ${rows.length} ${rows.length === 1 ? "post" : "posts"}`}</span>
             </button>
           );
         })}

@@ -28,8 +28,8 @@ for (const theme of ["light", "dark"] as const) {
     await page.clock.setFixedTime(new Date("2026-11-15T12:00:00Z"));
     await page.goto("/others/publishing/calendar");
 
-    const day = page.getByRole("button", { name: "20, 2026-11-20: 1 post" });
-    const other = page.getByRole("button", { name: "21, 2026-11-21: 0 posts" });
+    const day = page.getByRole("button", { name: /^20.*Hiring lessons.*2026-11-20: 1 post$/ });
+    const other = page.getByRole("button", { name: /^21.*2026-11-21: 0 posts$/ });
     await expect(day).toBeVisible();
     const before = await background(day);
     await day.click();

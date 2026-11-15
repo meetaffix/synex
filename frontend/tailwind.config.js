@@ -20,6 +20,8 @@ export default {
       base: ["var(--text-base)", { lineHeight: "var(--text-base-leading)" }],
       xl: ["var(--text-xl)", { lineHeight: "var(--text-xl-leading)" }],
       "2xl": ["var(--text-2xl)", { lineHeight: "var(--text-2xl-leading)" }],
+      // The hero metric only (docs/DESIGN.md, Typography). Nothing else uses it.
+      display: ["var(--text-display)", { lineHeight: "var(--text-display-leading)" }],
     },
     container: {
       center: true,

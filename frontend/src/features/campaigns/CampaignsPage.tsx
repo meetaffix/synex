@@ -45,7 +45,7 @@ export function CampaignsPage() {
       )}
       {!loading && !failure && accounts.data?.length === 0 && (
         <ConnectAccountEmpty
-          title="Connect a sender account to run campaigns"
+          title="Connect LinkedIn account to run campaigns"
           description="A campaign sends connection requests and messages from a LinkedIn profile you connect to Synex. Connect one first, then your campaigns appear here."
         />
       )}

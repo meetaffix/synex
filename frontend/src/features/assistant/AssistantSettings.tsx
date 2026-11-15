@@ -34,7 +34,7 @@ export function AssistantSettings() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (isLoading) return <Skeleton className="h-64 w-full" aria-label="Loading assistant settings" />;
+  if (isLoading) return <Skeleton role="status" className="h-64 w-full" aria-label="Loading assistant settings" />;
   if (isError || !data)
     return (
       <Card>

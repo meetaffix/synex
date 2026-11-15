@@ -476,7 +476,7 @@ def _enrich(lead_id: str, db: Session, user: models.User):
     if not accounts:
         raise HTTPException(
             status_code=400,
-            detail="Connect a LinkedIn account (browser extension) before enriching",
+            detail="Connect LinkedIn account before enriching",
         )
     now = datetime.now(timezone.utc)
     account = next((a for a in accounts if engine.account_is_live(a, now)), accounts[0])

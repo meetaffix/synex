@@ -41,7 +41,7 @@ test.describe("dialog behaviour", () => {
   test("focus stays inside the connect dialog, forwards and backwards, and returns on close", async ({ page }) => {
     await mockApi(page, newApi());
     await page.goto("/linkedin-accounts");
-    const opener = page.getByRole("button", { name: /^Connect (account|your first account)$/ });
+    const opener = page.getByRole("button", { name: "Connect LinkedIn account" });
     await opener.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Email or phone")).toBeFocused();
@@ -82,10 +82,10 @@ test.describe("dialog behaviour", () => {
     await mockApi(page, api);
     await page.goto("/dashboard");
     await page.getByRole("link", { name: "Sender accounts", exact: true }).first().click();
-    await page.getByRole("button", { name: /^Connect (account|your first account)$/ }).click();
+    await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
     await page.getByLabel("Email or phone").fill("ada@example.com");
     await page.getByLabel("LinkedIn password").fill("Sup3r-Secret-Pw");
-    await page.getByRole("dialog").getByRole("button", { name: "Connect account" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Connect LinkedIn account" }).click();
     await expect(page.getByRole("heading", { name: "Approve the sign-in in your LinkedIn app" })).toBeVisible({ timeout: 15_000 });
 
     await page.goBack(); // a client-side navigation: the dialog and its polling unmount
@@ -105,7 +105,8 @@ test.describe("dropdown menus (not modal)", () => {
       await page.goto("/linkedin-accounts");
       const trigger = page.getByRole("button", { name: "More actions for Ada Lovelace" });
 
-      await trigger.click();
+      await trigger.focus();
+      await page.keyboard.press("Enter");  // opened from the keyboard, the first item takes focus (a pointer open focuses the menu itself)
       const menu = page.getByRole("menu");
       await expect(menu).toBeVisible();
       await expect(menu.getByRole("menuitem").first()).toBeFocused();
