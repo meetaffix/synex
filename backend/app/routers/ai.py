@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from ..deps import get_data_user
 from ..schemas import AIGenerateIn
-from ..providers import get_ai_provider
+from ..providers import TemplateAIProvider, get_ai_provider
 from .. import models
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -19,5 +19,9 @@ def generate_message(
         "company": payload.company,
         "job_title": payload.job_title,
     }
-    body = provider.generate_message(payload.step_type or "message", payload.tone or "friendly", ctx)
+    step, tone = payload.step_type or "message", payload.tone or "friendly"
+    try:
+        body = provider.generate_message(step, tone, ctx)
+    except Exception:  # Deepgram unreachable, refused or empty: the local draft is still a usable starting point
+        body = TemplateAIProvider().generate_message(step, tone, ctx)
     return {"body": body}

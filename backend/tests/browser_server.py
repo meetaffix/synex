@@ -6,6 +6,7 @@ from unittest.mock import Mock
 os.environ["DATABASE_URL"] = "sqlite:///" + str(Path(__file__).with_name("browser-test.db")).replace("\\", "/")
 os.environ["SECRET_KEY"] = "browser-test-secret-0123456789-abcdef"
 os.environ["ENCRYPTION_KEY"] = "browser-test-encryption-0123456789-abcdef"
+os.environ["DEEPGRAM_API_KEY"] = "browser-test-fake-deepgram-key"  # never the real key from .env: no real Deepgram calls in tests
 import safety
 safety.assert_isolated_database(os.environ["DATABASE_URL"])
 os.environ["CORS_ORIGINS"] = "http://127.0.0.1:5174"

@@ -5,9 +5,8 @@ LinkedIn actions are executed by the outreach engine (``engine.py`` and
 rendering and message drafting.
 
 The default drafting provider personalizes a structured draft from the
-prospect's own fields. To use a real LLM, implement ``AIProvider`` and return it
-from ``get_ai_provider`` (e.g. gated behind an API-key env var) — no other code
-needs to change.
+prospect's own fields. With ``DEEPGRAM_API_KEY`` set, ``get_ai_provider`` returns the
+Deepgram-backed provider instead; Deepgram is the only AI service Synex uses.
 """
 
 from __future__ import annotations
@@ -79,70 +78,36 @@ class TemplateAIProvider(AIProvider):
         )
 
 
-class AnthropicAIProvider(AIProvider):
-    """LLM-backed drafting via the Anthropic Messages API (stdlib HTTP only).
+class DeepgramAIProvider(AIProvider):
+    """LLM-backed drafting through Deepgram's Voice Agent, the only AI service Synex uses (see ``deepgram_text``).
 
-    Used automatically when ``ANTHROPIC_API_KEY`` is configured. Any API
-    failure raises, and callers fall back to the template provider.
+    Used automatically when ``DEEPGRAM_API_KEY`` is configured. Any failure raises, and callers fall back to the
+    template provider.
     """
 
-    API_URL = "https://api.anthropic.com/v1/messages"
-
     STEP_BRIEF = {
-        "connection_request": (
-            "a LinkedIn connection request note (max 280 characters, no subject line)"
-        ),
+        "connection_request": "a LinkedIn connection request note (max 280 characters, no subject line)",
         "follow_up": "a short LinkedIn follow-up message to someone who hasn't replied yet",
     }
-
-    def __init__(self, api_key: str, model: str) -> None:
-        self._api_key = api_key
-        self._model = model
+    SYSTEM = ("You write short LinkedIn outreach messages. Reply with the message text only: no preamble, no quotes, "
+              "no emojis, no placeholder brackets. Personalize only from the details given and never invent facts "
+              "about the prospect.")
 
     def generate_message(self, step_type: str, tone: str, ctx: dict) -> str:
         import json
-        import urllib.request
 
-        brief = self.STEP_BRIEF.get(
-            step_type, "a short LinkedIn first message to a new connection"
-        )
+        from .deepgram_text import complete
+
+        brief = self.STEP_BRIEF.get(step_type, "a short LinkedIn first message to a new connection")
         known = {k: v for k, v in ctx.items() if v}
-        prompt = (
-            f"Write {brief} in a {tone or 'friendly'} tone.\n"
-            f"Prospect details: {json.dumps(known) if known else 'unknown'}.\n"
-            "Rules: 1-3 sentences, no emojis, no placeholder brackets, no preamble — "
-            "reply with the message text only. Personalize only from the details given; "
-            "never invent facts about the prospect."
-        )
-        body = json.dumps(
-            {
-                "model": self._model,
-                "max_tokens": 300,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-        ).encode()
-        req = urllib.request.Request(
-            self.API_URL,
-            data=body,
-            headers={
-                "content-type": "application/json",
-                "x-api-key": self._api_key,
-                "anthropic-version": "2023-06-01",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read())
-        text = "".join(
-            block.get("text", "") for block in data.get("content", [])
-        ).strip()
-        if not text:
-            raise RuntimeError("empty completion")
-        return text
+        prompt = (f"Write {brief} in a {tone or 'friendly'} tone, 1-3 sentences.\n"
+                  f"Prospect details: {json.dumps(known) if known else 'unknown'}.")
+        return complete(self.SYSTEM, prompt)
 
 
 def get_ai_provider() -> AIProvider:
-    from .config import settings
+    from .assistant.config import assistant_config
 
-    if settings.anthropic_api_key:
-        return AnthropicAIProvider(settings.anthropic_api_key, settings.anthropic_model)
+    if assistant_config.deepgram_api_key:
+        return DeepgramAIProvider()
     return TemplateAIProvider()

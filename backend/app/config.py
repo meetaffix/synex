@@ -37,11 +37,6 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "no-reply@synex.local"
 
-    # AI drafting. When set, message personalization uses the Anthropic API;
-    # otherwise the deterministic local template provider is used.
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-haiku-4-5-20251001"
-
     # Cloud execution mode: encrypts stored li_at / JSESSIONID cookies at rest.
     # Falls back to a key derived from secret_key when unset (fine for dev;
     # set a dedicated key in production so cookie secrets are independently

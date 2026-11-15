@@ -12,6 +12,8 @@ from .publishing_models import Post, Execution, WorkerHeartbeat, Preference
 from .linkedin import owned, available, configured
 from .sessions import aware
 from .config import settings
+from .assistant.config import assistant_config
+from .deepgram_text import DeepgramTextError, complete
 
 router = APIRouter(prefix="/publishing", tags=["publishing"])
 
@@ -148,7 +150,7 @@ def metrics(db: Session = Depends(get_db), user=Depends(get_data_user)):
 def diagnostics(db: Session = Depends(get_db), user=Depends(get_admin_user)):
     last = db.query(func.max(WorkerHeartbeat.checked_at)).scalar()
     return {"oauthConfigured": configured(), "workerHealthy": bool(last and (datetime.now(timezone.utc) - aware(last)).total_seconds() < 120),
-            "workerLastSeen": iso(last), "aiConfigured": bool(settings.anthropic_api_key)}
+            "workerLastSeen": iso(last), "aiConfigured": bool(assistant_config.deepgram_api_key)}
 
 
 class PrefIn(BaseModel):
@@ -181,18 +183,15 @@ class AssistIn(BaseModel):
 
 @router.post("/assist")
 def assist(payload: AssistIn, user=Depends(get_manager_user)):
-    if not settings.anthropic_api_key:
+    if not assistant_config.deepgram_api_key:
         raise HTTPException(503, "Writing assistance is not configured.")
     try:
-        r = httpx.post("https://api.anthropic.com/v1/messages", headers={"x-api-key": settings.anthropic_api_key, "anthropic-version": "2023-06-01"}, json={
-            "model": settings.anthropic_model, "max_tokens": 1500,
-            "system": "Edit LinkedIn post drafts. Preserve factual meaning. Never invent claims. Return only the revised post, at most 3000 characters.",
-            "messages": [{"role": "user", "content": payload.instruction + "\n\n" + payload.body}],
-        }, timeout=30)
-        r.raise_for_status()
-        body = "".join(b.get("text", "") for b in r.json()["content"])
+        body = complete(
+            "Edit LinkedIn post drafts. Preserve factual meaning. Never invent claims. Return only the revised post, at most 3000 characters.",
+            payload.instruction + "\n\n" + payload.body,
+        )
         if not body.strip() or len(body) > 3000:
             raise ValueError()
         return {"body": body}
-    except (httpx.HTTPError, KeyError, ValueError):
+    except (DeepgramTextError, ValueError):
         raise HTTPException(502, "Writing assistance could not complete. Your draft has not changed.")
