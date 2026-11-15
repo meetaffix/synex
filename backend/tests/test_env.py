@@ -72,6 +72,50 @@ class DatabaseUrlTest(unittest.TestCase):
         self.assertEqual(errors(findings(self.cockroach("?sslmode=verify-full&sslrootcert=/no/such/root.crt"))), {"DATABASE_URL"})
         self.assertEqual(errors(findings(base(database_url="cockroachdb://user@host:26257/db?sslmode=verify-full&sslrootcert=" + CERT.as_posix()))), {"DATABASE_URL"})
 
+    def test_a_console_url_gets_the_cockroachdb_dialect_and_other_urls_are_untouched(self):
+        console = "postgresql://u:p@abc-123.x.aws-ap-south-1.cockroachlabs.cloud:26257/synex?sslmode=verify-full"
+        self.assertTrue(database.engine_url(console).startswith("cockroachdb://u:p@abc-123"))
+        for other in ("postgresql://u:p@db.example.com/x", "sqlite:///x.db", "cockroachdb://u:p@h/x"):
+            self.assertEqual(database.engine_url(other), other)
+
+    def test_a_serialization_error_is_retried_and_any_other_error_is_not(self):
+        from sqlalchemy.exc import DBAPIError
+
+        def failing(code):
+            class Orig(Exception):
+                pgcode = code
+            return DBAPIError("stmt", {}, Orig())
+
+        calls = []
+
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise failing("40001")
+            return "done"
+
+        with patch("time.sleep"):
+            self.assertEqual(database.with_retry(flaky), "done")
+            self.assertEqual(len(calls), 3)
+            other = []
+
+            def broken():
+                other.append(1)
+                raise failing("23505")
+
+            with self.assertRaises(DBAPIError):
+                database.with_retry(broken)
+            self.assertEqual(len(other), 1)
+            always = []
+
+            def never_works():
+                always.append(1)
+                raise failing("40001")
+
+            with self.assertRaises(DBAPIError):
+                database.with_retry(never_works, attempts=3)
+            self.assertEqual(len(always), 3)
+
     def test_an_unsupported_scheme_is_an_error_and_no_message_shows_the_password(self):
         self.assertEqual(errors(findings(base(database_url="mysql://u:p@h/db"))), {"DATABASE_URL"})
         text = check_env.render(findings(self.cockroach("?sslmode=disable")))
