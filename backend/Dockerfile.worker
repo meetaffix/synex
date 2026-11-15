@@ -5,5 +5,6 @@ WORKDIR /srv/backend
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app ./app
+COPY certs ./certs
 # Exactly one replica. Nothing is stored on this disk: sessions live encrypted in the database.
 CMD ["python", "-m", "app.outreach_worker"]
