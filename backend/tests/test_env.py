@@ -20,7 +20,7 @@ import safety
 safety.assert_isolated_database(os.environ["DATABASE_URL"])
 from app import check_env, config, database
 from app.assistant.config import assistant_config
-from app.config import DB_CONNECTION_BUDGET, DB_POOLS, ENV_FILE, Settings, settings
+from app.config import DB_CONNECTION_BUDGET, DB_POOLS, ENV_FILE, MAX_BROWSERS_CEILING, Settings, settings
 
 atexit.register(database.engine.dispose)
 BACKEND = Path(__file__).resolve().parents[1]
@@ -71,6 +71,50 @@ class DatabaseUrlTest(unittest.TestCase):
         self.assertEqual(errors(findings(self.cockroach("?sslmode=verify-full"))), {"DATABASE_URL"})
         self.assertEqual(errors(findings(self.cockroach("?sslmode=verify-full&sslrootcert=/no/such/root.crt"))), {"DATABASE_URL"})
         self.assertEqual(errors(findings(base(database_url="cockroachdb://user@host:26257/db?sslmode=verify-full&sslrootcert=" + CERT.as_posix()))), {"DATABASE_URL"})
+
+    def test_a_console_url_gets_the_cockroachdb_dialect_and_other_urls_are_untouched(self):
+        console = "postgresql://u:p@abc-123.x.aws-ap-south-1.cockroachlabs.cloud:26257/synex?sslmode=verify-full"
+        self.assertTrue(database.engine_url(console).startswith("cockroachdb://u:p@abc-123"))
+        for other in ("postgresql://u:p@db.example.com/x", "sqlite:///x.db", "cockroachdb://u:p@h/x"):
+            self.assertEqual(database.engine_url(other), other)
+
+    def test_a_serialization_error_is_retried_and_any_other_error_is_not(self):
+        from sqlalchemy.exc import DBAPIError
+
+        def failing(code):
+            class Orig(Exception):
+                pgcode = code
+            return DBAPIError("stmt", {}, Orig())
+
+        calls = []
+
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise failing("40001")
+            return "done"
+
+        with patch("time.sleep"):
+            self.assertEqual(database.with_retry(flaky), "done")
+            self.assertEqual(len(calls), 3)
+            other = []
+
+            def broken():
+                other.append(1)
+                raise failing("23505")
+
+            with self.assertRaises(DBAPIError):
+                database.with_retry(broken)
+            self.assertEqual(len(other), 1)
+            always = []
+
+            def never_works():
+                always.append(1)
+                raise failing("40001")
+
+            with self.assertRaises(DBAPIError):
+                database.with_retry(never_works, attempts=3)
+            self.assertEqual(len(always), 3)
 
     def test_an_unsupported_scheme_is_an_error_and_no_message_shows_the_password(self):
         self.assertEqual(errors(findings(base(database_url="mysql://u:p@h/db"))), {"DATABASE_URL"})
@@ -128,6 +172,25 @@ class NamesInTheFileTest(unittest.TestCase):
             self.assertNotIn(gone, example)
         self.assertFalse((config.ENV_FILE.parent / "backend" / ".env.example").exists())
         self.assertFalse((config.ENV_FILE.parent / "frontend" / ".env.example").exists())
+
+
+class BrowserCapTest(unittest.TestCase):
+    def test_the_browser_cap_has_a_hard_ceiling_that_no_setting_can_exceed(self):
+        self.assertEqual(MAX_BROWSERS_CEILING, 5)
+        self.assertEqual(base(linkedin_session_max_browsers=3).effective_max_browsers, 3)
+        self.assertEqual(base(linkedin_session_max_browsers=50).effective_max_browsers, MAX_BROWSERS_CEILING)
+        self.assertEqual(base(linkedin_session_max_browsers=0).effective_max_browsers, 1)
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=6))), {"LINKEDIN_SESSION_MAX_BROWSERS"})
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=0))), {"LINKEDIN_SESSION_MAX_BROWSERS"})
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=2))), set())
+
+    def test_both_managers_are_built_with_the_capped_value(self):
+        import inspect
+        from app import outreach_worker
+        from app.linkedin_session import service
+        for module in (outreach_worker, service):
+            self.assertIn("effective_max_browsers", inspect.getsource(module))
+            self.assertNotIn("settings.linkedin_session_max_browsers", inspect.getsource(module))
 
 
 class ConnectionBudgetTest(unittest.TestCase):

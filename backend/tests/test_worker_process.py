@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import psutil
 
-from test_outreach import MOCK, OutreachCase  # noqa: E402  (sets the isolated environment and imports the app)
+from test_outreach import INVITE_ONLY, MOCK, OutreachCase  # noqa: E402  (sets the isolated environment and imports the app)
 from app import models  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
@@ -319,6 +319,50 @@ class LeaseLossTest(OutreachCase):
         self.assertEqual(statuses.count("done"), len(MOCK.invites))
         with SessionLocal() as db:
             self.assertEqual(db.get(models.AccountLease, account_id).holder, "intruder")  # it did not release another worker's lease
+
+
+class FreshDiskTest(WorkerProcessCase):
+    """A redeploy gives a worker an empty disk. Everything an account needs lives encrypted in the database, so the
+    account stays connected and the worker keeps acting for it."""
+
+    def test_a_worker_on_a_brand_new_empty_disk_keeps_the_account_connected_and_acts_with_the_stored_session(self):
+        import shutil
+        import tempfile
+        account_id = self.make_account("redeploy")
+        with SessionLocal() as db:
+            before = db.get(models.LinkedInAccount, account_id)
+            stored = (before.session_state_encrypted, before.status, before.session_status)
+        self.assertTrue(stored[0], "the session state must be stored in the database")
+
+        def fresh_disk():
+            folder = tempfile.mkdtemp(prefix="empty-disk-")
+            return folder, {"TMP": folder, "TEMP": folder, "TMPDIR": folder}
+
+        # First deploy: an empty disk, one action.
+        disk_a, env_a = fresh_disk()
+        self.make_campaign(["ann"], INVITE_ONLY, [account_id], launch=True)
+        first = self.start(**env_a)
+        self.wait_until(lambda: len(MOCK.invites) == 1, what="the first deploy's action")
+        first.stop()
+        shutil.rmtree(disk_a, ignore_errors=True)  # the container and its disk are gone
+
+        # A redeploy: a new process, a new empty disk, nothing carried over except the database.
+        disk_b, env_b = fresh_disk()
+        self.assertEqual(os.listdir(disk_b), [])
+        with SessionLocal() as db:  # time passes between deploys: the human-pacing gap after the first send is over
+            db.get(models.LinkedInAccount, account_id).next_action_at = None
+            db.commit()
+        self.make_campaign(["bob"], INVITE_ONLY, [account_id], launch=True)
+        second = self.start(**env_b)
+        self.wait_until(lambda: len(MOCK.invites) == 2, what="the redeployed worker's action")
+        second.stop()
+        self.assertEqual(sorted(user for user, _ in MOCK.invites), ["ann", "bob"])
+        with SessionLocal() as db:
+            after = db.get(models.LinkedInAccount, account_id)
+            self.assertEqual((after.status, after.session_status), (stored[1], stored[2]))  # still connected, not asked to reconnect
+            self.assertTrue(after.session_state_encrypted)
+        self.assertEqual([t[1] for t in self.task_rows()], ["done", "done"])
+        shutil.rmtree(disk_b, ignore_errors=True)
 
 
 if __name__ == "__main__":

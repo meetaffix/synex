@@ -1,0 +1,9 @@
+# synex-outreach-worker: drives LinkedIn in Chromium. Same code, Playwright's browser image (version matches requirements.txt).
+FROM mcr.microsoft.com/playwright/python:v1.65.2-noble
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+WORKDIR /srv/backend
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY app ./app
+# Exactly one replica. Nothing is stored on this disk: sessions live encrypted in the database.
+CMD ["python", "-m", "app.outreach_worker"]

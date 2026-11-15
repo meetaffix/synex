@@ -19,7 +19,7 @@ def get_manager() -> SessionManager:
     global _manager
     if _manager is None:
         _manager = SessionManager(
-            LINKEDIN, max_browsers=settings.linkedin_session_max_browsers,
+            LINKEDIN, max_browsers=settings.effective_max_browsers,
             attempt_timeout=settings.linkedin_session_attempt_timeout_seconds,
             poll_interval=settings.linkedin_session_poll_interval_seconds,
             headless=settings.linkedin_session_headless)
