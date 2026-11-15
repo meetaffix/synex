@@ -15,6 +15,7 @@ from sqlalchemy import (
     Index,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -330,6 +331,29 @@ class Message(Base):
     task_id = Column(String, nullable=True, index=True)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+
+class LeadDraft(Base):
+    """A message prepared BEFORE a campaign sends, for one lead and one step.
+
+    AI personalization happens here, at campaign preparation, never while sending: the engine sends only finished
+    text. A draft starts as ``proposed``; the user reviews and edits it and approves it, and only an ``approved``
+    draft is sent. A lead without an approved draft gets the step's template with variables and spintax.
+    """
+
+    __tablename__ = "lead_drafts"
+    __table_args__ = (UniqueConstraint("campaign_id", "step_id", "lead_id", name="ux_lead_drafts_campaign_step_lead"),)
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    campaign_id = Column(String, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_id = Column(String, ForeignKey("campaign_steps.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(String, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    status = Column(String, default="proposed", nullable=False)  # proposed | approved
+    source = Column(String, default="ai", nullable=False)  # ai (Deepgram) | template (fallback) | edited (by a person)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class Template(Base):

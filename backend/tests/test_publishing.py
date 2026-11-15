@@ -30,6 +30,7 @@ ORIGIN = {"Origin": "http://localhost:5173"}
 
 
 class PublishingTest(unittest.TestCase):
+    serial = True  # a concurrency test: run_tests.py runs it alone, never beside other tests
     def setUp(self):
         Base.metadata.drop_all(engine)
         migrate()

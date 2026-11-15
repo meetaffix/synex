@@ -112,6 +112,7 @@ def seconds(line: str) -> float:
 
 
 class WorkerProcessCase(OutreachCase):
+    serial = True  # a concurrency test: run_tests.py runs it alone, never beside other tests
     def setUp(self):
         super().setUp()
         self.processes: list[WorkerProcess] = []

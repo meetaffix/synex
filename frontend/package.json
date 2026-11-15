@@ -10,7 +10,8 @@
     "test": "playwright test",
     "typecheck": "tsc -b",
     "format:check": "prettier --check src/features/publishing",
-    "contrast": "node scripts/contrast.mjs"
+    "contrast": "node scripts/contrast.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.18.8",

@@ -9,14 +9,14 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .errors import sanitize_errors
 from .migrations import migrate
-from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk
+from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts
 from .linkedin_session import shutdown_manager
 from . import linkedin, publishing, images
 
 @asynccontextmanager
 async def lifespan(app):
-    if len(settings.secret_key) < 32:
-        raise RuntimeError("Set SECRET_KEY to a random value of at least 32 characters")
+    from .check_env import require_valid_env
+    require_valid_env("The API")  # names of what is wrong, never values
     migrate()
     yield
     shutdown_manager()
@@ -72,7 +72,7 @@ async def safeguards(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store"
     return response
 
-for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router):
+for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router):
     app.include_router(router)
 
 @app.get("/health")

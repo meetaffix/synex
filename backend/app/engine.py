@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING, settings
-from .providers import get_ai_provider, render_variables
+from .providers import render_variables  # the engine never imports an AI provider: it sends finished text only
 
 # Campaign step type -> executor task type.
 ACTION_TASKS = {
@@ -465,16 +465,20 @@ def stop_run(run: models.SequenceRun, reason: str, now: datetime) -> None:
     run.completed_at = now
 
 
-def render_message(campaign: models.Campaign, step: models.CampaignStep, lead: models.Lead) -> str:
-    """Render the step copy, or generate a personalized draft when AI is on."""
-    if campaign.ai_personalization:
-        try:
-            return get_ai_provider().generate_message(
-                step.type, "friendly", {"first_name": lead.first_name, "company": lead.company, "job_title": lead.job_title},
-            )
-        except Exception:
-            pass
-    return render_variables(step.message, lead)
+def message_for(db: Session, campaign: models.Campaign, step: models.CampaignStep, lead: models.Lead) -> tuple[str, bool]:
+    """The finished text to send, and whether it is a prepared draft. Never calls an AI service.
+
+    The approved draft for this lead and step if there is one (prepared before launch, see ``drafts.py``); otherwise
+    the step's template with variables and spintax. Sending, the dry run and the planner all use this one function.
+    """
+    draft = (
+        db.query(models.LeadDraft)
+        .filter_by(campaign_id=campaign.id, step_id=step.id, lead_id=lead.id, status="approved")
+        .first()
+    )
+    if draft is not None:
+        return draft.body, True
+    return render_variables(step.message, lead), False
 
 
 def _schedule_after(campaign: models.Campaign, now: datetime, hours: int | None) -> datetime:
@@ -552,14 +556,14 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
         if (campaign.audience_source or {}).get("type") == "connections" or lead.status in ACCEPTED_STATES:
             move_past(steps, run, step, now)
             return
-        _send_or_park(db, campaign, run, step, "send_invite", lead, render_message(campaign, step, lead), accounts, now)
+        _send_or_park(db, campaign, run, step, "send_invite", lead, message_for(db, campaign, step, lead)[0], accounts, now)
         return
 
     if step.type in ("message", "follow_up"):
         if lead.status not in ACCEPTED_STATES:
             _await_acceptance(db, campaign, run, step, lead, accounts, now)
             return
-        _send_or_park(db, campaign, run, step, "send_message", lead, render_message(campaign, step, lead), accounts, now)
+        _send_or_park(db, campaign, run, step, "send_message", lead, message_for(db, campaign, step, lead)[0], accounts, now)
         return
 
     if step.type in ACTION_TASKS:

@@ -296,8 +296,10 @@ def run(worker: OutreachWorker) -> None:
 
 
 def main() -> None:
+    from .check_env import require_valid_env
     from .migrations import migrate
 
+    require_valid_env("The outreach worker")  # names of what is wrong, never values
     migrate()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s.%(msecs)03d %(name)s %(message)s", datefmt="%H:%M:%S")
     pages = load_pages()

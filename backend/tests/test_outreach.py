@@ -464,6 +464,7 @@ class LimitsTest(OutreachCase):
 # ===================================================================== no double sends
 
 class NoDoubleSendTest(OutreachCase):
+    serial = True  # a concurrency test: run_tests.py runs it alone, never beside other tests
     INVITE_ONLY = [{"type": "connection_request", "message": "Hi {{first_name}}"}, {"type": "end"}]
 
     def crashing_invite(self):
@@ -1247,6 +1248,7 @@ class DryRunMatchesWorkerTest(OutreachCase):
 
 
 class LeaseTest(OutreachCase):
+    serial = True  # a concurrency test: run_tests.py runs it alone, never beside other tests
     def acquire(self, account_id, holder, now):
         with SessionLocal() as db:
             return results.acquire_lease(db, account_id, holder, now)

@@ -182,9 +182,10 @@ class AssistIn(BaseModel):
 
 
 @router.post("/assist")
-def assist(payload: AssistIn, user=Depends(get_manager_user)):
+def assist(payload: AssistIn, user=Depends(get_manager_user), db: Session = Depends(get_db)):
     if not assistant_config.deepgram_api_key:
         raise HTTPException(503, "Writing assistance is not configured.")
+    db.rollback()  # the sign-in lookup is done: no transaction stays open while Deepgram is called
     try:
         body = complete(
             "Edit LinkedIn post drafts. Preserve factual meaning. Never invent claims. Return only the revised post, at most 3000 characters.",
