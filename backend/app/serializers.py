@@ -258,22 +258,6 @@ def import_job_out(j: models.ImportJob) -> dict:
     }
 
 
-# ---------------------------- Agent activity -----------------------------
-def agent_activity_out(a: models.AgentActivity) -> dict:
-    return {
-        "id": a.id,
-        "accountId": a.account_id,
-        "scope": a.scope,
-        "jobId": a.job_id,
-        "step": a.step,
-        "status": a.status,
-        "message": a.message,
-        "count": a.count,
-        "total": a.total,
-        "createdAt": _iso(a.created_at),
-    }
-
-
 # ------------------------------- Templates -------------------------------
 def template_out(t: models.Template) -> dict:
     return {
