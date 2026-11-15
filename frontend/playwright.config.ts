@@ -22,7 +22,8 @@ export default defineConfig({
     {
       command: "npx vite --port 5174 --host 127.0.0.1 --strictPort",
       url: APP_URL,
-      env: { VITE_API_URL: API_URL },
+      // The specs use the built-in sign-in and a mocked API: an empty key keeps Clerk mode off even when frontend/.env has one.
+      env: { VITE_API_URL: API_URL, VITE_CLERK_PUBLISHABLE_KEY: "" },
       reuseExistingServer: false,
       timeout: 60_000,
     },

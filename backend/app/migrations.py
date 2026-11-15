@@ -63,6 +63,11 @@ def migrate():
             _lower_to_ceiling(db, models.Campaign, "daily_message_limit", DAILY_TYPE_CEILINGS["send_message"])
             db.add(p.Migration(version="007_limit_ceilings"))
             db.commit()
+        if not db.get(p.Migration, "008_clerk_user_id"):
+            # The column itself is added by run_simple_migrations; this makes a Clerk user link to one row only.
+            db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_clerk_user_id ON users (clerk_user_id)"))
+            db.add(p.Migration(version="008_clerk_user_id"))
+            db.commit()
 
 
 def _lower_to_ceiling(db, model, field: str, ceiling: int) -> None:

@@ -1,5 +1,7 @@
+import re
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Hard per-account ceilings. Deliberately constants, not settings: no environment variable, account
@@ -27,6 +29,11 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # Optional regular expression for origins that cannot be listed one by one, such as the preview deployments of
+    # one Vercel project. It must match the WHOLE origin and be specific to this project (never a "*.vercel.app"
+    # wildcard, which would admit every Vercel site). The same set is used for CORS, the origin check on writes and
+    # Clerk's authorized parties. Empty by default.
+    cors_origin_regex: str = ""
 
     # Password-reset email delivery. When SMTP is not configured, the reset
     # link is logged to the server console instead (dev mode).
@@ -75,9 +82,26 @@ class Settings(BaseSettings):
     outreach_acceptance_check_interval_hours: float = 12
     outreach_inbox_sync_interval_minutes: float = 15
 
+    # Authentication. "local" is the built-in email and password sign-in (used by the tests); "clerk" accepts only
+    # Clerk session tokens (see docs/CLERK_MIGRATION.md). One variable switches back if Clerk is misconfigured.
+    auth_provider: str = "local"
+    clerk_secret_key: str = ""
+    clerk_publishable_key: str = Field("", validation_alias=AliasChoices("CLERK_PUBLISHABLE_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "VITE_CLERK_PUBLISHABLE_KEY"))
+    clerk_issuer: str = ""  # optional override of the issuer derived from the publishable key
+    clerk_webhook_secret: str = Field("", validation_alias=AliasChoices("CLERK_WEBHOOK_SECRET", "CLERK_WEBHOOK_SIGNING_SECRET"))
+    clerk_api_url: str = "https://api.clerk.com"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def origin_allowed(self, origin: str | None) -> bool:
+        """True when ``origin`` is listed in CORS_ORIGINS or fully matches CORS_ORIGIN_REGEX."""
+        if not origin:
+            return False
+        if origin in self.cors_origin_list:
+            return True
+        return bool(self.cors_origin_regex) and re.fullmatch(self.cors_origin_regex, origin) is not None
 
 
 @lru_cache

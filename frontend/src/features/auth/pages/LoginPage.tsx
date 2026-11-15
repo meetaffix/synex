@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import { clerkEnabled } from "@/lib/clerk";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,7 +19,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-export function LoginPage() {
+function LocalLoginPage() {
   const { login } = useAuth();
   const {
     register,
@@ -63,6 +65,19 @@ export function LoginPage() {
           Create an account
         </Link>
       </p>
+    </AuthLayout>
+  );
+}
+
+const ClerkSignIn = lazy(() => import("../ClerkSignIn"));
+
+export function LoginPage() {
+  if (!clerkEnabled) return <LocalLoginPage />;
+  return (
+    <AuthLayout title="Welcome back" subtitle="Sign in to your Synex workspace.">
+      <Suspense fallback={null}>
+        <ClerkSignIn mode="sign-in" />
+      </Suspense>
     </AuthLayout>
   );
 }

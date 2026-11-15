@@ -49,6 +49,8 @@ class User(Base):
     role = Column(String, default="Member")
     plan = Column(String, default="free")  # free | pro | scale
     avatar_url = Column(String, nullable=True)
+    # The Clerk user this row is linked to (nullable: set on first Clerk sign-in, matched by verified email).
+    clerk_user_id = Column(String, nullable=True)
 
     # Account settings (persisted, no hardcoded UI defaults).
     notification_prefs = Column(JSON, default=dict)  # {pref_id: bool}

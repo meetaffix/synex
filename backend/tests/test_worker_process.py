@@ -40,6 +40,8 @@ class WorkerProcess:
             **os.environ,
             "DATABASE_URL": settings.database_url,  # the test's temporary database, never synex.db
             "SECRET_KEY": os.environ["SECRET_KEY"],
+            "AUTH_PROVIDER": "local",
+            "DEEPGRAM_API_KEY": "dg-SENTINEL-never-leak-9f3a7c",  # the built-in sign-in, whatever backend/.env says
             "ENCRYPTION_KEY": os.environ["ENCRYPTION_KEY"],
             "OUTREACH_PAGES_FACTORY": "mock_linkedin:pages_from_env",
             "MOCK_LINKEDIN_URL": MOCK.base_url,

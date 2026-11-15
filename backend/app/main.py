@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .errors import sanitize_errors
 from .migrations import migrate
-from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant
+from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk
 from .linkedin_session import shutdown_manager
 from . import linkedin, publishing, images
 
@@ -22,7 +22,15 @@ async def lifespan(app):
     shutdown_manager()
 
 app = FastAPI(title="SYNEX API", version="2.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
+class SettingsCORSMiddleware(CORSMiddleware):
+    """CORS that asks ``settings.origin_allowed`` on every request, so the listed origins and the optional
+    project-specific regex are the same set the write check and Clerk's authorized parties use."""
+
+    def is_allowed_origin(self, origin: str) -> bool:
+        return settings.origin_allowed(origin)
+
+
+app.add_middleware(SettingsCORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Content-Type", "Authorization"])
 _attempts = defaultdict(deque)
 
@@ -31,7 +39,7 @@ async def safeguards(request: Request, call_next):
     path = request.url.path
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         origin = request.headers.get("origin")
-        if (origin and origin not in settings.cors_origin_list) or (request.cookies.get("synex_session") and not origin):
+        if (origin and not settings.origin_allowed(origin)) or (request.cookies.get("synex_session") and not origin):
             return JSONResponse({"detail": "Request origin is not allowed"}, status_code=403)
         if path == "/auth":
             key = request.client.host if request.client else "unknown"
@@ -64,7 +72,7 @@ async def safeguards(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store"
     return response
 
-for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router):
+for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router):
     app.include_router(router)
 
 @app.get("/health")

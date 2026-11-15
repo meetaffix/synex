@@ -13,6 +13,12 @@ export class ApiError extends Error {
   }
 }
 
+/** In Clerk mode the app registers a function here that returns the current Clerk session token. */
+let tokenGetter: (() => Promise<string | null>) | null = null;
+export function setTokenGetter(getter: (() => Promise<string | null>) | null) {
+  tokenGetter = getter;
+}
+
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Unified request entry point against the SYNEX FastAPI backend. */
@@ -23,12 +29,13 @@ export async function request<T>(
 ): Promise<T> {
   let res: Response;
   try {
+    const token = tokenGetter ? await tokenGetter() : null;
     res = await fetch(`${API_URL}${path}`, {
       method,
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });

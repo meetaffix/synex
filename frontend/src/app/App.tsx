@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProviders } from "./providers";
 import { ProtectedRoute, PublicOnlyRoute } from "@/routes/ProtectedRoute";
 import { AppShell } from "@/components/shell/AppShell";
+import { clerkEnabled } from "@/lib/clerk";
 
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { RegisterPage } from "@/features/auth/pages/RegisterPage";
@@ -58,10 +59,11 @@ export function App() {
 
         {/* Auth (redirects to dashboard when already signed in) */}
         <Route element={<PublicOnlyRoute />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* The trailing /* lets Clerk's own sub-steps (/login/factor-one, ...) render inside the same page. */}
+          <Route path="/login/*" element={<LoginPage />} />
+          <Route path="/register/*" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={clerkEnabled ? <Navigate to="/login" replace /> : <ForgotPasswordPage />} />
+          <Route path="/reset-password" element={clerkEnabled ? <Navigate to="/login" replace /> : <ResetPasswordPage />} />
         </Route>
 
         {/* Authenticated app */}

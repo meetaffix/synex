@@ -10,6 +10,9 @@ def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> models.User:
+    from . import clerk_auth
+    if clerk_auth.enabled():  # Clerk is the only way in: cookie sessions are not accepted
+        return clerk_auth.authenticate(request, db)
     from .publishing_models import SessionToken
     from .sessions import digest, aware
     from datetime import datetime, timezone

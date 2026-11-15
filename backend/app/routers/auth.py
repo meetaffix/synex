@@ -28,7 +28,7 @@ from ..serializers import user_out
 
 from ..schemas import LoginIn, RegisterIn, ProfileUpdateIn, PasswordResetIn
 
-from .. import models
+from .. import clerk_auth, models
 
 
 
@@ -207,6 +207,10 @@ def auth_gateway(body: dict, response: Response, db: Session = Depends(get_db)):
     """
 
     action = body.get("action")
+
+    if clerk_auth.enabled() and action in ("login", "register", "reset-request", "reset-confirm"):
+
+        raise HTTPException(status_code=410, detail="Sign-in is handled by Clerk. Use the sign-in page.")
 
     if action == "login":
 
@@ -389,6 +393,10 @@ def update_me(
 @router.post("/logout")
 
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+
+    if clerk_auth.enabled():  # the session lives in Clerk; the browser signs out there
+
+        return {"ok": True}
 
     db.query(SessionToken).filter_by(digest=digest(request.cookies.get("synex_session", ""))).delete()
 

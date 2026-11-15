@@ -1,17 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
+  lazy,
+  Suspense,
   useContext,
   useEffect,
   useState,
   useCallback,
   type ReactNode,
 } from "react";
+import { clerkEnabled } from "@/lib/clerk";
 import { authService } from "@/services/resources";
 import { toast } from "sonner";
 import type { User } from "@/types";
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -25,9 +28,23 @@ interface AuthContextValue {
   updateUser: (patch: Partial<User>) => void;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+// Clerk mode swaps in a provider backed by Clerk; the build without a Clerk key never loads it.
+const ClerkAuthProvider = lazy(() => import("./ClerkAuthProvider"));
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  if (clerkEnabled) {
+    return (
+      <Suspense fallback={null}>
+        <ClerkAuthProvider>{children}</ClerkAuthProvider>
+      </Suspense>
+    );
+  }
+  return <LocalAuthProvider>{children}</LocalAuthProvider>;
+}
+
+function LocalAuthProvider({ children }: { children: ReactNode }) {
   const queryCache = useQueryClient();
   useEffect(() => {
     const clear = () => setUser(null);

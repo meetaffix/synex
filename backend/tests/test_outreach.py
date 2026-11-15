@@ -15,6 +15,8 @@ TEMP = tempfile.TemporaryDirectory()
 # Same values as the other test modules: whichever is imported first fixes the settings.
 os.environ["DATABASE_URL"] = "sqlite:///" + TEMP.name.replace("\\", "/") + "/test.db"
 os.environ["SECRET_KEY"] = "test-secret-not-for-production-0123456789"
+os.environ["AUTH_PROVIDER"] = "local"  # tests use the built-in sign-in whatever backend/.env says
+os.environ.setdefault("DEEPGRAM_API_KEY", "dg-SENTINEL-never-leak-9f3a7c")  # never the real key from backend/.env
 os.environ["ENCRYPTION_KEY"] = "test-encryption-not-for-production-0123456789"
 os.environ["LINKEDIN_CLIENT_ID"] = "test-client"
 os.environ["LINKEDIN_CLIENT_SECRET"] = "test-client-secret"

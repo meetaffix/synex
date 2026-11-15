@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { clerkEnabled } from "@/lib/clerk";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,7 +23,7 @@ type FormValues = z.infer<typeof schema>;
 
 const PERKS = ["Connect your LinkedIn sender accounts", "Run campaigns within safe daily limits", "Answer every reply from one inbox"];
 
-export function RegisterPage() {
+function LocalRegisterPage() {
   const { register: signUp } = useAuth();
   const navigate = useNavigate();
   const {
@@ -72,6 +74,19 @@ export function RegisterPage() {
           Sign in
         </Link>
       </p>
+    </AuthLayout>
+  );
+}
+
+const ClerkSignIn = lazy(() => import("../ClerkSignIn"));
+
+export function RegisterPage() {
+  if (!clerkEnabled) return <LocalRegisterPage />;
+  return (
+    <AuthLayout title="Create your account" subtitle="A workspace for your LinkedIn outreach.">
+      <Suspense fallback={null}>
+        <ClerkSignIn mode="sign-up" />
+      </Suspense>
     </AuthLayout>
   );
 }

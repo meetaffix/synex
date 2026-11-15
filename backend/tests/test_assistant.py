@@ -13,6 +13,7 @@ from unittest.mock import patch
 TEMP = tempfile.TemporaryDirectory()
 os.environ["DATABASE_URL"] = "sqlite:///" + TEMP.name.replace("\\", "/") + "/test.db"
 os.environ["SECRET_KEY"] = "test-secret-not-for-production-0123456789"
+os.environ["AUTH_PROVIDER"] = "local"  # tests use the built-in sign-in whatever backend/.env says
 os.environ["ENCRYPTION_KEY"] = "test-encryption-not-for-production-0123456789"
 os.environ["LINKEDIN_CLIENT_ID"] = "test-client"
 os.environ["LINKEDIN_CLIENT_SECRET"] = "test-client-secret"

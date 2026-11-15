@@ -115,7 +115,7 @@ def audit(db: Session = Depends(get_db), actor: models.User = Depends(get_curren
 @router.websocket("/ws")
 async def assistant_socket(websocket: WebSocket):
     origin = websocket.headers.get("origin")
-    if origin and origin not in settings.cors_origin_list:
+    if origin and not settings.origin_allowed(origin):
         await websocket.close(code=4403)
         return
     await websocket.accept()
