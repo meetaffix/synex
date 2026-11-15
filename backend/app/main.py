@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .errors import sanitize_errors
 from .migrations import migrate
-from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts
+from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts, dashboard
 from .linkedin_session import shutdown_manager
 from . import linkedin, publishing, images
 
@@ -72,7 +72,7 @@ async def safeguards(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store"
     return response
 
-for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router):
+for router in (auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router, dashboard.router):
     app.include_router(router)
 
 @app.get("/health")

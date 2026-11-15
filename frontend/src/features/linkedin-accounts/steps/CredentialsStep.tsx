@@ -19,6 +19,15 @@ export interface CredentialDefaults {
 }
 
 const TIME_ZONES = Intl.supportedValuesOf("timeZone");
+/** The visitor's own time zone, so nobody has to find it in the list (empty when the browser's name is not listed). */
+const BROWSER_ZONE = (() => {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return TIME_ZONES.includes(zone) ? zone : "";
+  } catch {
+    return "";
+  }
+})();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+[1-9]\d{6,14}$/;
 
@@ -53,7 +62,7 @@ export function CredentialsStep({ defaults, withOptions, notice, onSubmit, onCan
     setValue,
     watch,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { ...defaults, password: "" } });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { ...defaults, timezone: defaults.timezone || BROWSER_ZONE, password: "" } });
 
   const submit = (values: FormValues) => {
     const credentials: Credentials = { identifier: values.identifier, password: values.password };

@@ -1,5 +1,6 @@
-# synex-api: FastAPI. Railway: root directory "backend", start command comes from this file.
-FROM python:3.12-slim
+# synex-api: FastAPI. The sign-in to LinkedIn runs a real browser inside the API process, so the API uses the same
+# Playwright image (browser and its system libraries) as the worker. Railway: root directory "backend".
+FROM mcr.microsoft.com/playwright/python:v1.65.2-noble
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv/backend
 COPY requirements.txt .
