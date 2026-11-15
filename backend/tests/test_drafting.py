@@ -11,6 +11,7 @@ from unittest.mock import patch
 TEMP = tempfile.TemporaryDirectory()
 os.environ["DATABASE_URL"] = "sqlite:///" + TEMP.name.replace("\\", "/") + "/test.db"
 os.environ["SECRET_KEY"] = "test-secret-not-for-production-0123456789"
+os.environ["AUTH_PROVIDER"] = "local"  # tests use the built-in sign-in whatever backend/.env says
 os.environ["ENCRYPTION_KEY"] = "test-encryption-not-for-production-0123456789"
 os.environ["LINKEDIN_CLIENT_ID"] = "test-client"
 os.environ["LINKEDIN_CLIENT_SECRET"] = "test-client-secret"
@@ -153,6 +154,32 @@ class PostAssistTest(DraftingCase):
             self.assertTrue(r.json()["aiConfigured"])
             with patch.object(assistant_config, "deepgram_api_key", ""):
                 self.assertFalse(self.client.get("/publishing/diagnostics").json()["aiConfigured"])
+
+
+class SpintaxFallbackTest(unittest.TestCase):
+    """Without Deepgram the draft comes from templates with variables and spintax, the same wording for the same lead."""
+    def test_spin_picks_one_option_deterministically_and_leaves_other_braces_alone(self):
+        text = "{Hi|Hello|Hey} {{first_name}}, {solo} {a|b}"
+        first = providers.spin(text, "lead-1")
+        self.assertEqual(first, providers.spin(text, "lead-1"))
+        self.assertIn("{{first_name}}", first)
+        self.assertIn("{solo}", first)
+        self.assertNotIn("|", first)
+        self.assertGreater(len({providers.spin("{a|b|c|d|e|f}", f"lead-{n}") for n in range(40)}), 1)  # different leads vary
+
+    def test_variables_then_spintax_in_a_step_message(self):
+        from types import SimpleNamespace
+        lead = SimpleNamespace(id="lead-9", first_name="Ada", last_name="Lovelace", company="Engines", job_title="CTO")
+        once = providers.render_variables("{Hi|Hello} {{first_name}} at {{company}}", lead)
+        self.assertEqual(once, providers.render_variables("{Hi|Hello} {{first_name}} at {{company}}", lead))
+        self.assertIn(once, ("Hi Ada at Engines", "Hello Ada at Engines"))
+
+    def test_the_template_provider_drafts_with_the_leads_fields_and_no_leftover_markup(self):
+        for step in ("connection_request", "message", "follow_up"):
+            body = providers.TemplateAIProvider().generate_message(step, "friendly", {"first_name": "Ada", "company": "Engines", "job_title": "CTO"})
+            self.assertIn("Ada", body)
+            self.assertIn("Engines", body)
+            self.assertNotRegex(body, r"[{}|]")
 
 
 if __name__ == "__main__":

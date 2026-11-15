@@ -11,7 +11,26 @@ Deepgram-backed provider instead; Deepgram is the only AI service Synex uses.
 
 from __future__ import annotations
 
+import hashlib
+import re
 from abc import ABC, abstractmethod
+
+# {option one|option two|option three}: one option is chosen per message. A single "{...}" without a pipe, and the
+# {{variable}} tokens, are left alone.
+_SPINTAX = re.compile(r"(?<!\{)\{([^{}|]*(?:\|[^{}|]*)+)\}(?!\})")
+
+
+def spin(text: str, seed: str = "") -> str:
+    """Pick one option from every {a|b|c} group. The choice depends only on ``seed`` and the position of the group, so
+    the same lead always gets the same wording, and the dry run shows exactly what the engine will send."""
+    counter = iter(range(10_000))
+
+    def choose(match: re.Match) -> str:
+        options = match.group(1).split("|")
+        digest = hashlib.sha256(f"{seed}:{next(counter)}".encode()).digest()
+        return options[int.from_bytes(digest[:4], "big") % len(options)]
+
+    return _SPINTAX.sub(choose, text)
 
 
 def render_variables(text: str | None, lead) -> str:
@@ -37,7 +56,7 @@ def render_variables(text: str | None, lead) -> str:
     }
     for token, value in replacements.items():
         text = text.replace(token, value)
-    return text
+    return spin(text, str(getattr(lead, "id", "") or full_name))
 
 
 # --------------------------------------------------------------------------
@@ -61,21 +80,23 @@ class TemplateAIProvider(AIProvider):
         company = ctx.get("company") or "{{company}}"
         role = ctx.get("job_title") or "{{job_title}}"
 
+        seed = f"{step_type}:{first}:{company}"
         if step_type == "connection_request":
-            return (
-                f"Hi {first}, I came across your work as {role} at {company} "
-                f"and would love to connect."
+            text = (
+                f"{{Hi|Hello}} {first}, {{I came across|I noticed|I saw}} your work as {role} at {company} "
+                f"and {{would love to connect|would be glad to connect}}."
             )
-        if step_type == "follow_up":
-            return (
-                f"Hi {first}, circling back on my last note — happy to share how "
-                f"we help teams like {company}. Worth a quick chat?"
+        elif step_type == "follow_up":
+            text = (
+                f"{{Hi|Hello}} {first}, {{circling back on|following up on}} my last note. {{Happy to share|Glad to share}} how "
+                f"we help teams like {company}. {{Worth a quick chat?|Open to a quick chat?}}"
             )
-        # message / first_message / reply
-        return (
-            f"Thanks for connecting, {first}! I work with people at companies "
-            f"like {company}. Would you be open to a short conversation this week?"
-        )
+        else:  # message / first_message / reply
+            text = (
+                f"{{Thanks for connecting|Great to be connected}}, {first}! I work with people at companies "
+                f"like {company}. {{Would you be open to|Could we set up}} a short conversation this week?"
+            )
+        return spin(text, seed)
 
 
 class DeepgramAIProvider(AIProvider):
