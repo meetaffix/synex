@@ -20,7 +20,7 @@ import safety
 safety.assert_isolated_database(os.environ["DATABASE_URL"])
 from app import check_env, config, database
 from app.assistant.config import assistant_config
-from app.config import DB_CONNECTION_BUDGET, DB_POOLS, ENV_FILE, Settings, settings
+from app.config import DB_CONNECTION_BUDGET, DB_POOLS, ENV_FILE, MAX_BROWSERS_CEILING, Settings, settings
 
 atexit.register(database.engine.dispose)
 BACKEND = Path(__file__).resolve().parents[1]
@@ -128,6 +128,25 @@ class NamesInTheFileTest(unittest.TestCase):
             self.assertNotIn(gone, example)
         self.assertFalse((config.ENV_FILE.parent / "backend" / ".env.example").exists())
         self.assertFalse((config.ENV_FILE.parent / "frontend" / ".env.example").exists())
+
+
+class BrowserCapTest(unittest.TestCase):
+    def test_the_browser_cap_has_a_hard_ceiling_that_no_setting_can_exceed(self):
+        self.assertEqual(MAX_BROWSERS_CEILING, 5)
+        self.assertEqual(base(linkedin_session_max_browsers=3).effective_max_browsers, 3)
+        self.assertEqual(base(linkedin_session_max_browsers=50).effective_max_browsers, MAX_BROWSERS_CEILING)
+        self.assertEqual(base(linkedin_session_max_browsers=0).effective_max_browsers, 1)
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=6))), {"LINKEDIN_SESSION_MAX_BROWSERS"})
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=0))), {"LINKEDIN_SESSION_MAX_BROWSERS"})
+        self.assertEqual(errors(findings(base(linkedin_session_max_browsers=2))), set())
+
+    def test_both_managers_are_built_with_the_capped_value(self):
+        import inspect
+        from app import outreach_worker
+        from app.linkedin_session import service
+        for module in (outreach_worker, service):
+            self.assertIn("effective_max_browsers", inspect.getsource(module))
+            self.assertNotIn("settings.linkedin_session_max_browsers", inspect.getsource(module))
 
 
 class ConnectionBudgetTest(unittest.TestCase):

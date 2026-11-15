@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from .assistant.config import AssistantConfig, assistant_config
-from .config import ENV_FILE, Settings, settings as default_settings
+from .config import ENV_FILE, MAX_BROWSERS_CEILING, Settings, settings as default_settings
 
 ERROR, WARN, INFO = "ERROR", "WARN", "info"
 
@@ -137,6 +137,10 @@ def validate(s: Settings = default_settings, a: AssistantConfig = assistant_conf
             add(ERROR, "DEEPGRAM_API_KEY", "does not look like a key (unexpected characters or too short)")
     else:
         add(INFO, "DEEPGRAM_API_KEY", "not set: the assistant and AI drafting are off; template drafts are used")
+
+    # ---- hosting cost: concurrent browsers
+    if not 1 <= int(s.linkedin_session_max_browsers) <= MAX_BROWSERS_CEILING:
+        add(ERROR, "LINKEDIN_SESSION_MAX_BROWSERS", f"must be 1 to {MAX_BROWSERS_CEILING} (each browser costs about 0.5 GB of memory)")
 
     # ---- publishing
     linkedin = [bool(s.linkedin_client_id), bool(s.linkedin_client_secret)]

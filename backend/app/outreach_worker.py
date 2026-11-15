@@ -304,7 +304,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s.%(msecs)03d %(name)s %(message)s", datefmt="%H:%M:%S")
     pages = load_pages()
     manager = SessionManager(
-        pages.site, max_browsers=settings.linkedin_session_max_browsers,
+        pages.site, max_browsers=settings.effective_max_browsers,
         attempt_timeout=settings.linkedin_session_attempt_timeout_seconds,
         poll_interval=settings.linkedin_session_poll_interval_seconds, headless=settings.linkedin_session_headless)
     run(OutreachWorker(manager, pages))

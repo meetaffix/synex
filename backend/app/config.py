@@ -20,6 +20,9 @@ WEEKLY_INVITE_CEILING = 150         # connection requests on one account in any 
 # A managed CockroachDB plan allows about 5 active connections. The API and both workers together never open more than
 # DB_CONNECTION_BUDGET, which leaves one for migrations and admin. check_env and a test fail if the pools below exceed it.
 DB_CONNECTION_BUDGET = 4
+# Concurrent Chromium instances are the main cost of a hosted worker (about 0.5 GB each). LINKEDIN_SESSION_MAX_BROWSERS
+# sets the cap; no setting can raise it above this ceiling, and check_env fails above it.
+MAX_BROWSERS_CEILING = 5
 DB_POOLS = {"api": 2, "outreach_worker": 1, "publishing_worker": 1}  # one pool per process; no overflow connections
 
 # Campaign preparation: AI drafts are generated before launch, never while sending (docs/ASSISTANT.md, "Drafts").
@@ -105,6 +108,11 @@ class Settings(BaseSettings):
     clerk_issuer: str = ""  # optional override of the issuer derived from the publishable key
     clerk_webhook_secret: str = Field("", validation_alias=AliasChoices("CLERK_WEBHOOK_SECRET", "CLERK_WEBHOOK_SIGNING_SECRET"))
     clerk_api_url: str = "https://api.clerk.com"
+
+    @property
+    def effective_max_browsers(self) -> int:
+        """The browser cap in force: the setting, never below 1 and never above MAX_BROWSERS_CEILING."""
+        return max(1, min(int(self.linkedin_session_max_browsers), MAX_BROWSERS_CEILING))
 
     @property
     def cors_origin_list(self) -> list[str]:
