@@ -302,9 +302,6 @@ export function SettingsPage() {
           <Link to="/others/publishing/connections">
             LinkedIn connections <ArrowUpRight size={16} />
           </Link>
-          <Link to="/others/extension">
-            Browser companion <ArrowUpRight size={16} />
-          </Link>
           <Link to="/leads?tab=lists">
             Contact lists <ArrowUpRight size={16} />
           </Link>

@@ -196,7 +196,6 @@ class PublishingTest(unittest.TestCase):
         self.assertEqual(self.client.post("/auth/logout").status_code,200)
         self.client.cookies.set("synex_session",old_cookie)
         self.assertEqual(self.client.get("/auth/me").status_code,401)
-        self.assertEqual(self.client.post("/agent",json={"action":"harvest"}).status_code,410)
         # /linkedin-accounts is no longer a retired path; the legacy POST action gateway no longer exists.
         self.assertEqual(self.client.post("/linkedin-accounts",json={"action":"create"}).status_code,405)
 

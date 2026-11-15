@@ -1,6 +1,6 @@
 # SYNEX publishing workspace
 
-React / TypeScript frontend, FastAPI / SQLAlchemy backend, official LinkedIn OAuth, a durable publishing worker, and a browser companion.
+React / TypeScript frontend, FastAPI / SQLAlchemy backend, official LinkedIn OAuth, a durable publishing worker, and an outreach worker.
 
 ## What works locally
 
@@ -9,17 +9,16 @@ React / TypeScript frontend, FastAPI / SQLAlchemy backend, official LinkedIn OAu
 - Text and single-image drafts, LinkedIn preview, approval, publish-now queue, scheduling with IANA time zones, pause, cancel, reschedule, execution history.
 - Atomic worker claims, bounded retries for rate-limit responses, manual review after ambiguous delivery.
 - Real internal analytics; manual contacts, CSV import/export, lists, templates, and preserved outreach history.
-- Browser extension: capture an idea, open it in the studio, and launch account connection/sign-in.
 
-Live LinkedIn authorization and publishing have **not** been verified. The local installation now has a dedicated encryption key. It still needs a LinkedIn client ID and client secret. See [LINKEDIN_INTEGRATION.md](LINKEDIN_INTEGRATION.md). Video/document uploads, organization publishing, provider analytics, new team enrollment, and 2FA are not implemented. No unsupported scraping, bulk messaging, or private LinkedIn API execution is enabled.
+Live LinkedIn authorization and publishing have **not** been verified. The local installation now has a dedicated encryption key. It still needs a LinkedIn client ID and client secret. Video/document uploads, organization publishing, provider analytics, new team enrollment, and 2FA are not implemented. No unsupported scraping, bulk messaging, or private LinkedIn API execution is enabled.
 
 ## Local setup (Windows PowerShell)
 
 Use Python 3.12 and a current Node LTS. Run commands from the indicated directory.
 
-1. Back up `backend/synex.db` before applying migrations. Existing business records are preserved; deprecated extension pairing tokens and LinkedIn session cookies are intentionally cleared. Previously active outreach campaigns are paused. **Stop old SYNEX API/worker processes before upgrading**, so an old process cannot continue executing retired outreach code.
+1. Back up `backend/synex.db` before applying migrations. Existing business records are preserved; deprecated pairing tokens and LinkedIn session cookies are intentionally cleared. Previously active outreach campaigns are paused. **Stop old SYNEX API/worker processes before upgrading**, so an old process cannot continue executing retired outreach code.
 2. Merge `.env.example` into `backend/.env`. Keep existing configuration that is still needed. Generate independent secrets with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and set both `SECRET_KEY` and `ENCRYPTION_KEY`. Do not rotate the encryption key without reauthorizing all LinkedIn connections or a controlled re-encryption migration.
-3. Install and run the API from `backend`. Use `verify_upgrade.py --apply` for an existing local database: it first checks two migrations on a copy, preserves business data in `backups/`, then applies the verified migration. For a fresh database, use `python -m app.migrations` instead:
+3. Install and run the API from `backend`. Use `verify_upgrade.py --apply` for an existing local database: it first checks two migrations on a copy, preserves business data in `backend/backups/` (keep those copies outside the project, they hold real data), then applies the verified migration. For a fresh database, use `python -m app.migrations` instead:
 
 ```powershell
 python -m venv .venv
@@ -46,7 +45,7 @@ npm run dev
 
 Open [the local workspace](http://localhost:5173). The default API is `http://localhost:8010`. To change it, merge `frontend/.env.example` into `frontend/.env` and restart Vite. Use the **same hostname** for API and frontend (`localhost` for both); do not mix `localhost` and `127.0.0.1` with SameSite cookies.
 
-6. Open Settings → Connection diagnostics to inspect OAuth configuration, worker heartbeat, and AI configuration. Credentials are never displayed. Run the browser extension as described in [extension/README.md](extension/README.md).
+6. Open Settings → Connection diagnostics to inspect OAuth configuration, worker heartbeat, and AI configuration. Credentials are never displayed.
 
 ## LinkedIn account sessions (outreach)
 
@@ -154,10 +153,18 @@ Provide edge request/body limits and a shared authentication rate limiter for mu
 
 Content library reads are currently limited to the latest 1,000 posts, activity to 200 events. Retention/pagination at larger scale, operator alert integrations, video/document upload, managed secret rotation, and real-environment load tests remain further work. This is not a claim of production certification.
 
-## Reports
+## Folder layout
 
-- [Audit and checklist](AUDIT_REPORT.md)
-- [Implemented changes and remaining scope](IMPLEMENTATION_REPORT.md)
-- [Design decisions](UI_UX_REDESIGN.md)
-- [LinkedIn integration](LINKEDIN_INTEGRATION.md)
-- [Verification results](TEST_REPORT.md)
+| Folder | Contents |
+|---|---|
+| `backend/` | FastAPI API, workers and tests. `.env` and `synex.db` live here and are never committed |
+| `backend/app/` | Application code: routers, models, migrations, outreach engine and planner, publishing, `linkedin_session` browser sessions |
+| `backend/tests/` | Backend unit tests plus the fixture server and mocks used by the browser tests |
+| `frontend/` | React / Vite / TypeScript app and its Playwright browser tests (`frontend/tests`) |
+| `frontend/src/` | Pages and features, shared components, services and the design tokens in `index.css` |
+| `docs/` | `DESIGN.md` is the single design reference; `prompts/` holds the design prompt |
+| `.claude/` | Local Claude Code settings for this project |
+
+## Design
+
+See [docs/DESIGN.md](docs/DESIGN.md).

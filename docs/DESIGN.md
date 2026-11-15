@@ -216,7 +216,7 @@ Plain, warm, short. Sentence case. No exclamation marks, no jargon, no emoji. Na
 
 ## Known debt
 
-- **Content publishing pages use class-based CSS, not the component library.** Overview, Studio, Calendar, Queue, Activity, Analytics, Connections, publishing Settings and the browser-extension page keep their own class names (`post-row`, `editor-panel`, `calendar-grid`, `settings-grid` and so on), styled in the "Content publishing pages" block of `frontend/src/index.css`. Every rule there uses the tokens and the type scale, so the pages follow both themes, and their headers, empty states, notices, loading states and status pills already come from the shared components. What remains is to rebuild the page bodies on `Card`, `Table`, `FormField` and the primitives, then delete that block. Until then, a change to a token is checked on these pages as well.
+- **Content publishing pages use class-based CSS, not the component library.** Overview, Studio, Calendar, Queue, Activity, Analytics, Connections, and publishing Settings keep their own class names (`post-row`, `editor-panel`, `calendar-grid`, `settings-grid` and so on), styled in the "Content publishing pages" block of `frontend/src/index.css`. Every rule there uses the tokens and the type scale, so the pages follow both themes, and their headers, empty states, notices, loading states and status pills already come from the shared components. What remains is to rebuild the page bodies on `Card`, `Table`, `FormField` and the primitives, then delete that block. Until then, a change to a token is checked on these pages as well.
 - The sign-in pages (login, register, forgot and reset password) were rebuilt on the shared components and have no page CSS left.
 
 ## Theme switching

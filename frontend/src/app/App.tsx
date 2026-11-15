@@ -22,7 +22,7 @@ import { WelcomePage } from "@/features/onboarding/WelcomePage";
 import { DesignPage } from "@/features/design/DesignPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
-import { Overview, AccountsPage, Studio, CalendarPage, AutomationPage, ActivityPage, AnalyticsPage, SettingsPage, ExtensionPage } from "@/features/publishing/Workspace";
+import { Overview, AccountsPage, Studio, CalendarPage, AutomationPage, ActivityPage, AnalyticsPage, SettingsPage } from "@/features/publishing/Workspace";
 
 /** Old addresses keep working: each one lands on its new home. */
 const redirects: [string, string][] = [
@@ -32,12 +32,10 @@ const redirects: [string, string][] = [
   ["/activity", "/others/publishing/activity"],
   ["/analytics", "/others/publishing/analytics"],
   ["/publishing/connections", "/others/publishing/connections"],
-  ["/extension", "/others/extension"],
-  ["/help/extension", "/others/extension"],
   ["/lead-lists", "/leads?tab=lists"],
 ];
 
-/** An old address keeps whatever came after it, such as the idea the browser extension passes in ?text=. */
+/** An old address keeps whatever came after it, such as a ?text= parameter. */
 function Redirect({ to }: { to: string }) {
   const { search } = useLocation();
   const extra = search.replace(/^\?/, "");
@@ -75,7 +73,6 @@ export function App() {
             <Route path="/leads" element={<LeadsHub />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/others" element={<OthersPage />} />
-            <Route path="/others/extension" element={<Stack><ExtensionPage /></Stack>} />
             <Route path="/others/publishing" element={<PublishingLayout />}>
               <Route index element={<Overview />} />
               <Route path="studio" element={<Studio />} />

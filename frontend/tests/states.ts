@@ -270,7 +270,6 @@ export const states: State[] = [
     }),
   },
   { name: "settings", path: "/settings", api: withAccount() },
-  { name: "extension", path: "/others/extension", api: withAccount() },
   { name: "publishing-overview-new", path: "/others/publishing", api: withAccount() },
   {
     name: "publishing-overview",

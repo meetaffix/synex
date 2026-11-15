@@ -81,7 +81,6 @@ test("publishing journey, all routes, and responsive layouts", async ({
     "others/publishing/activity",
     "others/publishing/analytics",
     "others/publishing/connections",
-    "others/extension",
     "settings",
     "help",
   ];

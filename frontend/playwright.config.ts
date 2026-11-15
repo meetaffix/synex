@@ -7,8 +7,6 @@ const python = process.platform === "win32" ? String.raw`.venv\Scripts\python.ex
 // real API or the real database.
 export default defineConfig({
   testDir: "./tests",
-  // The extension spec runs against a production build: playwright.extension.config.ts.
-  testIgnore: "extension.spec.ts",
   workers: 1,
   timeout: 45000,
   globalSetup: "./tests/global-setup.ts",

@@ -7,11 +7,6 @@ const tools = [
     to: "/others/publishing",
     description: "Write, schedule and publish LinkedIn posts. Includes Studio, Calendar, Queue, Activity and Analytics.",
   },
-  {
-    title: "Browser extension",
-    to: "/others/extension",
-    description: "Capture an idea from any page and open it in Synex as a draft.",
-  },
 ];
 
 export function OthersPage() {

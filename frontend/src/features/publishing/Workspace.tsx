@@ -6,4 +6,3 @@ export { AutomationPage } from "./AutomationPage";
 export { ActivityPage } from "./ActivityPage";
 export { AnalyticsPage } from "./AnalyticsPage";
 export { SettingsPage } from "./SettingsPage";
-export { ExtensionPage } from "./ExtensionPage";

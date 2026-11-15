@@ -123,11 +123,11 @@ test.describe("app shell", () => {
     await expect(page.getByRole("heading", { name: "Help", level: 1 })).toBeVisible();
   });
 
-  test("nothing about posting or the extension is in the sidebar", async ({ page }) => {
+  test("nothing about posting is in the sidebar", async ({ page }) => {
     await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
     await page.goto("/dashboard");
     const text = (await sidebar(page).innerText()).toLowerCase();
-    for (const word of ["studio", "calendar", "publishing", "content", "extension", "analytics", "post"]) expect(text).not.toContain(word);
+    for (const word of ["studio", "calendar", "publishing", "content", "analytics", "post"]) expect(text).not.toContain(word);
   });
 
   test("publishing is reachable only through Others, and old addresses redirect", async ({ page }) => {
@@ -135,7 +135,6 @@ test.describe("app shell", () => {
     await page.goto("/dashboard");
     await primary(page).getByRole("link", { name: "Others" }).click();
     await expect(page.getByRole("heading", { name: "Others", level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Browser extension/ })).toBeVisible();
 
     await page.getByRole("link", { name: /Content publishing/ }).click();
     await expect(page).toHaveURL(/\/others\/publishing$/);
@@ -150,7 +149,7 @@ test.describe("app shell", () => {
     await expect(crumbs.getByText("Studio")).toHaveAttribute("aria-current", "page");
 
     for (const [old, now] of [["/studio", "/others/publishing/studio"], ["/calendar", "/others/publishing/calendar"], ["/automation", "/others/publishing/queue"],
-      ["/extension", "/others/extension"], ["/publishing/connections", "/others/publishing/connections"]]) {
+      ["/publishing/connections", "/others/publishing/connections"]]) {
       await page.goto(old);
       await expect(page).toHaveURL(new RegExp(`${now}$`));
     }

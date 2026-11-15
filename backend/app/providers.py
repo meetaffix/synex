@@ -1,8 +1,8 @@
 """Message helpers and the pluggable drafting ("AI generate") provider.
 
-Actual LinkedIn actions are performed by the browser extension (see
-``engine.py`` / ``routers/agent.py``), so there is no server-side outreach
-provider. What remains here is variable rendering and message drafting.
+LinkedIn actions are executed by the outreach engine (``engine.py`` and
+``linkedin_session``), so there is no server-side outreach provider here. What remains is variable
+rendering and message drafting.
 
 The default drafting provider personalizes a structured draft from the
 prospect's own fields. To use a real LLM, implement ``AIProvider`` and return it

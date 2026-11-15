@@ -1,8 +1,6 @@
 import base64
 import hashlib
-from datetime import datetime, timedelta, timezone
 
-import jwt
 from passlib.context import CryptContext
 
 from .config import settings
@@ -17,31 +15,6 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
-
-
-def create_access_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.access_token_expire_minutes
-    )
-    payload = {"sub": subject, "exp": expire, "iat": datetime.now(timezone.utc)}
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-
-
-def decode_access_token(token: str) -> str | None:
-    try:
-        payload = jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
-        )
-        return payload.get("sub")
-    except jwt.PyJWTError:
-        return None
-
-
-def hash_agent_token(token: str) -> str:
-    """One-way digest for extension pairing tokens. The raw token is shown to
-    the user exactly once; only this digest is persisted (prefixed so legacy
-    plaintext rows are distinguishable and upgraded on first use)."""
-    return "sha256:" + hashlib.sha256(token.encode()).hexdigest()
 
 
 def _fernet_key() -> bytes:

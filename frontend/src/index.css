@@ -455,8 +455,7 @@
     color: rgb(var(--muted-foreground));
   }
   .account-strip,
-  .connection-section,
-  .extension-intro {
+  .connection-section {
     padding: var(--space-6);
     border: 1px solid rgb(var(--border));
     border-radius: var(--radius-lg);
@@ -916,23 +915,6 @@
     gap: var(--space-2);
     color: rgb(var(--primary));
   }
-  .extension-intro {
-    max-width: 50rem;
-  }
-  .extension-intro > svg {
-    margin-bottom: var(--space-4);
-    color: rgb(var(--primary));
-  }
-  .extension-intro h2 {
-    font-size: var(--text-xl);
-    line-height: var(--text-xl-leading);
-    font-weight: 600;
-  }
-  .extension-intro p {
-    max-width: 40rem;
-    margin: var(--space-4) 0 var(--space-6);
-    color: rgb(var(--muted-foreground));
-  }
   .instructions {
     display: grid;
     gap: var(--space-4);
@@ -969,8 +951,7 @@
     }
     .onboarding,
     .account-strip,
-    .connection-section,
-    .extension-intro {
+    .connection-section {
       padding: var(--space-4);
     }
     .row-arrow {
@@ -1033,7 +1014,6 @@
   .metric-strip > div,
   .account-strip,
   .connection-section,
-  .extension-intro,
   .editor-panel,
   .post-preview,
   .post-list,

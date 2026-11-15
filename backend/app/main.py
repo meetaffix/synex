@@ -29,8 +29,6 @@ _attempts = defaultdict(deque)
 @app.middleware("http")
 async def safeguards(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/agent"):
-        return JSONResponse({"detail": "Legacy session-based execution is retired. Use the official LinkedIn connection or the updated browser companion."}, status_code=410)
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         origin = request.headers.get("origin")
         if (origin and origin not in settings.cors_origin_list) or (request.cookies.get("synex_session") and not origin):

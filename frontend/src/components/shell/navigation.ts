@@ -52,7 +52,6 @@ export function breadcrumbsFor(pathname: string): Crumb[] {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] === "others") {
     const trail: Crumb[] = [{ label: "Others", to: "/others" }];
-    if (parts[1] === "extension") trail.push({ label: "Browser extension" });
     if (parts[1] === "publishing") {
       trail.push({ label: "Content publishing", to: "/others/publishing" });
       if (parts[2]) trail.push({ label: publishingPages[parts[2]] ?? parts[2] });

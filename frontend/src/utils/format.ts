@@ -1,13 +1,5 @@
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
-/** 1234567 -> "1.2M", 12500 -> "12.5K" */
-export function formatCompactNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
 }
@@ -43,9 +35,4 @@ export function getInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-/** Deterministic accent color from a string (for avatars). */
-export function pluralize(count: number, singular: string, plural?: string) {
-  return count === 1 ? singular : plural ?? `${singular}s`;
 }
