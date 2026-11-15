@@ -115,10 +115,12 @@ jobs:
         run: |
           VERSION=8.24.3
           BASE=https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}
-          curl -fsSL -o gitleaks.tgz ${BASE}/gitleaks_${VERSION}_linux_x64.tar.gz
+          ARCHIVE=gitleaks_${VERSION}_linux_x64.tar.gz
+          # Keep the release's own file names: the checksums file lists them, and sha256sum looks files up by name.
+          curl -fsSLO ${BASE}/${ARCHIVE}
           curl -fsSL -o checksums.txt ${BASE}/gitleaks_${VERSION}_checksums.txt
-          grep " gitleaks_${VERSION}_linux_x64.tar.gz$" checksums.txt | sha256sum -c -
-          tar xzf gitleaks.tgz gitleaks
+          grep " ${ARCHIVE}$" checksums.txt | sha256sum -c -
+          tar xzf ${ARCHIVE} gitleaks
       - name: Scan every commit
         run: ./gitleaks git --redact --verbose --config .gitleaks.toml --exit-code 2
 
