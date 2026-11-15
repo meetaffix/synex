@@ -43,10 +43,9 @@ Docs and the owner's list differ on the webhook secret name; both are accepted.
 |---|---|---|
 | `AUTH_PROVIDER` | backend | `local` (default, used by the tests) or `clerk` |
 | `CLERK_SECRET_KEY` | backend | Backend API calls; never sent to the browser |
-| `CLERK_PUBLISHABLE_KEY` or `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | backend | Used to derive the issuer and JWKS URL |
+| `VITE_CLERK_PUBLISHABLE_KEY` | root `.env` | One value for the backend (issuer and JWKS URL) and the frontend |
 | `CLERK_ISSUER` | backend, optional | Overrides the derived issuer |
 | `CLERK_WEBHOOK_SECRET` or `CLERK_WEBHOOK_SIGNING_SECRET` | backend | `whsec_...`, only for the webhook |
-| `VITE_CLERK_PUBLISHABLE_KEY` | frontend, build time | Presence turns Clerk mode on in the UI |
 
 ## What changes in the product
 
@@ -70,7 +69,7 @@ Docs and the owner's list differ on the webhook secret name; both are accepted.
 ## How to switch (owner)
 
 1. In Clerk, enable the sign-in methods wanted (email code or password) and add the app's origin.
-2. Make sure the backend `.env` has `CLERK_SECRET_KEY` and the publishable key, the frontend `.env` has
-   `VITE_CLERK_PUBLISHABLE_KEY`, and set `AUTH_PROVIDER=clerk` in the backend `.env`.
+2. Make sure the root `.env` has `CLERK_SECRET_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` (one value serves the backend and
+   the frontend), and set `AUTH_PROVIDER=clerk`.
 3. Back up `backend/synex.db`, restart the API (migration `008_clerk_user_id` adds one nullable column), rebuild the frontend.
 4. Sign in with the same email as the existing Synex account. The first request links the accounts.

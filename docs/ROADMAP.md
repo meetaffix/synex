@@ -57,9 +57,14 @@ every phase. Last update: 15 Nov 2026, 17:45.
 - Publishing pages use the legacy stylesheet block in `frontend/src/index.css`.
 - Unused columns from the extension and the old login stay in the database (`agent_token`, `agent_last_seen_at`,
   `execution_mode`, `harvest_session_requested`, `cookie_harvested_at`, `li_at_encrypted`, `jsessionid_encrypted`,
-  `cloud_status`); removing them is a separate migration decision. `settings.algorithm` and
-  `access_token_expire_minutes` go with the Clerk phase.
+  `cloud_status`); removing them is a separate migration decision. `settings.algorithm` is unused and goes with the Clerk phase.
+- **Database columns nothing in the code reads or writes** (kept for a later migration, which is a separate decision;
+  checked 15 Nov 2026 by searching every file for each name): `linkedin_accounts.sync_requested`,
+  `linkedin_accounts.jsessionid_encrypted`, `linkedin_accounts.harvest_session_requested`,
+  `sequence_runs.current_step_order` (only migration `006` reads it, to move old runs to step ids).
+  Also still present because the old account serializer reads them: `agent_token`, `agent_last_seen_at`,
+  `execution_mode`, `cookie_harvested_at`, `li_at_encrypted`, `cloud_status`. They go with the old login code when
+  Clerk is switched on.
 - Campaign connection and message limits exist in the API only; no screen edits them.
-- **Owner action:** the key in `backend/.env` must be named `DEEPGRAM_API_KEY` (it is `DEEPGRAM_APY_KEP` today).
 - The API on port 8010 runs code from before the limit fixes until it is restarted; back up `synex.db` first.
 - Two Playwright specs expected the old button wording; they pass again once the wording commit is verified.

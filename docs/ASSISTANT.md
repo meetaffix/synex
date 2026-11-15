@@ -8,7 +8,7 @@ One assistant the user talks or types to. It looks things up, plans and drafts, 
 browser ──(WebSocket, single-use ticket)──> Synex backend ──(WebSocket, DEEPGRAM_API_KEY)──> Deepgram agent
 ```
 
-- `DEEPGRAM_API_KEY` is read from `backend/.env` only (`app/assistant/config.py`). It is used in one place, the `Authorization: Token …` header of the upstream connection in `app/assistant/relay.py`. It is never in a response, a log line or the browser. Errors are logged by exception type only, and `scrub()` removes the key from anything user-facing.
+- `DEEPGRAM_API_KEY` is read from the root `.env` only (`app/assistant/config.py`). It is used in one place, the `Authorization: Token …` header of the upstream connection in `app/assistant/relay.py`. It is never in a response, a log line or the browser. Errors are logged by exception type only, and `scrub()` removes the key from anything user-facing.
 - `POST /assistant/session` (signed in) checks the workspace switch, the monthly cap and that the key exists, then returns a 30-second single-use ticket and the non-secret agent config. The browser opens `WS /assistant/ws`, sends `{"type":"auth","ticket":…}` as its first message (not in the URL, so it never reaches access logs), and the Origin must be one of `CORS_ORIGINS`.
 - Microphone audio (16 kHz linear16) goes up the relay; the agent's speech (24 kHz linear16) comes back as binary frames. Typing sends `InjectUserMessage`.
 
@@ -64,7 +64,7 @@ Workspace settings (`/assistant/settings`; admins edit): on/off, monthly minute 
 
 ## Manual test with the real key
 
-1. In `backend/.env` set `DEEPGRAM_API_KEY=…` (the existing file has a misspelt name, `DEEPGRAM_APY_KEP`; rename it). Restart the backend.
+1. In the root `.env` set `DEEPGRAM_API_KEY=…` (the existing file has a misspelt name, `DEEPGRAM_APY_KEP`; rename it). Restart the backend.
 2. Sign in as an admin. Settings → Assistant: check it is on, see the usage meter, cap 60.
 3. Press Ctrl+J. Type "Summarise my dashboard". Expect a reply with your real numbers.
 4. Type "Why is my campaign paused?" on a paused campaign. Expect a reason and a next step.
@@ -75,3 +75,22 @@ Workspace settings (`/assistant/settings`; admins edit): on/off, monthly minute 
 9. Ask "Send a message to Priya". Expect "not available yet".
 10. Stay silent for 2 minutes. Expect the session to end and the panel to say so. Settings usage meter should have gone up by roughly the session length.
 11. Turn the assistant off in Settings. Open the panel. Expect "The assistant is turned off".
+
+## Drafts: AI is used before launch, never while sending
+
+The outreach engine never calls Deepgram. It sends finished text only (`engine.message_for`): the **approved draft** for
+that lead and step, otherwise the step's template with variables and `{a|b|c}` spintax (the spin is chosen per lead,
+so the dry run shows exactly what is sent).
+
+AI drafts are prepared in campaign preparation (`app/drafts.py`, routes under `/campaigns/{id}/drafts`):
+
+1. `POST .../estimate` shows the count, the minutes and the dollars (Voice Agent Standard, $0.075 a minute, 10 seconds
+   assumed per draft) before anything is generated.
+2. `POST .../generate` needs the count the user saw (`confirmedCount`); a different count returns 409 with the new
+   estimate. It runs in the background, in batches of 5, up to 200 drafts a campaign.
+3. Drafts start as `proposed`. The user edits (`PATCH`), approves (`POST .../approve`) or discards (`DELETE`) them. An
+   edit needs a fresh approval. Only `approved` drafts are sent; a lead without one gets the template.
+
+No database transaction is open while Deepgram is called: the plan is read and its session closed, and each batch is
+written afterwards in its own short transaction. The same holds for `/ai/generate-message`, `/publishing/assist` and the
+assistant's draft tool. The review screen is not built yet (roadmap: campaign builder); the API is complete and tested.
