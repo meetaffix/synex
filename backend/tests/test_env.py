@@ -116,6 +116,23 @@ class DatabaseUrlTest(unittest.TestCase):
                 database.with_retry(never_works, attempts=3)
             self.assertEqual(len(always), 3)
 
+    def test_the_migration_needs_only_one_connection_so_the_workers_pool_of_one_is_enough(self):
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.pool import QueuePool
+        from app import models, publishing_models  # noqa: F401  (registers every table on Base)
+        path = Path(TEMP.name) / "pool-of-one.db"
+        one = create_engine(f"sqlite:///{path.as_posix()}", poolclass=QueuePool, pool_size=1, max_overflow=0, pool_timeout=1)
+        try:
+            database.Base.metadata.create_all(one)
+            with one.begin() as conn:  # an older database: a column is missing
+                conn.execute(text("ALTER TABLE users DROP COLUMN clerk_user_id"))
+            with patch.object(database, "engine", one):
+                database.run_simple_migrations()  # raises QueuePool TimeoutError if it needs a second connection
+            with one.connect() as conn:
+                self.assertIn("clerk_user_id", [r[1] for r in conn.execute(text("PRAGMA table_info(users)"))])
+        finally:
+            one.dispose()
+
     def test_an_unsupported_scheme_is_an_error_and_no_message_shows_the_password(self):
         self.assertEqual(errors(findings(base(database_url="mysql://u:p@h/db"))), {"DATABASE_URL"})
         text = check_env.render(findings(self.cockroach("?sslmode=disable")))

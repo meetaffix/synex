@@ -92,8 +92,8 @@ def run_simple_migrations() -> None:
     """
     from sqlalchemy import inspect, text
 
-    inspector = inspect(engine)
     with engine.begin() as conn:
+        inspector = inspect(conn)  # on the same connection: the worker's pool holds exactly one
         for table in Base.metadata.sorted_tables:
             if not inspector.has_table(table.name):
                 continue
