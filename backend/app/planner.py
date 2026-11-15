@@ -16,7 +16,6 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from . import engine, models
-from .providers import render_variables
 
 MAX_ACTIONS = 50
 PAUSE_LABELS = {"send_invite": "connection request", "send_message": "message"}
@@ -184,7 +183,10 @@ def plan_campaign(db: Session, campaign: models.Campaign, now: datetime, limit: 
         at, plan = chosen
         plan.slots.append((at, plan.pause_after(campaign, at, lead)))
         plan.kinds.append((at, task_type))
-        message = "" if task_type in ("check_connection", "visit_profile", "follow_profile") else render_variables(step.message, lead)
+        if task_type in ("check_connection", "visit_profile", "follow_profile"):
+            message, prepared = "", False
+        else:
+            message, prepared = engine.message_for(db, campaign, step, lead)  # exactly what the engine will send
         planned.append(PlannedAction(lead.id, _name(lead), plan.account.id, plan.account.name, step.id, step.order, step.type,
-                                     task_type, message, bool(campaign.ai_personalization and message), at, None))
+                                     task_type, message, prepared, at, None))
     return planned

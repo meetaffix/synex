@@ -4,6 +4,9 @@ import path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The one .env for the whole project is at the root, next to backend/ and frontend/. Vite exposes only the
+  // variables whose names start with VITE_ to the browser; everything else in that file stays on the server.
+  envDir: path.resolve(__dirname, ".."),
   plugins: [react()],
   resolve: {
     alias: {

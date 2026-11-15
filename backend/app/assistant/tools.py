@@ -262,6 +262,7 @@ def _draft(ctx: ToolContext, a: DraftMessage) -> dict:
         body = template.body
     else:
         known = {"first_name": lead.first_name, "company": lead.company, "job_title": lead.job_title} if lead else {}
+        ctx.db.commit()  # nothing is pending; release the connection so no transaction is open while Deepgram is called
         try:  # the existing drafting provider; falls back to the local template when no LLM is configured or it fails
             body = get_ai_provider().generate_message(a.step_type, a.tone, known)
         except Exception:

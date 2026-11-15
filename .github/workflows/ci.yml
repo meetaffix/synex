@@ -32,6 +32,12 @@ jobs:
             backend/requirements-dev.txt
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: python -m playwright install --with-deps chromium
+      - name: Environment check (names only; warns about the missing .env, fails on real errors)
+        run: python -m app.check_env
+        env:
+          SECRET_KEY: ci-placeholder-secret-key-0123456789-abcdef
+          ENCRYPTION_KEY: ci-placeholder-encryption-key-0123456789
+          AUTH_PROVIDER: local
       - name: Unit and integration tests (temporary databases, mocked services)
         run: python -m unittest discover -s tests
         env:
@@ -67,6 +73,9 @@ jobs:
         run: npm run build
         env:
           VITE_API_URL: http://127.0.0.1:8011
+      - name: Bundle secret check (no server secret in the built frontend)
+        working-directory: frontend
+        run: npm run check:bundle
       - name: Colour contrast
         working-directory: frontend
         run: npm run contrast
@@ -100,9 +109,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # the whole history, not just the latest commit
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The gitleaks action cannot scan a repository whose first push contains the root commit, so the pinned release
+      # is installed (checksum verified) and run over the whole history. Findings are redacted in the log.
+      - name: Install gitleaks
+        run: |
+          VERSION=8.24.3
+          BASE=https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}
+          curl -fsSL -o gitleaks.tgz ${BASE}/gitleaks_${VERSION}_linux_x64.tar.gz
+          curl -fsSL -o checksums.txt ${BASE}/gitleaks_${VERSION}_checksums.txt
+          grep " gitleaks_${VERSION}_linux_x64.tar.gz$" checksums.txt | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+      - name: Scan every commit
+        run: ./gitleaks git --redact --verbose --config .gitleaks.toml --exit-code 2
 
   audit:
     name: Dependency audit

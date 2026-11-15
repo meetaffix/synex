@@ -2,7 +2,7 @@
 
 Drafting and post-editing need one short answer, not a conversation, so this opens a Voice Agent connection, sends
 one InjectUserMessage, collects the agent's written reply (the spoken audio is discarded) and closes. The key
-comes from backend/.env through ``assistant_config`` and never appears in an error message (see ``scrub``).
+comes from the root .env through ``assistant_config`` and never appears in an error message (see ``scrub``).
 Any failure raises ``DeepgramTextError``; callers fall back to the local template draft.
 """
 from __future__ import annotations

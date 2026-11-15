@@ -169,6 +169,7 @@ class SessionApiCase(unittest.TestCase):
 
 
 class LoginFlowTest(SessionApiCase):
+    serial = True  # a concurrency test: run_tests.py runs it alone, never beside other tests
     def test_success_saves_encrypted_session_and_profile(self):
         account_id = self.connect_and_wait("ok@example.com")
         accounts = self.client.get("/linkedin-accounts").json()

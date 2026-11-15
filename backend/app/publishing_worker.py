@@ -89,7 +89,9 @@ def tick(db, client=None):
 
 
 def main():
+    from .check_env import require_valid_env
     from .migrations import migrate
+    require_valid_env("The publishing worker")
     migrate()
     logging.basicConfig(level=logging.INFO)
     while True:

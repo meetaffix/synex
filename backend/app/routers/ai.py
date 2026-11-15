@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from ..database import get_db
 from ..deps import get_data_user
 from ..schemas import AIGenerateIn
 from ..providers import TemplateAIProvider, get_ai_provider
@@ -12,7 +14,9 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 def generate_message(
     payload: AIGenerateIn,
     _: models.User = Depends(get_data_user),
+    db: Session = Depends(get_db),
 ):
+    db.rollback()  # the sign-in lookup is done: no transaction stays open while Deepgram is called
     provider = get_ai_provider()
     ctx = {
         "first_name": payload.first_name,

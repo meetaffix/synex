@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,8 +17,23 @@ DAILY_TYPE_CEILINGS = {             # per action type, on one account in its day
 WEEKLY_INVITE_CEILING = 150         # connection requests on one account in any seven days
 
 
+# A managed CockroachDB plan allows about 5 active connections. The API and both workers together never open more than
+# DB_CONNECTION_BUDGET, which leaves one for migrations and admin. check_env and a test fail if the pools below exceed it.
+DB_CONNECTION_BUDGET = 4
+DB_POOLS = {"api": 2, "outreach_worker": 1, "publishing_worker": 1}  # one pool per process; no overflow connections
+
+# Campaign preparation: AI drafts are generated before launch, never while sending (docs/ASSISTANT.md, "Drafts").
+DRAFT_CAP_PER_CAMPAIGN = 200        # most drafts one campaign may generate (a cap on cost and on review work)
+DRAFT_BATCH_SIZE = 5                # drafts generated per batch; each batch is its own short database transaction
+DRAFT_SECONDS_ESTIMATE = 10         # assumed Voice Agent connection time per draft, for the cost estimate
+DEEPGRAM_USD_PER_MINUTE = 0.075     # Voice Agent Standard tier, pay as you go (docs/ASSISTANT.md)
+
+# The one .env for the whole project lives at the project root, next to backend/ and frontend/.
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     # Database
     database_url: str = "sqlite:///./synex.db"
@@ -25,7 +41,6 @@ class Settings(BaseSettings):
     # Auth
     secret_key: str = ""  # Must be set via .env file
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
 
     # CORS
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

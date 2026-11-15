@@ -17,7 +17,7 @@ Live LinkedIn authorization and publishing have **not** been verified. The local
 Use Python 3.12 and a current Node LTS. Run commands from the indicated directory.
 
 1. Back up `backend/synex.db` before applying migrations. Existing business records are preserved; deprecated pairing tokens and LinkedIn session cookies are intentionally cleared. Previously active outreach campaigns are paused. **Stop old SYNEX API/worker processes before upgrading**, so an old process cannot continue executing retired outreach code.
-2. Merge `.env.example` into `backend/.env`. Keep existing configuration that is still needed. Generate independent secrets with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and set both `SECRET_KEY` and `ENCRYPTION_KEY`. Do not rotate the encryption key without reauthorizing all LinkedIn connections or a controlled re-encryption migration.
+2. Copy `.env.example` to `.env` in the project root (one file for the backend, workers and frontend; see `docs/ENVIRONMENT.md`). Keep existing configuration that is still needed. Generate independent secrets with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and set both `SECRET_KEY` and `ENCRYPTION_KEY`. Do not rotate the encryption key without reauthorizing all LinkedIn connections or a controlled re-encryption migration.
 3. Install and run the API from `backend`. Use `verify_upgrade.py --apply` for an existing local database: it first checks two migrations on a copy, preserves business data in `backend/backups/` (keep those copies outside the project, they hold real data), then applies the verified migration. For a fresh database, use `python -m app.migrations` instead:
 
 ```powershell
@@ -43,7 +43,7 @@ npm ci
 npm run dev
 ```
 
-Open [the local workspace](http://localhost:5173). The default API is `http://localhost:8010`. To change it, merge `frontend/.env.example` into `frontend/.env` and restart Vite. Use the **same hostname** for API and frontend (`localhost` for both); do not mix `localhost` and `127.0.0.1` with SameSite cookies.
+Open [the local workspace](http://localhost:5173). The default API is `http://localhost:8010`. To change it, set `VITE_API_URL` in the root `.env` and restart Vite. Use the **same hostname** for API and frontend (`localhost` for both); do not mix `localhost` and `127.0.0.1` with SameSite cookies.
 
 6. Open Settings → Connection diagnostics to inspect OAuth configuration, worker heartbeat, and AI configuration. Credentials are never displayed.
 
@@ -157,12 +157,13 @@ Content library reads are currently limited to the latest 1,000 posts, activity 
 
 | Folder | Contents |
 |---|---|
-| `backend/` | FastAPI API, workers and tests. `.env` and `synex.db` live here and are never committed |
+| `backend/` | FastAPI API, workers and tests. `synex.db` lives here and is never committed |
 | `backend/app/` | Application code: routers, models, migrations, outreach engine and planner, publishing, `linkedin_session` browser sessions |
 | `backend/tests/` | Backend unit tests plus the fixture server and mocks used by the browser tests |
 | `frontend/` | React / Vite / TypeScript app and its Playwright browser tests (`frontend/tests`) |
 | `frontend/src/` | Pages and features, shared components, services and the design tokens in `index.css` |
 | `docs/` | `DESIGN.md` is the single design reference; `prompts/` holds the design prompt |
+| `.env` (project root) | The one environment file for backend, workers and frontend; never committed. `.env.example` lists every variable, `docs/ENVIRONMENT.md` explains them |
 | `.claude/` | Local Claude Code settings for this project |
 
 ## Design

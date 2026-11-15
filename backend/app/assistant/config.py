@@ -1,10 +1,12 @@
-"""Assistant configuration. DEEPGRAM_API_KEY is read from backend/.env and goes nowhere else: it is never
+"""Assistant configuration. DEEPGRAM_API_KEY is read from the root .env and goes nowhere else: it is never
 serialised into a response, a log line or an error message (see ``scrub``)."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ..config import ENV_FILE
+
 
 class AssistantConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     deepgram_api_key: str = ""
     deepgram_agent_url: str = "wss://agent.deepgram.com/v1/agent/converse"
