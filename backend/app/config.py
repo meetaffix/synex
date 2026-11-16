@@ -13,6 +13,9 @@ DAILY_TYPE_CEILINGS = {             # per action type, on one account in its day
     "send_message": 100,
     "visit_profile": 80,
     "follow_profile": 50,
+    "check_connection": 80,         # opens a profile page, so it is counted like a visit
+    "sync_inbox": 48,               # one inbox read every 30 minutes at most
+    "collect_leads": 20,            # one page of search results, post reactions or a list: each opens LinkedIn pages
 }
 WEEKLY_INVITE_CEILING = 150         # connection requests on one account in any seven days
 

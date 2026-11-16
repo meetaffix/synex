@@ -428,6 +428,11 @@ def emit_task(
     index backs this up when two processes race."""
     if db.query(models.AgentTask.id).filter_by(idempotency_key=key).first():
         return None
+    ceiling = DAILY_TYPE_CEILINGS.get(ttype)
+    if ceiling is None:  # a type with no hard ceiling must never reach LinkedIn
+        raise ValueError(f"task type {ttype!r} has no daily ceiling in config.DAILY_TYPE_CEILINGS")
+    if _count_today(db, account, ttype, _now()) >= ceiling:
+        return None
     task = models.AgentTask(
         account_id=account.id, sequence_run_id=run.id if run else None, type=ttype,
         payload=payload, status="pending", idempotency_key=key, version=0, created_at=_now(),
