@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..errors import sanitize_errors
@@ -149,7 +150,34 @@ def read_campaigns(
         .order_by(models.Campaign.created_at.desc())
         .all()
     )
-    return [campaign_out(c) for c in campaigns]
+    shown = display_statuses(db, campaigns)
+    return [{**campaign_out(c), "displayStatus": shown[c.id]} for c in campaigns]
+
+
+def display_statuses(db: Session, campaigns) -> dict[str, str]:
+    """The status a person reads on the list: draft, paused, queued, running, no_more_pending, finished, failed or archived."""
+    runs: dict[str, dict[str, int]] = {}
+    ids = [c.id for c in campaigns if c.status == "active"]
+    if ids:
+        for campaign_id, status, count in db.query(models.SequenceRun.campaign_id, models.SequenceRun.status, func.count()).filter(
+                models.SequenceRun.campaign_id.in_(ids)).group_by(models.SequenceRun.campaign_id, models.SequenceRun.status):
+            runs.setdefault(campaign_id, {})[status] = count
+    out = {}
+    for c in campaigns:
+        if c.status != "active":
+            out[c.id] = {"completed": "finished"}.get(c.status, c.status)
+            continue
+        counts = runs.get(c.id, {})
+        live = sum(counts.get(k, 0) for k in campaign_settings.ACTIVE_RUN_STATES)
+        if not counts:
+            out[c.id] = "queued"
+        elif live == 0:
+            out[c.id] = "no_more_pending"
+        elif (c.consecutive_failures or 0) >= 3:
+            out[c.id] = "failed"
+        else:
+            out[c.id] = "running"
+    return out
 
 
 def _create(payload: CampaignIn, db: Session, user: models.User):
@@ -366,6 +394,42 @@ def _run_action(campaign_id: str, run_id: str, payload: RunActionIn, db: Session
             "stepOrder": engine.step_order_of(engine.sorted_steps(run.campaign), run)}
 
 
+def _duplicate(campaign_id: str, db: Session, user: models.User):
+    """A new draft with the same senders, list, schedule, exclusions, AI context and sequence. No runs, no drafts, nothing launched."""
+    src = _owned(db, user, campaign_id)
+    copy = models.Campaign(
+        user_id=user.id, name=f"Copy of {src.name}"[:200], description=src.description, status="draft", account_id=src.account_id,
+        account_ids=list(src.account_ids or []), lead_list_id=src.lead_list_id, daily_connection_limit=src.daily_connection_limit,
+        daily_message_limit=src.daily_message_limit, timezone=src.timezone, start_hour=src.start_hour, end_hour=src.end_hour,
+        working_days=list(src.working_days or []), random_delay=src.random_delay, stop_when_replied=src.stop_when_replied,
+        stop_when_accepted=src.stop_when_accepted, ai_personalization=src.ai_personalization, pause_on_failure=src.pause_on_failure,
+        audience_source=src.audience_source, week_schedule=src.week_schedule, exclusions=src.exclusions, allocation=src.allocation,
+        ai_context=src.ai_context, sequence_mode=src.sequence_mode, graph=src.graph)
+    db.add(copy)
+    db.flush()
+    _apply_steps(copy, [{"type": s.type, "order": s.order, "message": s.message, "delay_hours": s.delay_hours, "ai_config": s.ai_config} for s in src.steps])
+    db.commit()
+    db.refresh(copy)
+    return campaign_out(copy)
+
+
+def _archive(campaign_id: str, db: Session, user: models.User):
+    campaign = _owned(db, user, campaign_id)
+    if campaign.status in ("draft", "active"):
+        raise HTTPException(status_code=409, detail="Pause or finish a campaign before archiving it. A draft can be deleted instead.")
+    campaign.status = "archived"
+    db.commit()
+    return campaign_out(campaign)
+
+
+@router.get("/{campaign_id}/share")
+def share_sequence(campaign_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """The sequence as a file to pass to someone else: steps, AI settings and the campaign context, never leads, senders or runs."""
+    campaign = _owned(db, user, campaign_id)
+    return {"synexSequence": 1, "name": campaign.name, "sequenceMode": campaign.sequence_mode or "classic", "aiContext": campaign.ai_context or {},
+            "steps": [{"type": s.type, "message": s.message, "delayHours": s.delay_hours, "aiConfig": s.ai_config} for s in sorted(campaign.steps, key=lambda x: x.order)]}
+
+
 def _delete(campaign_id: str, db: Session, user: models.User):
     campaign = _owned(db, user, campaign_id)
     db.delete(campaign)
@@ -393,6 +457,10 @@ def write_campaigns(
         if not body.get("id"):
             raise HTTPException(status_code=400, detail="id is required to update a campaign")
         return _update(body["id"], _parse(CampaignUpdateIn, body), db, user)
+    if action in ("duplicate", "archive"):
+        if not body.get("id"):
+            raise HTTPException(status_code=400, detail="id is required")
+        return (_duplicate if action == "duplicate" else _archive)(body["id"], db, user)
     if action == "delete":
         if not body.get("id"):
             raise HTTPException(status_code=400, detail="id is required to delete a campaign")

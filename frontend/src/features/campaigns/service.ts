@@ -15,7 +15,8 @@ const statsSchema = z.object({
 export const campaignSchema = z.object({
   id: z.string(),
   name: z.string(),
-  status: z.enum(["draft", "active", "paused", "completed"]),
+  status: z.string(),
+  displayStatus: z.string().default("draft"),
   accountId: z.string().nullable(),
   accountIds: z.array(z.string()),
   accountName: z.string(),

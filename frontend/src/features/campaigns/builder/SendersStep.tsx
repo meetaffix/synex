@@ -44,7 +44,7 @@ export function SendersStep({ state, set }: { state: BuilderState; set: (change:
         </p>
       )}
       {list.length > 0 && (
-        <div role="region" tabIndex={0} aria-label="Sender accounts (scrolls sideways)" className="overflow-x-auto rounded-lg border border-border">
+        <div role="region" tabIndex={0} aria-label="Sender accounts (scrolls sideways)" className="relative overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[34rem] text-sm">
             <caption className="sr-only">Choose the sender accounts for this campaign</caption>
             <thead className="bg-surface-muted text-left text-xs text-muted-foreground">

@@ -136,6 +136,7 @@ export const campaign = (id: string, name: string, over: Record<string, unknown>
   leadListName: "Prospects",
   stats: { totalLeads: 40, invitesSent: 30, connected: 12, replied: 5, interested: 2, messagesSent: 14, acceptanceRate: 40, replyRate: 16.7 },
   ...over,
+  displayStatus: (over as { displayStatus?: string }).displayStatus ?? ({ active: "running", completed: "finished" } as Record<string, string>)[String((over as { status?: string }).status ?? "active")] ?? String((over as { status?: string }).status),
 });
 
 export const conversation = (id: string, leadName: string, over: Record<string, unknown> = {}) => ({
@@ -281,6 +282,16 @@ export async function mockApi(page: Page, api: Api) {
         api.builder ??= make();
         const current = api.builder as Record<string, unknown>;
         if (method === "GET") return json(200, current);
+        if (body?.action === "duplicate") return json(200, { ...(api.campaigns.find((c) => c.id === body.id) ?? {}), id: "copy1", name: "Copy of campaign", status: "draft", displayStatus: "draft" });
+        if (body?.action === "archive") {
+          const target = api.campaigns.find((c) => c.id === body.id);
+          if (target) Object.assign(target, { status: "archived", displayStatus: "archived" });
+          return json(200, target ?? {});
+        }
+        if (body?.action === "delete") {
+          api.campaigns = api.campaigns.filter((c) => c.id !== body.id);
+          return json(200, { ok: true });
+        }
         if (body?.action === "create") {
           api.builder = make();
           return json(200, api.builder);
@@ -293,6 +304,8 @@ export async function mockApi(page: Page, api: Api) {
           return json(200, current);
         }
       }
+      const share = path.match(/^\/campaigns\/([^/]+)\/share$/);
+      if (share) return json(200, { synexSequence: 1, name: "Autumn outreach", sequenceMode: "classic", aiContext: {}, steps: [] });
       const cbSub = path.match(/^\/campaigns\/cb1\/(launch-check|drafts(?:\/(estimate|generate|approve|preview|render))?)$/);
       if (cbSub) {
         if (cbSub[1] === "launch-check") return json(200, { ready: api.launchProblems.length === 0, problems: api.launchProblems });

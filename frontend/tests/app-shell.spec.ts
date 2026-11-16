@@ -46,6 +46,7 @@ const campaign = (id: string, name: string, over: Record<string, unknown> = {}) 
   accountName: "Ada Lovelace",
   leadListName: "Prospects",
   stats: { totalLeads: 40, invitesSent: 30, connected: 12, replied: 5, interested: 2, messagesSent: 14, acceptanceRate: 40, replyRate: 16.7 },
+  displayStatus: "running",
   ...over,
 });
 const conversation = (id: string, leadName: string, over: Record<string, unknown> = {}) => ({
@@ -391,20 +392,20 @@ test.describe("campaigns", () => {
   test("with an account but no campaigns it explains what a campaign is", async ({ page }) => {
     await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
     await page.goto("/campaigns");
-    await expect(page.getByRole("heading", { name: "No campaigns yet" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ready to start your first campaign?" })).toBeVisible();
     await expect(page.getByText("A campaign is a sequence of steps")).toBeVisible();
   });
 
-  test("shows a table, and the new-campaign action is off with an honest reason", async ({ page }) => {
+  test("shows a table, and New campaign opens the builder with no sender or leads needed", async ({ page }) => {
     await mockApi(page, newApi({
       accounts: [account("a1", "Ada Lovelace"), account("a2", "Grace Hopper")],
       campaigns: [campaign("c1", "Q4 outreach", { accountIds: ["a2"] })],
     }));
     await page.goto("/campaigns");
     const table = page.getByRole("table", { name: "Campaigns and their results" });
-    await expect(table.getByRole("columnheader")).toHaveText(["Name", "Status", "Progress", "Sender accounts", "Leads", "Accepted %", "Reply %"]);
+    await expect(table.getByRole("columnheader")).toHaveText(["Name", "Status", "Leads", "Accepted %", "Reply %", "Accounts", "Actions"]);
     const row = table.getByRole("row", { name: /Q4 outreach/ });
-    await expect(row).toContainText("Active");
+    await expect(row).toContainText("Running");
     await expect(row).toContainText("Ada Lovelace, Grace Hopper");
     await expect(row).toContainText("40");
     await expect(row).toContainText("40%");
@@ -413,7 +414,6 @@ test.describe("campaigns", () => {
     // The builder exists now: New campaign opens it, with no sender or leads needed.
     const create = page.getByRole("link", { name: "New campaign" });
     await expect(create).toHaveAttribute("href", "/campaigns/new");
-    await create.click();
-    await expect(page).toHaveURL(/\/campaigns\/new$/);
+    // Opening the builder (a draft is started at once) is covered in campaign-builder.spec.ts.
   });
 });
