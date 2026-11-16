@@ -32,7 +32,10 @@ const aiConfigSchema = z.object({
 export type AiConfig = z.infer<typeof aiConfigSchema>;
 export const defaultAi = (): AiConfig => ({ mode: "direct", tone: "auto", strategy: "auto", instructions: "", profile_data: { role_company: true, recent_posts: false, skills: false, career: false, interests: false } });
 
-export type StepType = "connection_request" | "wait" | "message" | "follow_up" | "end";
+export type StepType =
+  | "connection_request" | "wait" | "message" | "follow_up" | "end"
+  | "voice_note" | "inmail" | "free_inmail" | "profile_visit" | "follow" | "like_post" | "withdraw_invite" | "if_connected" | "if_active";
+export type Branch = "yes" | "no";
 export interface BuilderStep {
   key: number;
   id?: string;
@@ -40,6 +43,11 @@ export interface BuilderStep {
   message: string;
   delayHours: number;
   aiConfig: AiConfig | null;
+  /** The If step this step hangs under (its client key), and which branch; both null for the main sequence. */
+  parentKey: number | null;
+  branch: Branch | null;
+  /** Settings of the newer step types (voice note, InMail, If connection, Is active). */
+  config: Record<string, unknown>;
 }
 
 const stepSchema = z.object({
@@ -49,6 +57,9 @@ const stepSchema = z.object({
   message: z.string().nullable(),
   delayHours: z.number().nullable(),
   aiConfig: aiConfigSchema.nullable().optional(),
+  parentStepId: z.string().nullable().optional(),
+  branchCondition: z.object({ branch: z.enum(["yes", "no"]) }).nullable().optional(),
+  config: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 const campaignSchema = z.object({
@@ -67,6 +78,7 @@ const campaignSchema = z.object({
   allocation: z.record(z.string(), z.record(z.string(), z.number())),
   aiContext: z.record(z.string(), z.unknown()),
   launchSummary: z.object({ enrolled: z.number(), excluded: z.record(z.string(), z.number()) }).nullable().optional(),
+  sequenceMode: z.string().optional(),
   steps: z.array(stepSchema),
 });
 export type ServerCampaign = z.infer<typeof campaignSchema>;
@@ -80,11 +92,20 @@ export interface BuilderState {
   exclusions: Record<string, boolean>;
   allocation: Record<string, Record<string, number>>;
   context: Record<string, unknown>;
+  mode: "classic" | "smart";
   steps: BuilderStep[];
 }
 
 let key = 1;
-export const newStep = (type: StepType): BuilderStep => ({ key: key++, type, message: "", delayHours: type === "wait" ? 24 : 0, aiConfig: null });
+const DEFAULT_CONFIG: Partial<Record<StepType, Record<string, unknown>>> = {
+  if_connected: { waitDays: 15 },
+  if_active: { days: 30 },
+  voice_note: { mode: "direct", language: "en-US" },
+  inmail: { subject: "" },
+  free_inmail: { subject: "" },
+};
+export const newStep = (type: StepType, parentKey: number | null = null, branch: Branch | null = null): BuilderStep =>
+  ({ key: key++, type, message: "", delayHours: type === "wait" ? 24 : 0, aiConfig: null, parentKey, branch, config: { ...(DEFAULT_CONFIG[type] ?? {}) } });
 
 export const fromServer = (c: ServerCampaign): BuilderState => ({
   name: c.name,
@@ -95,10 +116,22 @@ export const fromServer = (c: ServerCampaign): BuilderState => ({
   exclusions: c.exclusions,
   allocation: c.allocation,
   context: c.aiContext,
-  steps: c.steps.map((s) => ({ key: key++, id: s.id, type: s.type as StepType, message: s.message ?? "", delayHours: s.delayHours ?? 0, aiConfig: s.aiConfig ?? null })),
+  mode: c.sequenceMode === "smart" ? "smart" : "classic",
+  steps: stepsFromServer(c.steps),
 });
 
-const WRITES: StepType[] = ["connection_request", "message", "follow_up"];
+function stepsFromServer(items: ServerCampaign["steps"]): BuilderStep[] {
+  const keys = new Map(items.map((s) => [s.id, key++]));
+  return items.map((s) => ({
+    key: keys.get(s.id)!, id: s.id, type: s.type as StepType, message: s.message ?? "", delayHours: s.delayHours ?? 0, aiConfig: s.aiConfig ?? null,
+    parentKey: s.parentStepId ? keys.get(s.parentStepId) ?? null : null, branch: s.branchCondition?.branch ?? null,
+    config: { ...(DEFAULT_CONFIG[s.type as StepType] ?? {}), ...(s.config ?? {}) },
+  }));
+}
+
+const WRITES: StepType[] = ["connection_request", "message", "follow_up", "inmail", "free_inmail"];
+const CONFIGURED: StepType[] = ["voice_note", "inmail", "free_inmail", "if_connected", "if_active"];
+const tempId = (k: number) => `new-${k}`;
 
 /** The body the server takes on save. Step ids are kept so drafts and runs stay attached to their step. */
 export const toPayload = (s: BuilderState) => ({
@@ -111,14 +144,21 @@ export const toPayload = (s: BuilderState) => ({
   exclusions: s.exclusions,
   allocation: s.allocation,
   aiContext: s.context,
-  steps: s.steps.map((st, order) => ({
-    id: st.id,
-    type: st.type,
-    order,
-    message: WRITES.includes(st.type) ? st.message : null,
-    delayHours: st.type === "wait" ? st.delayHours : null,
-    aiConfig: st.aiConfig,
-  })),
+  sequenceMode: s.mode,
+  steps: s.steps.map((st, order) => {
+    const parent = st.parentKey === null ? undefined : s.steps.find((p) => p.key === st.parentKey);
+    return {
+      id: st.id ?? tempId(st.key),
+      type: st.type,
+      order,
+      message: WRITES.includes(st.type) ? st.message : null,
+      delayHours: st.type === "wait" ? st.delayHours : null,
+      aiConfig: st.aiConfig,
+      parentStepId: parent ? parent.id ?? tempId(parent.key) : null,
+      branchCondition: parent && st.branch ? { branch: st.branch } : null,
+      config: CONFIGURED.includes(st.type) ? st.config : null,
+    };
+  }),
 });
 
 function read<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {

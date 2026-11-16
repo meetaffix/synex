@@ -7,6 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { AiDrawer } from "./AiDrawer";
 import { SequenceTemplates } from "./SequenceTemplates";
 import { MessageField } from "./MessageField";
+import { SmartGraph } from "./SmartGraph";
+import { lostInClassic, toClassic } from "./graph";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { defaultAi, newStep, type AiConfig, type BuilderState, type BuilderStep } from "./model";
 
 const TITLES: Record<string, string> = { connection_request: "Connection request", message: "Message", follow_up: "Follow-up message" };
@@ -22,6 +25,7 @@ interface Props {
 export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
   const [aiFor, setAiFor] = useState<BuilderStep | null>(null);
   const [templates, setTemplates] = useState(false);
+  const [switching, setSwitching] = useState<"smart" | "classic" | null>(null);
   const steps = state.steps;
   const patch = (key: number, change: Partial<BuilderStep>) => set({ steps: steps.map((s) => (s.key === key ? { ...s, ...change } : s)) });
   const addFollowUp = () => {
@@ -31,6 +35,13 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
     set({ steps: [...steps.slice(0, at), wait, newStep("follow_up"), ...steps.slice(at)] });
   };
   const removeFollowUp = (index: number) => set({ steps: steps.filter((_, i) => i !== index && !(i === index - 1 && steps[i].type === "wait")) });
+  const smart = state.mode === "smart";
+  const lost = lostInClassic(steps);
+  const switchTo = (mode: "smart" | "classic") => {
+    if (mode === state.mode) return;
+    if (mode === "classic" && lost.length === 0) set({ mode });
+    else setSwitching(mode);
+  };
   const hasMessage = steps.some((s) => s.type === "message");
   const firstMessageIndex = steps.findIndex((s) => s.type === "message");
 
@@ -43,13 +54,28 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
         </div>
         <div role="group" aria-label="Sequence mode" className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setTemplates(true)}>Templates</Button>
-          <Button size="sm" aria-pressed="true">Classic</Button>
-          <Button size="sm" variant="outline" disabled aria-describedby="smart-soon">Smart</Button>
+          <Button size="sm" variant={smart ? "outline" : "default"} aria-pressed={!smart} onClick={() => switchTo("classic")}>Classic</Button>
+          <Button size="sm" variant={smart ? "default" : "outline"} aria-pressed={smart} onClick={() => switchTo("smart")}>Smart</Button>
         </div>
       </div>
-      <p id="smart-soon" className="text-xs text-muted-foreground">Smart (a branching graph) is not built yet. Classic runs a straight sequence.</p>
+      <p className="text-xs text-muted-foreground">{smart ? "Smart: add any action, and split the sequence with If steps. Each branch ends when it runs out of steps." : "Classic runs a straight sequence. Switch to Smart for branches and more actions."}</p>
+      {smart && <SmartGraph state={state} set={set} campaignId={campaignId} onOpenContext={onOpenContext} />}
+      <Dialog open={switching !== null} onOpenChange={(open) => !open && setSwitching(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{switching === "smart" ? "Switch to Smart?" : "Switch to Classic?"}</DialogTitle>
+            <DialogDescription>
+              {switching === "smart" ? "Your steps stay exactly as they are. You can then add branches and more actions, such as voice notes, InMails and likes." : `Classic shows a straight line, so this removes ${lost.join(", ")}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSwitching(null)}>Cancel</Button>
+            <Button onClick={() => { if (switching === "classic") set({ mode: "classic", steps: toClassic(steps) }); else set({ mode: "smart" }); setSwitching(null); }}>{switching === "smart" ? "Switch to Smart" : "Switch and remove them"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <ol className="grid gap-3" aria-label="Sequence steps">
+      {!smart && <ol className="grid gap-3" aria-label="Sequence steps">
         {steps.map((step, index) => {
           if (step.type === "end") return <li key={step.key} className="text-center text-xs text-muted-foreground">End of sequence</li>;
           if (step.type === "wait") {
@@ -104,9 +130,9 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
             </li>
           );
         })}
-      </ol>
-      <div><Button variant="outline" onClick={addFollowUp} disabled={!hasMessage}>Add follow-up message</Button></div>
-      {!hasMessage && <p className="text-xs text-muted-foreground">Add a message to the sequence before adding follow-ups.</p>}
+      </ol>}
+      {!smart && <div><Button variant="outline" onClick={addFollowUp} disabled={!hasMessage}>Add follow-up message</Button></div>}
+      {!smart && !hasMessage && <p className="text-xs text-muted-foreground">Add a message to the sequence before adding follow-ups.</p>}
 
       {templates && <SequenceTemplates onApply={(steps) => set({ steps })} onClose={() => setTemplates(false)} />}
       {aiFor && (

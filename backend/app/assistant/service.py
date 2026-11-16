@@ -52,7 +52,7 @@ def settings_out(db: Session, workspace_id: str, can_edit: bool) -> dict:
     used = used_seconds(db, workspace_id)
     cap = row.monthly_minute_cap * 60
     return {
-        "available": bool(assistant_config.deepgram_api_key),
+        "available": bool(assistant_config.deepgram_api_key) if (row.provider or "deepgram") == "deepgram" else True,
         "enabled": row.enabled,
         "monthlyMinuteCap": row.monthly_minute_cap,
         "usedSeconds": round(used),
@@ -61,6 +61,7 @@ def settings_out(db: Session, workspace_id: str, can_edit: bool) -> dict:
         "idleTimeoutSeconds": row.idle_timeout_seconds,
         "historyEnabled": row.history_enabled,
         "language": row.language,
+        "provider": row.provider or "deepgram",
         "voice": assistant_config.assistant_voice,
         "model": assistant_config.assistant_llm_model,
         "month": month_key(),

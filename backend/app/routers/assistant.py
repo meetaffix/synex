@@ -29,6 +29,7 @@ class SettingsIn(BaseModel):
     idle_timeout_seconds: int | None = Field(None, alias="idleTimeoutSeconds", ge=30, le=1800)
     history_enabled: bool | None = Field(None, alias="historyEnabled")
     language: Literal["en", "en-IN"] | None = None
+    provider: Literal["deepgram", "local"] | None = None
 
 
 class SessionIn(BaseModel):
@@ -47,8 +48,13 @@ def get_assistant_settings(db: Session = Depends(get_db), actor: models.User = D
 def update_assistant_settings(body: SettingsIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
     owner = require_role(db, actor, "admin")
     row = service.get_settings_row(db, owner.id)
+    if body.provider == "local":
+        from ..assistant import local
+        ready = local.available()
+        if not (ready["reachable"] and ready["installed"]):
+            raise HTTPException(409, "The local language model is not ready, so the assistant cannot switch to it. Start Ollama and pull the model first (see the Local models card).")
     for field, value in (("enabled", body.enabled), ("monthly_minute_cap", body.monthly_minute_cap), ("idle_timeout_seconds", body.idle_timeout_seconds),
-                         ("history_enabled", body.history_enabled), ("language", body.language)):
+                         ("history_enabled", body.history_enabled), ("language", body.language), ("provider", body.provider)):
         if value is not None:
             setattr(row, field, value)
     db.commit()
@@ -61,6 +67,8 @@ def start_session(body: SessionIn, db: Session = Depends(get_db), actor: models.
     out = service.settings_out(db, owner.id, can_edit=False)
     if not out["enabled"]:
         raise HTTPException(403, "The assistant is turned off for this workspace. An admin can turn it on in Settings.")
+    if out["provider"] == "local":
+        raise HTTPException(409, "The assistant is set to local models, which answer through /assistant/local/chat and need no Deepgram session.")
     if not out["available"]:
         raise HTTPException(503, "The assistant is not set up on this server yet. Ask whoever runs Synex to add the voice service key.")
     if out["capReached"]:
@@ -151,6 +159,53 @@ class LocalChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     history: list[dict] = Field(default_factory=list, max_length=40)
     page: dict = Field(default_factory=dict)
+
+
+@router.get("/providers")
+def provider_choices(db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """What the assistant can run on, whether each is ready, and the one in use."""
+    from ..assistant import speech
+    owner, _ = resolve_workspace(db, actor)
+    return {"selected": service.get_settings_row(db, owner.id).provider or "deepgram", "providers": speech.providers()}
+
+
+class SpeechIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    audio: str = Field(max_length=4_000_000)  # a base64 .wav of up to 60 seconds
+
+
+class SpeakIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=4000)
+
+
+@router.post("/local/transcribe")
+def local_transcribe(body: SpeechIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Whisper on this computer: a recording in, the words out. Nothing is stored."""
+    import base64
+    import binascii
+
+    from ..assistant import speech
+    try:
+        data = base64.b64decode(body.audio, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(422, "The recording could not be read. Try again.")
+    try:
+        return {"text": speech.transcribe(data)}
+    except speech.SpeechError as exc:
+        raise HTTPException(422, str(exc))
+
+
+@router.post("/local/speak")
+def local_speak(body: SpeakIn, user: models.User = Depends(get_current_user)):
+    """Piper on this computer: a reply in, a .wav voice out."""
+    from fastapi.responses import Response
+
+    from ..assistant import speech
+    try:
+        return Response(speech.speak(body.text), media_type="audio/wav")
+    except speech.SpeechError as exc:
+        raise HTTPException(422, str(exc))
 
 
 @router.get("/local/status")

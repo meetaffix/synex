@@ -23,6 +23,7 @@ class AssistantSettings(Base):
     idle_timeout_seconds = Column(Integer, default=120, nullable=False)
     history_enabled = Column(Boolean, default=False, nullable=False)  # transcripts are stored only when on
     language = Column(String, default="en", nullable=False)  # en | en-IN
+    provider = Column(String, default="deepgram", nullable=False)  # deepgram | local: what answers in the assistant panel
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 

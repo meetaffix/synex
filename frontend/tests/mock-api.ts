@@ -43,6 +43,7 @@ export interface Api {
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
   integ: unknown;
+  voice: { ttsReady: boolean; made: Record<string, unknown> | null; readiness: unknown[] };
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
   builder: Record<string, unknown> | null;
@@ -220,6 +221,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    voice: { ttsReady: false, made: null, readiness: [{ accountId: "a1", name: "Ada Lovelace", ready: false, reasons: ["Its daily voice-note limit is 0. Set a limit on the account's Sender limits tab."], roomToday: 0 }] },
     integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
     scheduledList: [],
@@ -316,9 +318,26 @@ export async function mockApi(page: Page, api: Api) {
           const { action: _a, id: _i, steps, ...rest } = body as Record<string, unknown> & { steps?: { id?: string; type: string; message: string | null; delayHours: number | null; aiConfig: unknown }[] };
           if (rest.status === "active" && api.launchProblems.length) return json(422, { detail: api.launchProblems.map((p) => ({ loc: ["body", p.field], msg: p.message, type: `launch.${p.kind}` })) });
           Object.assign(current, rest);
-          if (steps) current.steps = steps.map((s, i) => ({ ...s, id: s.id ?? `n${i}`, order: i }));
+          if (steps) {
+            // A step new in the browser arrives with a temporary id; the server gives it a real one and fixes every branch that names it.
+            const real = new Map<string, string>();
+            (steps as { id?: string }[]).forEach((st, i) => { if (st.id?.startsWith("new-")) real.set(st.id, `srv-${i}`); });
+            current.steps = (steps as { id?: string; parentStepId?: string | null }[]).map((st, i) => ({ ...st, id: real.get(st.id ?? "") ?? st.id ?? `n${i}`, parentStepId: st.parentStepId ? real.get(st.parentStepId) ?? st.parentStepId : null, order: i }));
+          }
           return json(200, current);
         }
+      }
+      if (path.startsWith("/voice-notes")) {
+        const v = api.voice;
+        if (path === "/voice-notes/status") return json(200, { limits: { maxSeconds: 60, maxBytes: 20971520, maxScript: 1000, formats: [".m4a", ".mp3", ".wav"] }, languages: [{ id: "en-US", label: "English (US)" }, { id: "en-GB", label: "English (UK)" }, { id: "en-IN", label: "English (India)" }],
+          tts: { engine: "piper", ready: v.ttsReady, languages: { "en-US": { label: "English (US)", ready: v.ttsReady }, "en-GB": { label: "English (UK)", ready: false }, "en-IN": { label: "English (India)", ready: false } }, missing: v.ttsReady ? [] : ["the piper program (set PIPER_BINARY)"], note: "Made on this computer with Piper, which is free and works offline.", howTo: "Install Piper (MIT licence) and a voice, then set PIPER_BINARY and PIPER_VOICE_EN_US." } });
+        if (path.startsWith("/voice-notes/readiness")) return json(200, v.readiness);
+        if (path === "/voice-notes/estimate") return json(200, { costUsd: 0, estimatedSeconds: 12, note: "Free: made on this computer." });
+        if (path === "/voice-notes/upload" && method === "POST") { v.made = { id: "au1", kind: "upload", language: "en-US", filename: (body as { filename: string }).filename, size: 1234, durationSeconds: 3, durationChecked: true, script: null }; return json(201, v.made); }
+        if (path === "/voice-notes/synthesize" && method === "POST") { v.made = { id: "au2", kind: "tts", language: "en-US", filename: "voice-note.wav", size: 5000, durationSeconds: 12, durationChecked: true, script: (body as { script: string }).script }; return json(201, v.made); }
+        if (path.endsWith("/audio")) return route.fulfill({ status: 200, headers: { ...cors, "content-type": "audio/wav" }, body: Buffer.from("RIFF0000WAVE") });
+        if (v.made && path === `/voice-notes/${v.made.id}`) return json(200, v.made);
+        return json(404, { detail: "Voice note not found" });
       }
       const share = path.match(/^\/campaigns\/([^/]+)\/share$/);
       if (share) return json(200, { synexSequence: 1, name: "Autumn outreach", sequenceMode: "classic", aiContext: {}, steps: [{ type: "connection_request", message: "Hi {{first_name}}, from the old campaign", delayHours: null, aiConfig: null }, { type: "end", message: null, delayHours: null, aiConfig: null }] });

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabPanel } from "@/components/ui/tabs";
 import { useCampaignList } from "../hooks";
 import { api } from "@/services/client";
+import { outline } from "./graph";
 import { newStep, type BuilderStep, type StepType } from "./model";
 
 type Plan = { type: StepType; message?: string; hours?: number }[];
@@ -42,8 +43,11 @@ export function SequenceTemplates({ onApply, onClose }: { onApply: (steps: Build
   const previous = (campaigns.data ?? []).filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
 
   const usePrevious = async (id: string, name: string) => {
-    const data = await api.get<{ steps: { type: StepType; message: string | null; delayHours: number | null; aiConfig: BuilderStep["aiConfig"] }[] }>(`/campaigns/${id}/share`);
-    setChosen({ name, steps: data.steps.map((s) => ({ ...newStep(s.type), message: s.message ?? "", delayHours: s.delayHours ?? 0, aiConfig: s.aiConfig ?? null })) });
+    const data = await api.get<{ steps: { type: StepType; message: string | null; delayHours: number | null; aiConfig: BuilderStep["aiConfig"]; config?: Record<string, unknown> | null; parent?: number | null; branch?: "yes" | "no" | null }[] }>(`/campaigns/${id}/share`);
+    const made = data.steps.map((s) => ({ ...newStep(s.type), message: s.message ?? "", delayHours: s.delayHours ?? 0, aiConfig: s.aiConfig ?? null, config: { ...newStep(s.type).config, ...(s.config ?? {}) } }));
+    // A shared sequence names each step's parent by its position; give the copies their own parents and branches.
+    data.steps.forEach((s, i) => { if (typeof s.parent === "number" && made[s.parent]) { made[i].parentKey = made[s.parent].key; made[i].branch = s.branch ?? null; } });
+    setChosen({ name, steps: made });
   };
 
   return (
@@ -83,6 +87,7 @@ export function SequenceTemplates({ onApply, onClose }: { onApply: (steps: Build
           <div role="alertdialog" aria-label="Replace the sequence" className="grid gap-2 rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">
             <p className="font-medium">Replace the current sequence with {chosen.name}?</p>
             <p>The messages you have written in this sequence will be replaced.</p>
+            <pre aria-label="Preview of the sequence" className="max-h-48 overflow-auto rounded-md bg-surface p-2 text-xs">{outline(chosen.steps).join("\n")}</pre>
             <div className="flex gap-2"><Button size="sm" onClick={() => { onApply(chosen.steps); onClose(); }}>Apply template</Button><Button size="sm" variant="outline" onClick={() => setChosen(null)}>Cancel</Button></div>
           </div>
         )}

@@ -68,6 +68,19 @@ export async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** A file from the API (audio for a preview), fetched with the same credentials as every other call so it works across sites. */
+export async function fetchBlob(path: string): Promise<Blob> {
+  const token = tokenGetter ? await tokenGetter() : null;
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { credentials: "include", headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ApiError(0, "Cannot reach the API. Is the backend running on " + API_URL + "?");
+  }
+  if (!res.ok) throw new ApiError(res.status, res.statusText);
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   getText: (path: string) => request<string>("GET", path, undefined, true),

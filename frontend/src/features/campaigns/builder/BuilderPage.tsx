@@ -13,6 +13,7 @@ import { LeadsStep } from "./LeadsStep";
 import { ReviewStep } from "./ReviewStep";
 import { SendersStep } from "./SendersStep";
 import { SequenceStep } from "./SequenceStep";
+import { problems as nodeProblems } from "./graph";
 import { fromServer, useBuilderCampaign, useLaunchCheck, useSaveCampaign, type BuilderState } from "./model";
 
 const STEPS = ["LinkedIn senders", "List of leads", "Sequence", "Review and launch"];
@@ -113,6 +114,8 @@ export function BuilderPage() {
     );
   }
 
+  const smartIssues = state.mode === "smart" ? nodeProblems(state.steps) : [];
+  const blocked = step === 2 && smartIssues.length > 0 ? smartIssues[0].message : null;
   const indicator = { saved: "Saved", dirty: "Unsaved changes", saving: "Saving", failed: "Not saved: will retry" }[saving];
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -149,9 +152,14 @@ export function BuilderPage() {
         )}
       </div>
 
-      <div className="flex justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" disabled={step === 0} onClick={() => goTo(step - 1)}>Back</Button>
-        {step < 3 && <Button onClick={() => goTo(step + 1)}>Next</Button>}
+        {step < 3 && (
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {blocked && <p id="next-blocked" className="text-sm text-danger">Next is off: {blocked}</p>}
+            <Button disabled={!!blocked} aria-describedby={blocked ? "next-blocked" : undefined} onClick={() => goTo(step + 1)}>Next</Button>
+          </div>
+        )}
       </div>
 
       {context && <ContextPanel value={state.context} onSave={(value) => change({ context: value })} onClose={() => setContext(false)} />}
