@@ -11,6 +11,8 @@ Detection never solves, bypasses or outsources a CAPTCHA or checkpoint: any
 checkpoint this module does not recognise is reported as MANUAL_VERIFICATION and
 the user completes it on LinkedIn themselves.
 """
+import random
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from enum import Enum
 import re
@@ -358,7 +360,7 @@ class ProfilePages:
         count = await out.count()
         return (await out.nth(count - 1).inner_text()).strip() if count else None
 
-    async def list_conversations(self, page: Page) -> list[ConversationRef]:
+    async def list_conversations(self, page: Page, since=None) -> list[ConversationRef]:
         await self.goto(page, self.base_url + "/messaging/")
         refs: list[ConversationRef] = []
         items = page.locator(self.sel.conversation_item)
@@ -390,4 +392,91 @@ class ProfilePages:
         await Site._click_and_settle(page, selector)
 
 
-PROFILE_PAGES = ProfilePages(LINKEDIN, REAL_PROFILE_SELECTORS)
+class LiveProfilePages(ProfilePages):
+    """The real messaging pages, read from the structure captured on 16 Nov 2026 (headed browser, Meet Affix).
+
+    The conversation list has no thread id or profile link on its rows, so each row is opened (which is what a person does) and the
+    thread's own URL and header link give both. Messages are read in the same visit and handed to ``read_thread`` from a cache, so
+    a conversation is opened once per sync. After the first sync only rows with an unread badge are opened. At most
+    ``MAX_THREADS`` are opened per sync.
+    """
+
+    MAX_THREADS = 10
+    ROW = "li.msg-conversation-listitem"
+    ROW_LINK = "div.msg-conversation-listitem__link"
+    UNREAD = ".msg-conversation-card__unread-count"
+    HEADER_LINK = "a.msg-thread__link-to-profile"
+    EVENT = "li.msg-s-message-list__event"
+    BODY = "p.msg-s-event-listitem__body"
+
+    def __init__(self, site: Site, selectors: ProfileSelectors) -> None:
+        super().__init__(site, selectors)
+        self._cache: dict[str, list[ThreadMessage]] = {}
+
+    async def list_conversations(self, page: Page, since=None) -> list[ConversationRef]:
+        await self.goto(page, self.base_url + "/messaging/")
+        try:
+            await page.wait_for_selector(f"{self.ROW} {self.ROW_LINK}", timeout=30_000)
+        except Exception:  # noqa: BLE001 - an empty inbox is a normal result
+            return []
+        await page.wait_for_timeout(1500)
+        rows = page.locator(self.ROW)
+        wanted = []
+        for index in range(await rows.count()):
+            if since is not None and not await rows.nth(index).locator(self.UNREAD).count():
+                continue
+            wanted.append(index)
+        refs: list[ConversationRef] = []
+        for index in wanted[: self.MAX_THREADS]:
+            await rows.nth(index).locator(self.ROW_LINK).first.click()
+            try:
+                await page.wait_for_url("**/messaging/thread/**", timeout=15_000)
+                await page.wait_for_selector(self.HEADER_LINK, timeout=15_000)
+            except Exception:  # noqa: BLE001 - not a one-to-one thread (group, sponsored): skipped
+                continue
+            await page.wait_for_timeout(1200)
+            thread_id = urlsplit(page.url).path.rstrip("/").rsplit("/", 1)[-1]
+            href = await page.locator(self.HEADER_LINK).first.get_attribute("href")
+            if not href or "/in/" not in href:
+                continue
+            self._cache[thread_id] = await self._read_open_thread(page, href)
+            refs.append(ConversationRef(thread_id, self._absolute(href), datetime.now(timezone.utc).isoformat()))
+            await page.wait_for_timeout(random.uniform(2500, 5500))
+        return refs
+
+    async def read_thread(self, page: Page, thread_id: str) -> list[ThreadMessage]:
+        if thread_id in self._cache:
+            return self._cache.pop(thread_id)
+        await self.goto(page, f"{self.base_url}/messaging/thread/{thread_id}/")
+        href = await page.locator(self.HEADER_LINK).first.get_attribute("href")
+        return await self._read_open_thread(page, href or "")
+
+    async def _read_open_thread(self, page: Page, other_href: str) -> list[ThreadMessage]:
+        """Messages of the thread on screen. Direction: a message from the person in the header is incoming, all others are ours."""
+        other = normalize_profile(other_href)
+        messages: list[ThreadMessage] = []
+        sender = None
+        events = page.locator(self.EVENT)
+        for index in range(await events.count()):
+            event = events.nth(index)
+            holder = event.locator("[data-event-urn]").first
+            urn = await holder.get_attribute("data-event-urn") if await holder.count() else None
+            link = event.locator("a[href*='/in/']").first
+            if await link.count():
+                sender = normalize_profile(await link.get_attribute("href") or "")
+            bodies = event.locator(self.BODY)
+            if not urn or not await bodies.count():
+                continue
+            parts = [(await bodies.nth(i).inner_text()).strip() for i in range(await bodies.count())]
+            text = chr(10).join(parts).strip()
+            direction = "in" if sender and sender == other else "out"
+            messages.append(ThreadMessage(urn, direction, text, datetime.now(timezone.utc).isoformat()))
+        return messages
+
+
+def normalize_profile(href: str) -> str:
+    match = re.search(r"/in/([^/?#]+)", href or "")
+    return match.group(1).lower() if match else ""
+
+
+PROFILE_PAGES = LiveProfilePages(LINKEDIN, REAL_PROFILE_SELECTORS)

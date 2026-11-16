@@ -57,7 +57,7 @@ import {
 import { LeadFormDialog } from "./components/LeadFormDialog";
 import { OPTIONAL_COLUMNS, useLeadColumns } from "./columns";
 import { useAuth } from "@/features/auth/AuthContext";
-import { ImportDialog } from "./components/ImportDialog";
+import { AddLeadsDialog } from "./components/AddLeadsDialog";
 import { useLeads, useLeadLists, useLeadMutations, useImportJobs } from "@/hooks/api";
 import { leadsService } from "@/services/resources";
 import { toast } from "@/components/ui/sonner";
@@ -317,7 +317,7 @@ export function LeadsPage() {
             </Button>
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4" />
-              Import CSV
+              Add leads
             </Button>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
@@ -482,7 +482,7 @@ export function LeadsPage() {
                 <>
                   <Button variant="secondary" onClick={() => setImportOpen(true)}>
                     <Upload className="h-4 w-4" />
-                    Import CSV
+                    Add leads
                   </Button>
                   <Button onClick={openCreate}>
                     <Plus className="h-4 w-4" />
@@ -652,7 +652,7 @@ export function LeadsPage() {
         onOpenChange={setFormOpen}
         lead={editLead}
       />
-      <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <AddLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}

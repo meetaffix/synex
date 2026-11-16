@@ -161,7 +161,7 @@ async def follow_profile(session: ActionSession, profile_url: str) -> FollowResu
 
 async def fetch_new_messages(session: ActionSession, since: datetime | None) -> list[InboundConversation]:
     """Conversations updated after ``since`` (all of them when it is None), with their messages."""
-    refs = await session.pages.list_conversations(session.page)
+    refs = await session.pages.list_conversations(session.page, since)
     await _guard(session)
     cutoff = since.astimezone(timezone.utc) if since else None
     conversations: list[InboundConversation] = []

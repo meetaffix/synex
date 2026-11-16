@@ -19,8 +19,8 @@ OUTLINE_JS = r"""
 () => {
   const skip = new Set(['SCRIPT','STYLE','NOSCRIPT','svg','SVG','PATH','LINK','META','CODE']);
   function walk(el, depth) {
-    if (skip.has(el.tagName) || depth > 14) return null;
-    const attrs = [...el.attributes].map(a => a.name).filter(n => n !== 'class' && n !== 'style').sort();
+    if (skip.has(el.tagName) || depth > 60) return null;
+    const attrs = [...el.attributes].map(a => (a.name === 'data-testid' || a.name === 'data-view-name' || a.name === 'data-test-icon') ? a.name + '=' + a.value : a.name).filter(n => n !== 'class' && n !== 'style').sort();
     const node = {t: el.tagName.toLowerCase(), c: (el.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 6), a: attrs.slice(0, 8)};
     const role = el.getAttribute('role'); if (role) node.role = role;
     const href = el.getAttribute('href'); if (href && /\/in\//.test(href)) node.href = '/in/…';
@@ -72,6 +72,15 @@ async def main() -> int:
                     await page.wait_for_timeout(4_000)
                 except Exception:  # noqa: BLE001
                     print("rows did not fill in 60 s")
+            diag = await page.evaluate(r"""() => ({
+              ready: document.readyState, bodyText: document.body.innerText.length,
+              rows: [...document.querySelectorAll('li.msg-conversation-listitem')].map(li => li.innerText.length),
+              messages: document.querySelectorAll('.msg-s-message-list-content li').length,
+              iframes: document.querySelectorAll('iframe').length,
+              shadowHosts: [...document.querySelectorAll('*')].filter(e => e.shadowRoot).length,
+              h1: document.querySelectorAll('h1').length, sections: document.querySelectorAll('main section').length,
+              testids: [...new Set([...document.querySelectorAll('[data-view-name]')].map(e => e.getAttribute('data-view-name')))].slice(0, 40) })""")
+            print(name, "diagnostics:", diag)
             data = await page.evaluate(OUTLINE_JS)
             (out / f"{name}.json").write_text(json.dumps(data, indent=1), encoding="utf-8")
             print(name, "path:", data["path"], "-> saved")
