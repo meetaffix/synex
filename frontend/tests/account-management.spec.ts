@@ -177,3 +177,28 @@ test("manage connections: a stopped seat cannot start a new read", async ({ page
   await page.getByRole("tab", { name: "Manage connections" }).click();
   await expect(page.getByRole("button", { name: "Reload connections" })).toBeDisabled();
 });
+
+test("account: delete needs the exact name typed, then removes the account and returns to the list", async ({ page }) => {
+  const api = await open(page);
+  await page.getByRole("tab", { name: "Account" }).click();
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", { name: "Delete permanently" });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByLabel("Account name").fill("ada lovelace");
+  await expect(confirm).toBeDisabled(); // the name must match exactly
+  await dialog.getByLabel("Account name").fill("Ada Lovelace");
+  await confirm.click();
+  await expect(page).toHaveURL(/\/linkedin-accounts$/);
+  expect((callsTo(api, "POST", /\/delete$/)[0].body as { confirm: string }).confirm).toBe("Ada Lovelace");
+  await expect(page.getByRole("heading", { name: "Ada Lovelace" })).toHaveCount(0);
+});
+
+test("inbox privacy: someone without access can send the owner a link", async ({ page }) => {
+  const api = newApi({ accounts: [account("a1", "Ada Lovelace", { canChangeSyncMode: false })], management: { a1: { policy: { preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 }, lifecycle: "active", canChangePrivacy: false } } });
+  await mockApi(page, api);
+  await page.goto("/linkedin-accounts/a1?tab=privacy");
+  await page.getByRole("button", { name: "Share with account owner" }).click();
+  await expect(page.getByRole("dialog").getByText(/Reconnect link for Ada Lovelace/)).toBeVisible();
+  expect(callsTo(api, "POST", /\/reconnect-link$/)).toHaveLength(1);
+});

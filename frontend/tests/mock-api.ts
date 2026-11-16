@@ -306,7 +306,7 @@ export async function mockApi(page: Page, api: Api) {
         const offset = Number(query.get("offset") ?? 0);
         return json(200, { items: rows.slice(offset, offset + Number(query.get("limit") ?? 50)), total: rows.length, sync, note });
       }
-      const manage = path.match(/^\/linkedin-accounts\/([^/]+)\/(details|policy|deactivate)$/);
+      const manage = path.match(/^\/linkedin-accounts\/([^/]+)\/(details|policy|deactivate|delete)$/);
       if (manage && api.accounts.some((a) => a.id === manage[1])) {
         const state = (api.management[manage[1]] ??= { policy: emptyPolicy(), lifecycle: "active", canChangePrivacy: true });
         if (manage[2] === "details") {
@@ -322,6 +322,12 @@ export async function mockApi(page: Page, api: Api) {
           if (api.policyStatus !== 200) return json(api.policyStatus, { detail: "That limit is above the maximum." });
           state.policy = body ?? state.policy;
           return json(200, state.policy);
+        }
+        if (manage[2] === "delete" && method === "POST") {
+          const acct = api.accounts.find((a) => a.id === manage[1]);
+          if (body?.confirm !== acct?.name) return json(422, { detail: "Type the account's name exactly to confirm." });
+          api.accounts.splice(api.accounts.indexOf(acct!), 1);
+          return empty();
         }
         if (manage[2] === "deactivate" && method === "POST") {
           state.lifecycle = "deactivated";

@@ -1,6 +1,9 @@
 import { useEffect, useId, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReconnectLinkDialog, type LinkState } from "../ReconnectLinkDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +20,14 @@ export function PrivacyTab({ account, details }: { account: SenderAccount; detai
   const [days, setDays] = useState(details.policy.inboxHistoryDays);
   useEffect(() => setDays(details.policy.inboxHistoryDays), [details.policy.inboxHistoryDays]);
   const allowed = details.canChangePrivacy;
+  const [link, setLink] = useState<LinkState | null>(null);
+  const share = () => {
+    setLink({ kind: "loading" });
+    actions.reconnectLink.mutate(account.id, {
+      onSuccess: (created) => setLink({ kind: "ready", link: created }),
+      onError: (error) => setLink({ kind: "error", message: requestFailureMessage(error) }),
+    });
+  };
   const changeSync = (mode: SyncMode) =>
     actions.update.mutate(
       { id: account.id, changes: { syncMode: mode } },
@@ -30,7 +41,8 @@ export function PrivacyTab({ account, details }: { account: SenderAccount; detai
     <div className="grid max-w-2xl gap-8">
       {!allowed && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm text-warning">
-          Account access required. Only the person who connected this account can change what Synex reads from its inbox. Ask them to open this page, or to reconnect the account from the link in the account menu.
+          Account access required. Only the person who connected this account can change what Synex reads from its inbox. Ask them to open this page, or send them a link to do it.
+          <span className="mt-2 block"><Button size="sm" variant="outline" onClick={share}>Share with account owner</Button></span>
         </p>
       )}
       <section className="grid gap-3">
@@ -48,6 +60,7 @@ export function PrivacyTab({ account, details }: { account: SenderAccount; detai
         </div>
         <p className="text-xs text-muted-foreground">Reading messages never counts against this account's sending limits.</p>
       </section>
+      {link && <ReconnectLinkDialog accountName={account.name} state={link} onRetry={share} onClose={() => setLink(null)} />}
     </div>
   );
 }
@@ -93,9 +106,12 @@ export function HealthTab({ accountId, details }: { accountId: string; details: 
 }
 
 export function AccountTab({ account, details }: { account: SenderAccount; details: AccountDetails }) {
-  const { deactivate } = useManagementActions(account.id);
+  const { deactivate, remove } = useManagementActions(account.id);
   const actions = useAccountActions();
   const [confirm, setConfirm] = useState<"deactivate" | "disconnect" | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [typed, setTyped] = useState("");
+  const navigate = useNavigate();
   const deactivated = details.lifecycle === "deactivated";
   return (
     <div className="grid max-w-2xl gap-8">
@@ -117,6 +133,32 @@ export function AccountTab({ account, details }: { account: SenderAccount; detai
           <Button variant="outline" className="text-danger" disabled={account.status === "disconnected"} onClick={() => setConfirm("disconnect")}>Disconnect</Button>
         </div>
       </section>
+      <section className="grid gap-3">
+        <h2 className="text-base font-semibold">Delete this account</h2>
+        <p className="text-sm text-muted-foreground">
+          Removes this account from Synex for good: its saved session, its pending actions and its seat. Your LinkedIn profile is not touched. This cannot be undone; to use the profile again you connect it as a new account.
+        </p>
+        <div>
+          <Button variant="destructive" onClick={() => { setTyped(""); setDeleting(true); }}>Delete account</Button>
+        </div>
+      </section>
+      <Dialog open={deleting} onOpenChange={setDeleting}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{`Delete ${account.name}?`}</DialogTitle>
+            <DialogDescription>This removes the account from Synex permanently. Type its name to confirm.</DialogDescription>
+          </DialogHeader>
+          <label htmlFor="delete-confirm" className="text-sm font-medium">Account name</label>
+          <Input id="delete-confirm" value={typed} autoComplete="off" onChange={(event) => setTyped(event.target.value)} />
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setDeleting(false)}>Cancel</Button>
+            <Button variant="destructive" disabled={typed.trim() !== account.name} loading={remove.isPending}
+              onClick={() => remove.mutate(typed, { onSuccess: () => { toast.success(`${account.name} deleted.`); navigate("/linkedin-accounts"); }, onError: (error) => toast.error(requestFailureMessage(error)) })}>
+              Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ConfirmDialog
         open={confirm === "deactivate"}
         onOpenChange={(open) => !open && setConfirm(null)}

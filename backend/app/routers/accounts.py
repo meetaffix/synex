@@ -24,7 +24,7 @@ router.include_router(management_router)
 @router.get("", response_model=list[AccountOut])
 def list_accounts(db: Session = Depends(get_db), workspace: models.User = Depends(get_data_user),
                   actor: models.User = Depends(get_current_user)):
-    rows = db.query(models.LinkedInAccount).filter_by(user_id=workspace.id).order_by(models.LinkedInAccount.created_at).all()
+    rows = db.query(models.LinkedInAccount).filter(models.LinkedInAccount.user_id == workspace.id, models.LinkedInAccount.status != "deleted").order_by(models.LinkedInAccount.created_at).all()
     return [AccountOut.from_model(row, actor.id) for row in rows]
 
 

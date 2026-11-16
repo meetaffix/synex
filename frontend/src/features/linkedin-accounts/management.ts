@@ -89,6 +89,9 @@ export const managementService = {
   deactivate: async (id: string): Promise<void> => {
     await api.post(`/linkedin-accounts/${id}/deactivate`);
   },
+  remove: async (id: string, confirm: string): Promise<void> => {
+    await api.post(`/linkedin-accounts/${id}/delete`, { confirm });
+  },
 };
 
 export const detailKeys = { one: (id: string) => ["account-details", id] as const, overview: ["account-overview"] as const };
@@ -104,6 +107,13 @@ export function useManagementActions(id: string) {
     savePolicy: useMutation({
       mutationFn: (policy: SenderPolicy) => managementService.savePolicy(id, policy),
       onSuccess: () => qc.invalidateQueries({ queryKey: detailKeys.one(id) }),
+    }),
+    remove: useMutation({
+      mutationFn: (confirm: string) => managementService.remove(id, confirm),
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: ["sender-accounts"] });
+        void qc.invalidateQueries({ queryKey: detailKeys.overview });
+      },
     }),
     deactivate: useMutation({
       mutationFn: () => managementService.deactivate(id),

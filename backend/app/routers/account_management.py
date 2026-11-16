@@ -14,7 +14,8 @@ from .. import account_policy, connections_runner, engine, models
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
-from ..linkedin_session import service
+from ..linkedin_session import service, store
+from ..linkedin_session.manager import SessionManager
 
 router = APIRouter()
 
@@ -107,6 +108,27 @@ def deactivate(account_id: str, db: Session = Depends(get_db), workspace: models
     account.paused_reason = "Seat deactivated by its owner. History is retained."
     db.query(models.AgentTask).filter(models.AgentTask.account_id == account.id,
                                     models.AgentTask.status == "pending").update({"status": "cancelled"})
+    db.commit()
+
+
+class DeleteIn(BaseModel):
+    confirm: str
+
+
+@router.post("/{account_id}/delete", status_code=204)
+def delete_account(account_id: str, body: DeleteIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_admin_user),
+                   manager: SessionManager = Depends(service.get_manager)):
+    """Remove the account from Synex for good: its LinkedIn session, pending actions and seat go. Its history stays attached to the workspace."""
+    account = service.owned_account(db, workspace.id, account_id)
+    if body.confirm.strip() != account.name:
+        raise HTTPException(422, "Type the account's name exactly to confirm.")
+    manager.cancel_for_account(account.id)
+    store.wipe_session(db, account)
+    db.query(models.AgentTask).filter(models.AgentTask.account_id == account.id,
+                                    models.AgentTask.status == "pending").update({"status": "cancelled"})
+    account.status = "deleted"
+    account.paused_reason = "Deleted by its owner."
+    account.daily_action_limit = 0
     db.commit()
 
 
