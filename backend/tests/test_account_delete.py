@@ -87,5 +87,16 @@ class DeleteTest(unittest.TestCase):
         self.assertEqual(self.client.post(f"/linkedin-accounts/{fid}/delete", json={"confirm": "Theirs"}).status_code, 404)
 
 
+class InviteLinkTest(DeleteTest):
+    def test_a_new_sender_link_creates_a_stopped_account_and_a_one_time_link(self):
+        out = self.client.post("/linkedin-accounts/invite-link").json()
+        self.assertIn("/reconnect/", out["url"])
+        accounts = self.client.get("/linkedin-accounts").json()
+        waiting = [a for a in accounts if a["name"].startswith("New sender")]
+        self.assertEqual(len(waiting), 1)
+        self.assertEqual(waiting[0]["dailyActionLimit"], 0)  # nothing can run until the owner signs in and sets a limit
+        self.assertNotEqual(waiting[0]["status"], "connected")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -43,6 +43,10 @@ export function useAccountActions() {
       gcTime: 0,
     }),
     reconnectLink: useMutation({ mutationFn: senderAccountsService.reconnectLink }),
+    inviteLink: useMutation({
+      mutationFn: senderAccountsService.inviteLink,
+      onSuccess: () => void qc.invalidateQueries({ queryKey: ["sender-accounts"] }),
+    }),
     disconnect: useMutation({
       mutationFn: senderAccountsService.disconnect,
       onSuccess: () => qc.invalidateQueries({ queryKey: senderKeys.list }),

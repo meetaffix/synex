@@ -61,3 +61,16 @@ test("with no accounts the page offers Connect, and a failed load offers Try aga
   await open(page, []);
   await expect(page.getByRole("button", { name: "Connect LinkedIn account" })).toBeVisible();
 });
+
+test("the connect dialog offers the extension as coming soon (disabled) and a share link for a new sender", async ({ page }) => {
+  const api = newApi({ accounts: [account("a1", "Ada Lovelace")] });
+  await mockApi(page, api);
+  await page.goto("/linkedin-accounts");
+  await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
+  await expect(page.getByRole("button", { name: "Connect with the Chrome extension" })).toBeDisabled();
+  await expect(page.getByText("Coming soon. Nothing to install today.")).toBeVisible();
+  await page.getByRole("button", { name: "Share a connection link" }).click();
+  await expect(page.getByRole("dialog").getByText(/Reconnect link for the new sender/)).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("textbox")).toHaveValue(/reconnect\/newtok/);
+  expect(api.calls.filter((c) => c.path === "/linkedin-accounts/invite-link")).toHaveLength(1);
+});

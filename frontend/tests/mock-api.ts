@@ -264,6 +264,8 @@ export async function mockApi(page: Page, api: Api) {
       const reconnectInfo = path.match(/^\/reconnect\/([^/]+)$/);
       if (reconnectInfo && method === "GET") return json(api.linkInfo.status, api.linkInfo.body);
 
+      if (path === "/linkedin-accounts/invite-link" && method === "POST")
+        return json(200, { url: "http://localhost:5173/reconnect/newtok", expiresAt: "2026-11-30T10:00:00Z" });
       const flow = path.match(/^\/(?:linkedin-accounts|reconnect\/[^/]+)\/connect(?:\/(a1)(\/code)?)?$/);
       if (flow) {
         if (method === "POST" && !flow[1]) return json(202, attempt("starting"));

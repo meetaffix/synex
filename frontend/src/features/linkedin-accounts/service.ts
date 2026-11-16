@@ -60,6 +60,8 @@ export const senderAccountsService = {
   reconnectLink: async (id: string): Promise<ReconnectLink> =>
     parse(reconnectLinkSchema, await api.post(`/linkedin-accounts/${id}/reconnect-link`)),
 
+  inviteLink: async (): Promise<ReconnectLink> => parse(reconnectLinkSchema, await api.post("/linkedin-accounts/invite-link")),
+
   testProxy: async (proxyUrl: string): Promise<ProxyTestResult> =>
     parse(proxyTestSchema, await api.post("/linkedin-accounts/proxy-test", { proxyUrl })),
 

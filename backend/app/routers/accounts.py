@@ -105,6 +105,16 @@ def update_account(account_id: str, body: AccountPatch, db: Session = Depends(ge
     return AccountOut.from_model(account, actor.id)
 
 
+@router.post("/invite-link", response_model=ReconnectLinkOut)
+def invite_link(db: Session = Depends(get_db), workspace: models.User = Depends(get_admin_user)):
+    """A link for someone else to connect a new sender. The account exists, stopped at limit 0, until they sign in; their profile then names it."""
+    account = models.LinkedInAccount(user_id=workspace.id, name="New sender (waiting for sign-in)", status="pending", daily_action_limit=0)
+    db.add(account)
+    db.commit()
+    token, expires = store.issue_reconnect_token(db, account)
+    return ReconnectLinkOut(url=f"{settings.frontend_url.rstrip('/')}/reconnect/{token}", expires_at=aware(expires))
+
+
 @router.post("/{account_id}/reconnect-link", response_model=ReconnectLinkOut)
 def reconnect_link(account_id: str, db: Session = Depends(get_db), workspace: models.User = Depends(get_admin_user)):
     account = service.owned_account(db, workspace.id, account_id)
