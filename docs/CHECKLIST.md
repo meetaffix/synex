@@ -333,22 +333,22 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 7.11 Axe, 360/768/1280, both themes (axe and 360 px pass for all dashboard states; 768 px and screenshots not yet viewed)
 
 ## Area 8: AI assistant
-- [~] 8.01 Voice and text assistant exists (Deepgram Voice Agent)
-- [ ] 8.02 Provider interface for STT, TTS and LLM
-- [ ] 8.03 Local option: Whisper STT
-- [ ] 8.04 Local option: Piper TTS
-- [ ] 8.05 Local option: Ollama model
-- [ ] 8.06 Settings page to choose providers, with licences shown
-- [ ] 8.07 Tools: accounts (list, limits, status)
-- [ ] 8.08 Tools: leads (add, lists, do-not-contact)
-- [ ] 8.09 Tools: campaigns (create, pause, resume, status)
-- [ ] 8.10 Tools: inbox (find conversation, draft reply)
-- [ ] 8.11 Tools: dashboard (answer questions)
-- [ ] 8.12 Tools: settings (read-only unless confirmed)
-- [ ] 8.13 Every action tool asks confirmation and obeys ceilings
-- [ ] 8.14 Works with no paid service configured (text with local model)
-- [ ] 8.15 Transcript, mute, stop, error states
-- [ ] 8.16 Axe, 360/768/1280, both themes
+- [x] 8.01 Voice and text assistant exists (Deepgram Voice Agent) (existing voice and text assistant; test_assistant (38 tests))
+- [~] 8.02 Provider interface for STT, TTS and LLM (the language model has a provider choice (Deepgram, Ollama); speech in and out are still Deepgram only)
+- [ ] 8.03 Local option: Whisper STT (not built)
+- [ ] 8.04 Local option: Piper TTS (not built (Piper candidate recorded in DEPENDENCIES.md))
+- [x] 8.05 Local option: Ollama model (test_assistant_local (7 tests); assistant-local.spec 'ready' (typed requests only))
+- [~] 8.06 Settings page to choose providers, with licences shown (Settings shows the local model's status and how to start it; the provider is chosen by AI_PROVIDER, OLLAMA_URL, OLLAMA_MODEL, not by a selector)
+- [x] 8.07 Tools: accounts (list, limits, status) (list_sender_accounts, explain_account_status, suggest_limits (test_assistant))
+- [x] 8.08 Tools: leads (add, lists, do-not-contact) (search_leads, get_lead, create_lead_list, add_do_not_contact (test_assistant, test_assistant_local NewToolsTest))
+- [x] 8.09 Tools: campaigns (create, pause, resume, status) (search_campaigns, get_campaign, create_campaign_draft, set_campaign_state (test_assistant))
+- [~] 8.10 Tools: inbox (find conversation, draft reply) (search_conversations (read) and draft_message exist; saving a reply draft into a conversation is not a tool)
+- [x] 8.11 Tools: dashboard (answer questions) (get_dashboard_summary, get_funnel (test_assistant_local NewToolsTest))
+- [~] 8.12 Tools: settings (read-only unless confirmed) (set_daily_limits and set_account_state exist as confirmed proposals; no tool reads the settings screens)
+- [x] 8.13 Every action tool asks confirmation and obeys ceilings (test_assistant ConfirmationTest includes every write tool; test_assistant_local write tool makes a card and changes nothing)
+- [x] 8.14 Works with no paid service configured (text with local model) (test_assistant_local: typed assistant with no paid service configured)
+- [~] 8.15 Transcript, mute, stop, error states (existing panel has transcript, mute and errors; the local card shows the conversation and errors; not re-audited)
+- [~] 8.16 Axe, 360/768/1280, both themes (axe and 360 px pass for settings (with the local card); the existing assistant panel states were passing before)
 
 ## Area 9: Templates and saved replies
 - [ ] 9.01 Message templates: create, edit, delete, search

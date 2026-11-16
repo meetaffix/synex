@@ -322,6 +322,9 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
+      if (path === "/assistant/local/status") return json(200, { reachable: api.syncStatus !== "ollama-off", model: "llama3.2", installed: true });
+      if (path === "/assistant/local/chat") return json(200, { reply: "Two conversations need a reply.", cards: [{ type: "proposal", proposal: { id: "p1", summary: "Add 1 company to the do-not-contact list.", changes: ["Acme Inc will never be contacted."], status: "pending" } }] });
+      if (/^\/assistant\/proposals\/p1\/(confirm|cancel)$/.test(path)) return json(200, { ok: true });
       if (path.startsWith("/inbox/")) {
         const q = url.searchParams;
         const inboxItems = api.inbox as Record<string, unknown>[];
