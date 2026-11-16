@@ -64,6 +64,9 @@ class ClassifyTest(unittest.TestCase):
         long_text = "<p>" + "Welcome back, here is some ordinary page text. " * 5 + "</p>"
         cases = [
             ("captcha", '<p>' + "x" * 60 + '</p><iframe src="https://www.example.test/captcha-frame"></iframe>', "/uas/login", None),
+            # The ordinary sign-in page ships an invisible reCAPTCHA v3 frame: that is not a CAPTCHA the person must solve.
+            ("login_form_not_recognised", long_text + '<input type="email"><input type="password">'
+             '<iframe src="https://www.google.com/recaptcha/api2/anchor" style="visibility:hidden"></iframe>', "/login/", None),
             ("checkpoint_other", long_text, "/checkpoint/challenge", None),
             ("authwall", long_text, "/authwall", None),
             ("blocked_or_blank", "<title>Access Denied</title>" + long_text, "/login", None),

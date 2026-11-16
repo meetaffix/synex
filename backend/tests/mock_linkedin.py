@@ -38,13 +38,32 @@ MOCK_PROFILE_SELECTORS = ProfileSelectors(
     composer_send="button#composer-send", conversation_item="li.conv", conversation_profile_link="a.conv-link",
     thread_message=".msg")
 
+_REAL_FIELDS = """<div data-copy="{n}"><label for="{n}a"><div>Email or phone</div></label><div><input type="email" id="{n}a" autocomplete="username" value=""/></div>
+<label for="{n}b"><div>Password</div></label><div><input type="password" id="{n}b" autocomplete="current-password" value=""/><button type="button" aria-label="Show password"><span>eye</span></button></div>
+<div><input type="checkbox" aria-label="Keep me signed in" checked=""/><p>Keep me signed in</p></div>
+<button type="button" data-real-signin="1"><span><span>Sign in</span></span></button>
+<button type="button"><span><span>Sign in with Google</span></span></button></div>"""
+REAL_SHAPE_LOGIN = (
+    "{notice}"
+    '<div style="display:none">' + _REAL_FIELDS.replace("{n}", "h") + "</div>"
+    "<div>" + _REAL_FIELDS.replace("{n}", "v") + "</div>"
+    """<script>document.querySelectorAll('[data-real-signin]').forEach(btn => btn.addEventListener('click', async () => {{
+      const root = btn.closest('[data-copy]');
+      const u = root.querySelector('input[type=email]').value, p = root.querySelector('input[type=password]').value;
+      const r = await fetch('/login', {{method: 'POST', headers: {{'Content-Type': 'application/x-www-form-urlencoded'}}, body: new URLSearchParams({{u, p}})}});
+      if (r.redirected) {{ window.location.href = r.url; }} else {{ document.body.innerHTML = await r.text(); }}
+    }}));</script>""")
+
 PAGE = "<!doctype html><html><body>{body}</body></html>"
 FAULT_TARGETS = {"logged_out": "/login", "checkpoint": "/checkpoint/unknown", "restricted": "/restricted"}
 
 
 class MockLinkedIn:
-    def __init__(self, password: str = "S3cret-Pa55-xyzzy", code: str = "482913") -> None:
+    def __init__(self, password: str = "S3cret-Pa55-xyzzy", code: str = "482913", real_shape: bool = False) -> None:
         self.password, self.code = password, code
+        # real_shape: the sign-in page copies the structure of LinkedIn's real page (read 15 Nov 2026): generated ids, no <form>,
+        # a type=button "Sign in" button that posts with script, and the markup shipped twice with one copy hidden.
+        self.real_shape = real_shape
         self.approved = False
         self.force_logged_out = False
         self.force_restricted = False
@@ -146,6 +165,9 @@ class MockLinkedIn:
 
             # ---- pages ----
             def _login_page(self, error=False):
+                if mock.real_shape:
+                    return self._send(body=REAL_SHAPE_LOGIN.format(
+                        notice="<p>Hmm, that's not the right password. Please try again.</p>" if error else ""))
                 notice = '<div id="error-for-password">Wrong password</div>' if error else ""
                 self._send(body=f'{notice}<form method="post" action="/login"><input id="username" name="u">'
                                 '<input id="password" name="p" type="password"><button id="sign-in" type="submit">Sign in</button></form>')

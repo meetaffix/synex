@@ -67,7 +67,12 @@ async def classify(site, page: Page, state_name: str | None = None) -> tuple[str
                "app_approval": "checkpoint_approval", "restricted": "restricted", "manual_verification": None}
     if state_name in mapping and mapping[state_name]:
         return mapping[state_name], title, path
-    if await _count(page, "iframe[src*='captcha' i], #captcha-internal"):
+    # Only a VISIBLE challenge counts: the ordinary sign-in page carries an invisible reCAPTCHA v3 frame (run 1, 16 Nov 2026).
+    try:
+        captcha_shown = await page.locator("iframe[src*='captcha' i], #captcha-internal").first.is_visible()
+    except PlaywrightError:
+        captcha_shown = False
+    if captcha_shown:
         return "captcha", title, path
     if "/checkpoint" in path:
         return "checkpoint_other", title, path
