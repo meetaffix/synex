@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from . import engine, models
+from . import dnc, engine, models
 from .config import settings
 from .database import SessionLocal
 from .linkedin_session import store
@@ -202,6 +202,8 @@ def precheck(task_id: str) -> str | None:
             reason = engine.stop_reason_for(campaign, lead) if lead else "lead_removed"
             if reason:
                 return f"lead_{reason}"
+            if lead and dnc.blocked(db, lead.user_id, lead):
+                return "lead_do_not_contact"
         if task.type == "send_invite" and lead and lead.status in engine.ACCEPTED_STATES:
             return "already_connected"
         if task.type == "send_message":

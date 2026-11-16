@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from . import models
+from . import dnc, models
 from .config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING, settings
 from .providers import render_variables  # the engine never imports an AI provider: it sends finished text only
 
@@ -169,6 +169,8 @@ def launch_campaign(db: Session, campaign: models.Campaign) -> int:
             lead.campaign_id = campaign.id
         if lead.id in existing:
             continue
+        if dnc.blocked(db, campaign.user_id, lead):
+            continue  # on the do-not-contact list: never started
         db.add(
             models.SequenceRun(
                 user_id=campaign.user_id, campaign_id=campaign.id, lead_id=lead.id,
@@ -541,6 +543,9 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
     reason = stop_reason_for(campaign, lead)
     if reason:
         stop_run(run, reason, now)
+        return
+    if dnc.blocked(db, campaign.user_id, lead):
+        stop_run(run, "do_not_contact", now)
         return
 
     if not (lead.linkedin_url or "").strip():

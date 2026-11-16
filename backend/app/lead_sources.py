@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
 
-from . import models
+from . import dnc, models
 from .dedup import normalize_linkedin_url
 
 # id -> (label, reads LinkedIn?, people per page, built?, note shown when it is not available)
@@ -176,8 +176,10 @@ def build_preview(db: Session, collection: models.LeadCollection) -> dict:
     return preview
 
 
-def exclusion_reason(db: Session, user_id: str, key: str, options: dict) -> str | None:
+def exclusion_reason(db: Session, user_id: str, key: str, options: dict, company: str | None = None) -> str | None:
     """Why a person already known to Synex is left out, per the options; None when they may be added."""
+    if dnc.blocked_key(db, user_id, key, company):
+        return "do_not_contact"
     leads = [l for l in db.query(models.Lead).filter(models.Lead.user_id == user_id, models.Lead.linkedin_url != "").all()
              if normalize_linkedin_url(l.linkedin_url) == key]
     if not leads:
@@ -201,7 +203,7 @@ def importable_items(db: Session, collection: models.LeadCollection) -> tuple[li
         if item.degree is not None and item.degree not in degrees:
             skipped["degree_filter"] = skipped.get("degree_filter", 0) + 1
             continue
-        reason = exclusion_reason(db, collection.user_id, item.url_key, options)
+        reason = exclusion_reason(db, collection.user_id, item.url_key, options, item.company)
         if reason:
             skipped[reason] = skipped.get(reason, 0) + 1
             continue

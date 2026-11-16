@@ -630,6 +630,22 @@ class LeadCollectionItem(Base):
     extra = Column(JSON, default=dict)           # CSV columns, email, ... carried to the lead
 
 
+class DoNotContact(Base):
+    """People (by LinkedIn profile) and companies (by name) that must never be contacted. See ``dnc.py``."""
+    __tablename__ = "do_not_contact"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    kind = Column(String, nullable=False)  # person | company
+    key = Column(String, nullable=False)   # normalised profile key, or company name without case or punctuation
+    name = Column(String, default="")
+    profile_url = Column(String, nullable=True)
+    source = Column(String, default="manual")  # manual | csv
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (Index("ux_do_not_contact", "user_id", "kind", "key", unique=True),)
+
+
 class AccountConnection(Base):
     """One person in a sender account's own connection list or received invitations, read by a paced task or uploaded as CSV."""
 
