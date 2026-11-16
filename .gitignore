@@ -59,3 +59,7 @@ desktop.ini
 
 # Failed-login captures (redacted screenshots), local to the machine, never committed
 backend/captures/
+
+# local run outputs
+full-backend-run.txt
+full-playwright-run.txt
