@@ -1,5 +1,7 @@
 """Glue between the HTTP routers and the session manager. All HTTP errors are
 raised here as HTTPException so the routers stay thin."""
+from pathlib import Path
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -22,7 +24,8 @@ def get_manager() -> SessionManager:
             LINKEDIN, max_browsers=settings.effective_max_browsers,
             attempt_timeout=settings.linkedin_session_attempt_timeout_seconds,
             poll_interval=settings.linkedin_session_poll_interval_seconds,
-            headless=settings.linkedin_session_headless)
+            headless=settings.linkedin_session_headless,
+            capture_dir=Path(settings.linkedin_capture_dir) if settings.linkedin_capture_dir else Path(__file__).resolve().parents[2] / "captures")
     return _manager
 
 

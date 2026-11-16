@@ -6,5 +6,9 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app ./app
 COPY certs ./certs
+# The browser build must match the pinned Playwright (requirements.txt): fail the image build now, not the first LinkedIn
+# sign-in later. The server also checks at start (SYNEX_CHECK_BROWSER) and refuses to run without a working browser.
+ENV SYNEX_CHECK_BROWSER=1
+RUN python -c "from playwright.sync_api import sync_playwright as s; p = s().start(); b = p.chromium.launch(headless=True); b.new_page().goto('about:blank'); b.close(); p.stop(); print('browser ok')"
 # Exactly one replica. Nothing is stored on this disk: sessions live encrypted in the database.
 CMD ["python", "-m", "app.outreach_worker"]
