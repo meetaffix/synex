@@ -276,6 +276,7 @@ def template_out(t: models.Template) -> dict:
         "body": t.body,
         "usageCount": t.usage_count,
         "replyRate": t.reply_rate,
+        "shortcut": t.shortcut,
         "createdAt": _iso(t.created_at),
         "updatedAt": _iso(t.updated_at),
     }

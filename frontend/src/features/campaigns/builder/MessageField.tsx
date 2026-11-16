@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSenderAccounts } from "@/features/linkedin-accounts/hooks";
 import { api } from "@/services/client";
+import { useTemplates } from "@/hooks/api";
 
 export const VARIABLE_GROUPS: { label: string; names: string[] }[] = [
   { label: "Lead", names: ["first_name", "last_name", "company", "job_title", "location", "headline"] },
@@ -35,9 +36,13 @@ interface Props {
   accountIds: string[];
   /** When set, the text is written by AI per person: the box is a fallback template and says so. */
   aiNote?: string;
+  /** Which saved templates to offer: connection, first_message or follow_up. */
+  templateCategory?: string;
 }
 
-export function MessageField({ label, value, onChange, maxLength, campaignId, listId, accountIds, aiNote }: Props) {
+export function MessageField({ label, value, onChange, maxLength, campaignId, listId, accountIds, aiNote, templateCategory }: Props) {
+  const saved = useTemplates();
+  const offered = (saved.data ?? []).filter((t) => !templateCategory || t.category === templateCategory);
   const id = useId();
   const area = useRef<HTMLTextAreaElement>(null);
   const [custom, setCustom] = useState("");
@@ -74,6 +79,10 @@ export function MessageField({ label, value, onChange, maxLength, campaignId, li
           {VARIABLE_GROUPS.map((g) => (
             <optgroup key={g.label} label={g.label}>{g.names.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>
           ))}
+        </NativeSelect>
+        <NativeSelect aria-label={`Insert a saved template into ${label}`} className="w-auto" value="" onChange={(e) => { const t = offered.find((x) => x.id === e.target.value); if (t) onChange(maxLength ? t.body.slice(0, maxLength) : t.body); }}>
+          <option value="">Insert template</option>
+          {offered.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </NativeSelect>
         <Button type="button" size="sm" variant="outline" onClick={spintax}>Add spintax</Button>
         <div className="flex items-center gap-1">

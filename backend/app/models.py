@@ -411,6 +411,8 @@ class Template(Base):
     body = Column(Text, nullable=False, default="")
     usage_count = Column(Integer, default=0)
     reply_rate = Column(Float, default=0.0)
+    # A short word typed after / in the inbox reply box to insert this text (saved replies), e.g. "thanks" for /thanks.
+    shortcut = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 

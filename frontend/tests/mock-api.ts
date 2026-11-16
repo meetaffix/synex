@@ -266,6 +266,7 @@ export async function mockApi(page: Page, api: Api) {
       if (path === "/team") return json(200, { seat: { role: "admin" }, members: [] });
       if (path === "/linkedin/sign-in-identity") return json(200, { linked: false });
       if (path === "/templates" && method === "GET") return json(200, api.templates);
+      if (path === "/templates" && method === "POST") return json(200, { id: "t-new", usageCount: 0, replyRate: 0, createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
       if (path === "/linkedin-accounts" && method === "GET")
         return api.listStatus === 200 ? json(200, api.accounts) : json(api.listStatus, { detail: "The server is unavailable." });
       if (path === "/linkedin-accounts/proxy-test") {
@@ -286,6 +287,11 @@ export async function mockApi(page: Page, api: Api) {
         api.builder ??= make();
         const current = api.builder as Record<string, unknown>;
         if (method === "GET") return json(200, current);
+        if (body?.action === "import") {
+          if (!(body as { sequence?: { synexSequence?: number } }).sequence?.synexSequence) return json(422, { detail: "That is not a Synex sequence file. Use a file made with Share sequence." });
+          api.builder = make();
+          return json(200, api.builder);
+        }
         if (body?.action === "duplicate") return json(200, { ...(api.campaigns.find((c) => c.id === body.id) ?? {}), id: "copy1", name: "Copy of campaign", status: "draft", displayStatus: "draft" });
         if (body?.action === "archive") {
           const target = api.campaigns.find((c) => c.id === body.id);
@@ -309,7 +315,7 @@ export async function mockApi(page: Page, api: Api) {
         }
       }
       const share = path.match(/^\/campaigns\/([^/]+)\/share$/);
-      if (share) return json(200, { synexSequence: 1, name: "Autumn outreach", sequenceMode: "classic", aiContext: {}, steps: [] });
+      if (share) return json(200, { synexSequence: 1, name: "Autumn outreach", sequenceMode: "classic", aiContext: {}, steps: [{ type: "connection_request", message: "Hi {{first_name}}, from the old campaign", delayHours: null, aiConfig: null }, { type: "end", message: null, delayHours: null, aiConfig: null }] });
       const cbSub = path.match(/^\/campaigns\/cb1\/(launch-check|drafts(?:\/(estimate|generate|approve|preview|render))?)$/);
       if (cbSub) {
         if (cbSub[1] === "launch-check") return json(200, { ready: api.launchProblems.length === 0, problems: api.launchProblems });

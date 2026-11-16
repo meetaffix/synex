@@ -39,8 +39,15 @@ def list_templates(
     return [template_out(t) for t in templates]
 
 
+def _unique_shortcut(db: Session, user: models.User, shortcut: str | None, own_id: str | None = None) -> None:
+    if shortcut and db.query(models.Template.id).filter(models.Template.user_id == user.id, models.Template.shortcut == shortcut, models.Template.id != (own_id or "")).first():
+        raise HTTPException(status_code=409, detail=f"/{shortcut} is already used by another template. Choose a different shortcut.")
+
+
 def _create(payload: TemplateIn, db: Session, user: models.User):
+    _unique_shortcut(db, user, payload.shortcut)
     t = models.Template(
+        shortcut=payload.shortcut,
         user_id=user.id,
         name=payload.name,
         category=payload.category or "first_message",
@@ -55,6 +62,9 @@ def _create(payload: TemplateIn, db: Session, user: models.User):
 def _update(template_id: str, payload: TemplateUpdateIn, db: Session, user: models.User):
     t = _owned(db, user, template_id)
     data = payload.model_dump(exclude_unset=True)
+    if "shortcut" in data:
+        _unique_shortcut(db, user, data["shortcut"], t.id)
+        t.shortcut = data["shortcut"]
     for field in ("name", "category", "body"):
         if field in data and data[field] is not None:
             setattr(t, field, data[field])

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
@@ -23,10 +23,38 @@ import { formatNumber, formatPercent } from "@/utils/format";
 import { campaignAccountIds, type Campaign } from "./service";
 import { useCampaignList } from "./hooks";
 
+function ImportSequence() {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const run = useMutation({
+    mutationFn: async (file: File) => {
+      let sequence: unknown;
+      try {
+        sequence = JSON.parse(await file.text());
+      } catch {
+        throw new Error("That file could not be read. Use a .synex-sequence.json file made with Share sequence.");
+      }
+      return api.post<{ id: string }>("/campaigns", { action: "import", sequence });
+    },
+    onSuccess: async (made) => { await qc.invalidateQueries({ queryKey: ["campaigns"] }); toast.success("Sequence imported as a draft."); navigate(`/campaigns/${made.id}/edit?step=2`); },
+    onError: (e) => toast.error(e instanceof Error && e.message ? e.message : requestFailureMessage(e)),
+  });
+  return (
+    <>
+      <Button variant="outline" loading={run.isPending} onClick={() => document.getElementById("import-sequence")?.click()}>Import sequence</Button>
+      <input id="import-sequence" type="file" accept=".json,application/json" className="sr-only" tabIndex={-1} aria-label="Import a sequence file"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f && f.size < 1_000_000) run.mutate(f); e.target.value = ""; }} />
+    </>
+  );
+}
+
 const NEW_CAMPAIGN = (
-  <Button asChild>
-    <Link to="/campaigns/new">New campaign</Link>
-  </Button>
+  <div className="flex flex-wrap gap-2">
+    <ImportSequence />
+    <Button asChild>
+      <Link to="/campaigns/new">New campaign</Link>
+    </Button>
+  </div>
 );
 
 const STATUS: Record<string, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
@@ -75,7 +103,7 @@ export function CampaignsPage() {
           illustration="campaigns"
           title="Ready to start your first campaign?"
           description="A campaign is a sequence of steps, such as a connection request followed by a message, that Synex runs for each lead in a list. Build one with New campaign; its results show here."
-          action={<Button asChild><Link to="/campaigns/new">Create your first campaign</Link></Button>}
+          action={<div className="flex flex-wrap justify-center gap-2"><Button asChild><Link to="/campaigns/new">Create your first campaign</Link></Button><ImportSequence /></div>}
         />
       )}
       {!loading && !failure && !!campaigns.data?.length && (

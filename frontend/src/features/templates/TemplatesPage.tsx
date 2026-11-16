@@ -69,6 +69,7 @@ const schema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string(),
   body: z.string().min(1, "Message body is required"),
+  shortcut: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -101,6 +102,7 @@ function TemplateDialog({
         name: template?.name ?? "",
         category: template?.category ?? "first_message",
         body: template?.body ?? "",
+        shortcut: template?.shortcut ?? "",
       });
   }, [open, template, reset]);
 
@@ -114,8 +116,8 @@ function TemplateDialog({
         toast.success("Template created");
       }
       onOpenChange(false);
-    } catch {
-      toast.error("Something went wrong");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : "Something went wrong");
     }
   };
 
@@ -158,6 +160,11 @@ function TemplateDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="shortcut">Shortcut (optional)</Label>
+            <Input id="shortcut" placeholder="thanks" {...register("shortcut")} />
+            <p className="text-xs text-muted-foreground">Type / and the shortcut in the inbox reply box to insert this text, for example /thanks.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Message</Label>
@@ -301,7 +308,7 @@ export function TemplatesPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <h3 className="mt-3 font-semibold">{t.name}</h3>
+                <h3 className="mt-3 font-semibold">{t.name}{t.shortcut ? <span className="ml-2 rounded bg-surface-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">/{t.shortcut}</span> : null}</h3>
                 <p className="mt-2 line-clamp-4 flex-1 text-sm text-muted-foreground">
                   {t.body}
                 </p>

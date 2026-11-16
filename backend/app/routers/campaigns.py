@@ -9,7 +9,7 @@ from ..errors import sanitize_errors
 from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import campaign_out
-from ..schemas import CampaignIn, CampaignUpdateIn, RunActionIn
+from ..schemas import CampaignIn, CampaignUpdateIn, RunActionIn, StepIn
 from .. import campaign_settings, models, engine
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -413,6 +413,24 @@ def _duplicate(campaign_id: str, db: Session, user: models.User):
     return campaign_out(copy)
 
 
+def _import_sequence(body: dict, db: Session, user: models.User):
+    """A new draft from a file made by Share sequence: its steps, AI settings and campaign context. No leads, senders or runs come with it."""
+    data = body.get("sequence")
+    if not isinstance(data, dict) or data.get("synexSequence") != 1 or not isinstance(data.get("steps"), list) or not data["steps"]:
+        raise HTTPException(status_code=422, detail="That is not a Synex sequence file. Use a file made with Share sequence.")
+    steps = []
+    for i, raw in enumerate(data["steps"][:30]):
+        if not isinstance(raw, dict) or raw.get("type") not in ("connection_request", "wait", "message", "follow_up", "end"):
+            raise HTTPException(status_code=422, detail=f"Step {i + 1} is not a step Synex knows.")
+        steps.append(_parse(StepIn, {"type": raw["type"], "order": i, "message": raw.get("message"), "delayHours": raw.get("delayHours"), "aiConfig": raw.get("aiConfig")}))
+    created = _create(_parse(CampaignIn, {"name": str(data.get("name") or "Imported sequence")[:200], "aiContext": data.get("aiContext") or {}, "sequenceMode": "classic"}), db, user)
+    campaign = _owned(db, user, created["id"])
+    _apply_steps(campaign, steps)
+    db.commit()
+    db.refresh(campaign)
+    return campaign_out(campaign)
+
+
 def _archive(campaign_id: str, db: Session, user: models.User):
     campaign = _owned(db, user, campaign_id)
     if campaign.status in ("draft", "active"):
@@ -457,6 +475,8 @@ def write_campaigns(
         if not body.get("id"):
             raise HTTPException(status_code=400, detail="id is required to update a campaign")
         return _update(body["id"], _parse(CampaignUpdateIn, body), db, user)
+    if action == "import":
+        return _import_sequence(body, db, user)
     if action in ("duplicate", "archive"):
         if not body.get("id"):
             raise HTTPException(status_code=400, detail="id is required")

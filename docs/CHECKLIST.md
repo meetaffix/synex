@@ -351,14 +351,14 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 8.16 Axe, 360/768/1280, both themes (axe and 360 px pass for settings (with the local card); the existing assistant panel states were passing before)
 
 ## Area 9: Templates and saved replies
-- [ ] 9.01 Message templates: create, edit, delete, search
-- [ ] 9.02 Variables inside templates
-- [ ] 9.03 Insert a template into the editor or reply box
-- [ ] 9.04 Saved replies for the inbox with shortcut
-- [ ] 9.05 Sequence templates (links to 5.F16)
-- [ ] 9.06 Share sequence (export and import file)
-- [ ] 9.07 Empty, loading, error states
-- [ ] 9.08 Axe, 360/768/1280, both themes
+- [x] 9.01 Message templates: create, edit, delete, search (existing Templates page (create, edit, delete, copy, search); templates-and-sequences.spec; test_templates_and_sequences)
+- [x] 9.02 Variables inside templates (variables in the editor (builder chips, MessageEditor); render preview test_message_variables)
+- [x] 9.03 Insert a template into the editor or reply box (templates-and-sequences.spec ('offered in the message editor'; inbox reply insert))
+- [x] 9.04 Saved replies for the inbox with shortcut (templates-and-sequences.spec ('/shortcut plus a space expands it'); test_templates_and_sequences ShortcutTest)
+- [x] 9.05 Sequence templates (links to 5.F16) (templates-and-sequences.spec ('four bundled templates and earlier campaigns'))
+- [x] 9.06 Share sequence (export and import file) (Share sequence file and Import sequence: test_templates_and_sequences SequenceFileTest; templates-and-sequences.spec; campaigns-list.spec)
+- [~] 9.07 Empty, loading, error states (existing templates page states; new dialogs have empty text; no dedicated loading or error test)
+- [~] 9.08 Axe, 360/768/1280, both themes (axe and 360 px pass for the touched pages (campaigns, builder, inbox, settings); a templates page state is not in the axe list)
 
 ## Area 10: Settings and integrations [6]
 - [~] 10.01 Settings page exists (audit)

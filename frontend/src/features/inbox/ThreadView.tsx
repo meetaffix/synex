@@ -5,7 +5,9 @@ import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTemplates } from "@/hooks/api";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/format";
@@ -23,6 +25,8 @@ export function ThreadView({ conversation, onBack }: Props) {
   const scheduled = useScheduled(conversation.id);
   const cost = useSuggestCost();
   const actions = useInboxActions();
+  const saved = useTemplates();
+  const replies = (saved.data ?? []).filter((t) => t.category === "reply");
   const [text, setText] = useState(conversation.draftBody);
   const [when, setWhen] = useState("");
   const [showSchedule, setShowSchedule] = useState(false);
@@ -32,7 +36,11 @@ export function ThreadView({ conversation, onBack }: Props) {
   const readOnly = !conversation.accountId;
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
-  const edit = (value: string) => {
+  const edit = (input: string) => {
+    // Typing /shortcut and a space inserts the saved reply with that shortcut.
+    const hit = /(^|\s)\/([a-z0-9-]{2,20})\s$/.exec(input);
+    const match = hit ? replies.find((t) => t.shortcut === hit[2]) : undefined;
+    const value = match && hit ? input.slice(0, input.length - hit[0].length + hit[1].length) + match.body : input;
     setText(value);
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => actions.saveDraft.mutate({ id: conversation.id, body: value }), 1200); // a draft is saved as you type
@@ -129,6 +137,10 @@ export function ThreadView({ conversation, onBack }: Props) {
               <Button type="button" size="sm" variant="outline" aria-pressed={emoji} onClick={() => setEmoji(!emoji)}><Smile aria-hidden /> Emoji</Button>
               <Button type="button" size="sm" variant="outline" disabled title="Coming soon"><Paperclip aria-hidden /> Attach (coming soon)</Button>
               <Button type="button" size="sm" variant="outline" disabled title="Coming soon"><Mic aria-hidden /> Voice message (coming soon)</Button>
+              <NativeSelect aria-label="Insert a saved reply" className="w-auto" value="" onChange={(e) => { const t = replies.find((x) => x.id === e.target.value); if (t) edit(text + (text && !text.endsWith(" ") ? " " : "") + t.body); }}>
+                <option value="">Saved replies</option>
+                {replies.map((t) => <option key={t.id} value={t.id}>{t.shortcut ? `/${t.shortcut}: ${t.name}` : t.name}</option>)}
+              </NativeSelect>
               <Button type="button" size="sm" variant="outline" aria-pressed={showSchedule} onClick={() => setShowSchedule(!showSchedule)}><Clock aria-hidden /> Schedule message</Button>
               <Button type="button" size="sm" variant="outline" loading={actions.suggest.isPending} disabled={!thread.data?.some((m) => m.direction === "inbound")} onClick={suggest}><Sparkles aria-hidden /> Suggest a reply</Button>
               <span className="ml-auto text-xs text-muted-foreground">Sending from {conversation.accountName ?? "this account"}</span>

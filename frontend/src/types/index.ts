@@ -196,6 +196,7 @@ export interface Template {
   body: string;
   usageCount: number;
   replyRate: number;
+  shortcut?: string | null;
   createdAt: string;
   updatedAt: string;
 }

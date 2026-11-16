@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { AiDrawer } from "./AiDrawer";
+import { SequenceTemplates } from "./SequenceTemplates";
 import { MessageField } from "./MessageField";
 import { defaultAi, newStep, type AiConfig, type BuilderState, type BuilderStep } from "./model";
 
@@ -20,6 +21,7 @@ interface Props {
 /** Step 3, the classic sequence: a straight line of actions. Settings are shown on every block, never hidden behind a click. */
 export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
   const [aiFor, setAiFor] = useState<BuilderStep | null>(null);
+  const [templates, setTemplates] = useState(false);
   const steps = state.steps;
   const patch = (key: number, change: Partial<BuilderStep>) => set({ steps: steps.map((s) => (s.key === key ? { ...s, ...change } : s)) });
   const addFollowUp = () => {
@@ -39,7 +41,8 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
           <h2 id="seq-h" className="text-lg font-semibold">Sequence</h2>
           <p className="text-sm text-muted-foreground">Synex views the profile, sends the connection request, then messages once the person accepts.</p>
         </div>
-        <div role="group" aria-label="Sequence mode" className="flex gap-2">
+        <div role="group" aria-label="Sequence mode" className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => setTemplates(true)}>Templates</Button>
           <Button size="sm" aria-pressed="true">Classic</Button>
           <Button size="sm" variant="outline" disabled aria-describedby="smart-soon">Smart</Button>
         </div>
@@ -84,6 +87,7 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
                 {step.type === "connection_request" ? "A note is optional. LinkedIn allows up to 200 characters, and may send requests without a personalised note on some accounts." : isFollowUp ? "Sent only if the person has not replied." : "Sent after the connection is accepted."}
               </p>
               <MessageField label={ai ? `${TITLES[step.type]} (fallback text)` : `${TITLES[step.type]} text`} value={step.message} onChange={(message) => patch(step.key, { message })}
+                templateCategory={step.type === "connection_request" ? "connection" : step.type === "follow_up" ? "follow_up" : "first_message"}
                 maxLength={step.type === "connection_request" ? 200 : 1500} campaignId={campaignId} listId={state.leadListId} accountIds={state.accountIds}
                 aiNote={ai ? "AI writes this for each person. You review every message before launch. This text is only a fallback." : undefined} />
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-muted p-3">
@@ -104,6 +108,7 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
       <div><Button variant="outline" onClick={addFollowUp} disabled={!hasMessage}>Add follow-up message</Button></div>
       {!hasMessage && <p className="text-xs text-muted-foreground">Add a message to the sequence before adding follow-ups.</p>}
 
+      {templates && <SequenceTemplates onApply={(steps) => set({ steps })} onClose={() => setTemplates(false)} />}
       {aiFor && (
         <AiDrawer title={aiFor.type === "connection_request" ? "the connection note" : `${TITLES[aiFor.type].toLowerCase()}`} stepType={aiFor.type} value={aiFor.aiConfig ?? { ...defaultAi(), mode: "ai" }} campaignId={campaignId}
           onSave={(value) => patch(aiFor.key, { aiConfig: value })} onClose={() => setAiFor(null)} onOpenContext={onOpenContext} />

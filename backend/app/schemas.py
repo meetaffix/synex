@@ -290,16 +290,39 @@ class RunActionIn(CamelIn):
 
 
 # ------------------------------- Templates -------------------------------
+def check_shortcut(value: str | None) -> str | None:
+    """A saved-reply shortcut: 2 to 20 lowercase letters, digits or dashes; no slash (the slash is typed in the reply box)."""
+    import re
+    if value is None or not value.strip():
+        return None
+    text = value.strip().lstrip("/").lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,19}", text):
+        raise ValueError("A shortcut is 2 to 20 lowercase letters, digits or dashes, such as thanks.")
+    return text
+
+
 class TemplateIn(CamelIn):
     name: str
     category: str | None = "first_message"
     body: str | None = ""
+    shortcut: str | None = None
+
+    @field_validator("shortcut")
+    @classmethod
+    def _shortcut(cls, value):
+        return check_shortcut(value)
 
 
 class TemplateUpdateIn(CamelIn):
     name: str | None = None
     category: str | None = None
     body: str | None = None
+    shortcut: str | None = None
+
+    @field_validator("shortcut")
+    @classmethod
+    def _shortcut(cls, value):
+        return check_shortcut(value)
 
 
 # ----------------------------- Conversations -----------------------------
