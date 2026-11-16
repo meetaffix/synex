@@ -16,8 +16,9 @@ def _types_in_code() -> set[str]:
     literal = re.search(r"task_type: Literal\[(.*?)\]", router)
     if literal:
         found |= set(re.findall(r'"([a-z_]+)"', literal.group(1)))
-    for name in ("engine.py", "planner.py"):
-        found |= set(re.findall(r'emit_task\([^)]*?"([a-z_]+)"', (APP / name).read_text(encoding="utf-8")))
+    files = [APP / "engine.py", APP / "planner.py", *sorted((APP / "routers").glob("*.py"))]
+    for path in files:  # every place that can queue work for a sender, including the routers
+        found |= set(re.findall(r'emit_task\([^)]*?"([a-z_]+)"', path.read_text(encoding="utf-8")))
     return found
 
 
@@ -30,6 +31,7 @@ class CeilingCoverage(unittest.TestCase):
 
     def test_collection_has_a_ceiling_and_all_are_positive(self):
         self.assertIn("collect_leads", DAILY_TYPE_CEILINGS)
+        self.assertIn("sync_connections", DAILY_TYPE_CEILINGS)
         self.assertTrue(all(isinstance(v, int) and v > 0 for v in DAILY_TYPE_CEILINGS.values()))
 
 

@@ -19,6 +19,7 @@ LABELS = {
     "visit_profile": "Profile views", "send_invite": "Connection requests",
     "send_message": "Messages", "follow_profile": "Profile follows",
     "check_connection": "Connection checks", "sync_inbox": "Inbox reads",
+    "sync_connections": "Connection list reads",
     "collect_leads": "Lead collection pages",
 }
 

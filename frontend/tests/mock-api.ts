@@ -39,6 +39,9 @@ export interface Api {
   templates: Record<string, unknown>[];
   /** Serve /auth/me as signed out, for the sign-in pages. */
   signedOut: boolean;
+  /** Per-account management data (limits policy, lifecycle), created on first read. */
+  management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean }>;
+  policyStatus: number;
   calls: Call[];
 }
 
@@ -100,6 +103,18 @@ export const account = (id: string, name: string, over: Record<string, unknown> 
   connectedAt: "2026-11-01T10:00:00Z",
   ...over,
 });
+
+export const CEILINGS: Record<string, [string, number]> = {
+  send_invite: ["Connection requests", 40],
+  send_message: ["Messages", 100],
+  visit_profile: ["Profile views", 80],
+  follow_profile: ["Profile follows", 50],
+  check_connection: ["Connection checks", 80],
+  sync_inbox: ["Inbox reads", 48],
+  collect_leads: ["Lead collection pages", 20],
+};
+
+export const emptyPolicy = () => ({ preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 });
 
 export const campaign = (id: string, name: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -184,6 +199,8 @@ export function newApi(over: Partial<Api> = {}): Api {
     publishing: { posts: [], accounts: [], activity: [] },
     templates: [],
     signedOut: false,
+    management: {},
+    policyStatus: 200,
     calls: [],
     ...over,
   };
@@ -255,6 +272,30 @@ export async function mockApi(page: Page, api: Api) {
         return json(200, next);
       }
 
+      if (path === "/linkedin-accounts/overview")
+        return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length) });
+      const manage = path.match(/^\/linkedin-accounts\/([^/]+)\/(details|policy|deactivate)$/);
+      if (manage && api.accounts.some((a) => a.id === manage[1])) {
+        const state = (api.management[manage[1]] ??= { policy: emptyPolicy(), lifecycle: "active", canChangePrivacy: true });
+        if (manage[2] === "details") {
+          const actions = (state.policy.actions ?? {}) as Record<string, { dailyLimit: number; stopAt: number }>;
+          const usage = Object.entries(CEILINGS).map(([action, [label, ceiling]]) => {
+            const limit = actions[action]?.dailyLimit ?? ceiling;
+            return { action, label, used: 3, low: Math.max(0, limit - 1), high: Math.min(ceiling, limit + 1), budget: limit, ceiling };
+          });
+          return json(200, { accountId: manage[1], lifecycle: state.lifecycle, activeCampaigns: 1, canChangePrivacy: state.canChangePrivacy, policy: state.policy, usage,
+            ssi: null, ssiReason: "No verified LinkedIn SSI data has been collected.", activity: [] });
+        }
+        if (manage[2] === "policy" && method === "PUT") {
+          if (api.policyStatus !== 200) return json(api.policyStatus, { detail: "That limit is above the maximum." });
+          state.policy = body ?? state.policy;
+          return json(200, state.policy);
+        }
+        if (manage[2] === "deactivate" && method === "POST") {
+          state.lifecycle = "deactivated";
+          return empty();
+        }
+      }
       const one = path.match(/^\/linkedin-accounts\/([^/]+)(\/check|\/reconnect-link)?$/);
       if (one) {
         const current = api.accounts.find((a) => a.id === one[1]);

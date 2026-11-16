@@ -172,9 +172,13 @@ async def _scroll_collect(page: Page, scope, found: dict, limit: int, progress: 
         await asyncio.sleep(random.uniform(2.0, 4.0))
 
 
-async def collect_connections(page: Page, filters: dict, limit: int, progress: Progress, should_stop: ShouldStop) -> list[dict]:
+LINKEDIN_BASE = "https://www.linkedin.com"
+
+
+async def collect_connections(page: Page, filters: dict, limit: int, progress: Progress, should_stop: ShouldStop,
+                              base: str = LINKEDIN_BASE) -> list[dict]:
     """The sender's own 1st-degree connections, filtered by title, company, location and connected-since on our side."""
-    await page.goto("https://www.linkedin.com/mynetwork/invite-connect/connections/", wait_until="domcontentloaded", timeout=45_000)
+    await page.goto(f"{base}/mynetwork/invite-connect/connections/", wait_until="domcontentloaded", timeout=45_000)
     await _wait_for_people(page)
     found: dict[str, dict] = {}
     word = lambda key: (filters.get(key) or "").strip().lower()  # noqa: E731
@@ -191,6 +195,32 @@ async def collect_connections(page: Page, filters: dict, limit: int, progress: P
                 continue
             found[key] = person
             fresh.append(person)
+        if fresh:
+            await progress(fresh)
+        before = len(await page.evaluate(CARD_JS))
+        await page.mouse.wheel(0, 3000)
+        await asyncio.sleep(random.uniform(2.0, 4.0))
+        if len(await page.evaluate(CARD_JS)) == before:
+            break
+    return list(found.values())[:limit]
+
+
+async def collect_invitations(page: Page, limit: int, progress: Progress, should_stop: ShouldStop, base: str = LINKEDIN_BASE) -> list[dict]:
+    """People who have invited the sender and are waiting for an answer. UNVERIFIED on the real site: the address and the card
+    layout are the best known guesses until a run on a real account (with the owner's GO) shows the page."""
+    await page.goto(f"{base}/mynetwork/invitation-manager/received/", wait_until="domcontentloaded", timeout=45_000)
+    await _wait_for_people(page)
+    found: dict[str, dict] = {}
+    for _ in range(10):
+        if await should_stop() or len(found) >= limit:
+            break
+        fresh = []
+        for person in await read_people(page):
+            key = normalize_linkedin_url(person["profile_url"])
+            if key not in found:
+                person["degree"] = None
+                found[key] = person
+                fresh.append(person)
         if fresh:
             await progress(fresh)
         before = len(await page.evaluate(CARD_JS))

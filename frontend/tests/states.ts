@@ -21,6 +21,8 @@ const accounts = () => [
   account("a5", "Radia Perlman", { status: "disconnected", headline: null }),
 ];
 
+const accounts_ = () => newApi({ accounts: accounts() });
+
 const liveFeeds = {
   summary: { connectionsAccepted: 21, leadsContacted: 60, replies: 9, interestedLeads: 4, interestedAnswered: 3, medianResponseSeconds: 7500 },
   series: {
@@ -123,6 +125,17 @@ export const states: State[] = [
   { name: "sender-empty", path: "/linkedin-accounts", api: () => newApi() },
   { name: "sender-list", path: "/linkedin-accounts", api: () => newApi({ accounts: accounts() }) },
   { name: "sender-list-error", path: "/linkedin-accounts", api: () => newApi({ listStatus: 500 }) },
+  { name: "account-limits-new", path: "/linkedin-accounts/a1", api: accounts_ },
+  {
+    name: "account-limits-custom",
+    path: "/linkedin-accounts/a1",
+    api: () => newApi({ accounts: accounts(), management: { a1: { policy: { preset: "custom", range: 3, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90,
+      actions: { send_invite: { dailyLimit: 12, increaseBy: 2, stopAt: 30, intervalDays: 3, dynamicInterval: false }, send_message: { dailyLimit: 20, increaseBy: 1, stopAt: 60, intervalDays: 7, dynamicInterval: true } } }, lifecycle: "active", canChangePrivacy: true } } }),
+  },
+  { name: "account-privacy", path: "/linkedin-accounts/a1?tab=privacy", api: accounts_ },
+  { name: "account-privacy-locked", path: "/linkedin-accounts/a1?tab=privacy", api: () => newApi({ accounts: [account("a1", "Ada Lovelace", { canChangeSyncMode: false })], management: { a1: { policy: { preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 }, lifecycle: "active", canChangePrivacy: false } } }) },
+  { name: "account-health", path: "/linkedin-accounts/a1?tab=health", api: accounts_ },
+  { name: "account-lifecycle", path: "/linkedin-accounts/a1?tab=account", api: accounts_ },
   { name: "connect-form", path: "/linkedin-accounts", api: () => newApi(), prepare: openConnect },
   {
     name: "connect-form-options",

@@ -218,7 +218,7 @@ class OutreachWorker:
             return False
         if snapshot.type == "sync_inbox":
             await asyncio.to_thread(results.apply_inbox, task_id, outcome)
-        elif snapshot.type == "collect_leads":
+        elif snapshot.type in ("collect_leads", "sync_connections"):
             await asyncio.to_thread(results.apply_result, task_id, outcome)
         else:
             await asyncio.to_thread(results.apply_result, task_id, outcome.value)
@@ -241,6 +241,9 @@ class OutreachWorker:
         if task.type == "collect_leads":
             from . import collection_runner
             return await collection_runner.run(session, (task.payload or {})["collectionId"], (task.payload or {}).get("mode", "run"))
+        if task.type == "sync_connections":
+            from . import connections_runner
+            return await connections_runner.run(session, (task.payload or {})["accountId"], (task.payload or {}).get("kind", "connection"))
         raise ValueError(f"unknown task type {task.type}")
 
     # ---- sync helpers run through asyncio.to_thread -----------------------------------

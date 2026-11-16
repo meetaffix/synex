@@ -1,12 +1,19 @@
 """Account-scoped management. Reading settings never opens LinkedIn."""
+import csv
+import io
 from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import account_policy, models
+from .. import account_policy, connections_runner, engine, models
 from ..database import get_db
-from ..deps import get_admin_user, get_current_user, get_data_user
+from ..dedup import normalize_linkedin_url
+from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
 from ..linkedin_session import service
 
 router = APIRouter()
@@ -64,3 +71,102 @@ def deactivate(account_id: str, db: Session = Depends(get_db), workspace: models
     db.query(models.AgentTask).filter(models.AgentTask.account_id == account.id,
                                     models.AgentTask.status == "pending").update({"status": "cancelled"})
     db.commit()
+
+
+# ---- connection list and received invitations ---------------------------------------------------------------------
+
+Kind = Literal["connection", "invitation"]
+SYNC_NOTE = "Synex reads your connections a little at a time, so a long list takes a while to fill."
+
+
+def _sync_state(account: models.LinkedInAccount, kind: str) -> dict:
+    state = ((account.management_config or {}).get("connections") or {}).get(kind) or {}
+    return {"status": state.get("status", "idle"), "detail": state.get("detail"), "lastSyncedAt": state.get("lastSyncedAt"), "lastAdded": state.get("lastAdded")}
+
+
+def _row(row: models.AccountConnection) -> dict:
+    return {"id": row.id, "name": row.name, "headline": row.headline or "", "location": row.location or "", "profileUrl": row.profile_url, "source": row.source}
+
+
+@router.get("/{account_id}/connections")
+def list_connections(account_id: str, kind: Kind = "connection", q: str = "", limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+                     db: Session = Depends(get_db), workspace: models.User = Depends(get_data_user)):
+    account = service.owned_account(db, workspace.id, account_id)
+    query = db.query(models.AccountConnection).filter_by(account_id=account.id, kind=kind)
+    if q.strip():
+        like = f"%{q.strip().lower()}%"
+        query = query.filter(or_(func.lower(models.AccountConnection.name).like(like), func.lower(models.AccountConnection.headline).like(like),
+                                 func.lower(models.AccountConnection.location).like(like)))
+    total = query.count()
+    rows = query.order_by(models.AccountConnection.name, models.AccountConnection.id).offset(offset).limit(limit).all()
+    return {"items": [_row(row) for row in rows], "total": total, "sync": _sync_state(account, kind), "note": SYNC_NOTE}
+
+
+class ReloadIn(BaseModel):
+    kind: Kind = "connection"
+
+
+@router.post("/{account_id}/connections/reload", status_code=202)
+def reload_connections(account_id: str, body: ReloadIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_manager_user)):
+    account = service.owned_account(db, workspace.id, account_id)
+    if not engine.account_is_live(account):
+        raise HTTPException(409, "This account is not connected. Reconnect it first.")
+    if _sync_state(account, body.kind)["status"] in ("queued", "running"):
+        raise HTTPException(409, "A read of this list is already running.")
+    key = f"sync_connections:{account.id}:{body.kind}:{datetime.now(timezone.utc).isoformat()}"
+    task = engine.emit_task(db, account, "sync_connections", {"accountId": account.id, "kind": body.kind}, key)
+    if task is None:
+        raise HTTPException(429, "This account has reached today's limit for reading its connection list. Try again tomorrow.")
+    config = dict(account.management_config or {})
+    states = dict(config.get("connections") or {})
+    states[body.kind] = {**(states.get(body.kind) or {}), "status": "queued", "detail": None}
+    config["connections"] = states
+    account.management_config = config
+    db.commit()
+    return {"sync": _sync_state(account, body.kind), "note": SYNC_NOTE}
+
+
+@router.get("/{account_id}/connections/export")
+def export_connections(account_id: str, kind: Kind = "connection", db: Session = Depends(get_db), workspace: models.User = Depends(get_data_user)):
+    account = service.owned_account(db, workspace.id, account_id)
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["linkedin_url", "name", "headline", "location"])
+    for row in db.query(models.AccountConnection).filter_by(account_id=account.id, kind=kind).order_by(models.AccountConnection.name):
+        # A spreadsheet runs text that starts with = + - @ as a formula: neutralise it.
+        writer.writerow([("'" + v if v[:1] in "=+-@" else v) for v in (row.profile_url, row.name or "", row.headline or "", row.location or "")])
+    name = "connections.csv" if kind == "connection" else "invitations.csv"
+    return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+class ImportIn(BaseModel):
+    csv_text: str = Field(alias="csv", max_length=2_000_000)
+    kind: Kind = "connection"
+
+    model_config = {"populate_by_name": True}
+
+
+@router.post("/{account_id}/connections/import")
+def import_connections(account_id: str, body: ImportIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_manager_user)):
+    account = service.owned_account(db, workspace.id, account_id)
+    reader = csv.DictReader(io.StringIO(body.csv_text.lstrip("﻿")))
+    fields = {(name or "").strip().lower().replace(" ", "_"): name for name in (reader.fieldnames or [])}
+    column = next((fields[k] for k in ("linkedin_url", "linkedin", "profile_url", "url") if k in fields), None)
+    if column is None:
+        raise HTTPException(422, "The file needs a column named linkedin_url (one LinkedIn profile address per row).")
+    people, invalid, seen = [], 0, set()
+    duplicates_in_file = 0
+    for row in reader:
+        url = (row.get(column) or "").strip()
+        key = normalize_linkedin_url(url) if "linkedin.com/in/" in url.lower() else None
+        if not key:
+            invalid += 1
+            continue
+        if key in seen:
+            duplicates_in_file += 1
+            continue
+        seen.add(key)
+        people.append({"profile_url": url, "name": (row.get(fields.get("name", "")) or "").strip(), "headline": (row.get(fields.get("headline", "")) or "").strip(),
+                       "location": (row.get(fields.get("location", "")) or "").strip()})
+    added = connections_runner.upsert(account.id, body.kind, people, source="csv")
+    return {"added": added, "alreadyStored": len(people) - added, "duplicatesInFile": duplicates_in_file, "invalid": invalid}

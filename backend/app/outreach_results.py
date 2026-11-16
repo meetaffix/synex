@@ -350,7 +350,7 @@ def _check(ctx: TaskContext, result: str) -> str | None:
 
 HANDLERS = {"send_invite": _invite, "send_message": _message, "visit_profile": _visit,
             "follow_profile": _follow, "check_connection": _check,
-            "collect_leads": lambda ctx, result: None}
+            "collect_leads": lambda ctx, result: None, "sync_connections": lambda ctx, result: None}
 
 
 def apply_result(task_id: str, result: str) -> None:

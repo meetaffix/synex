@@ -15,6 +15,7 @@ import { InboxPage } from "@/features/inbox/InboxPage";
 import { CampaignsPage } from "@/features/campaigns/CampaignsPage";
 import { CampaignBuilderPage } from "@/features/campaigns/CampaignBuilderPage";
 import { SenderAccountsPage } from "@/features/linkedin-accounts/AccountsPage";
+import { AccountDetailPage } from "@/features/linkedin-accounts/AccountDetailPage";
 import { ReconnectPage } from "@/features/linkedin-accounts/ReconnectPage";
 import { LeadsHub } from "@/features/leads/LeadsHub";
 import { TemplatesPage } from "@/features/templates/TemplatesPage";
@@ -76,6 +77,7 @@ export function App() {
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/campaigns/new" element={<CampaignBuilderPage />} />
             <Route path="/linkedin-accounts" element={<SenderAccountsPage />} />
+            <Route path="/linkedin-accounts/:accountId" element={<AccountDetailPage />} />
             <Route path="/leads" element={<LeadsHub />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/others" element={<OthersPage />} />

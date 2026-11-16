@@ -628,3 +628,23 @@ class LeadCollectionItem(Base):
     location = Column(String, nullable=True)
     degree = Column(Integer, nullable=True)
     extra = Column(JSON, default=dict)           # CSV columns, email, ... carried to the lead
+
+
+class AccountConnection(Base):
+    """One person in a sender account's own connection list or received invitations, read by a paced task or uploaded as CSV."""
+
+    __tablename__ = "account_connections"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    account_id = Column(String, ForeignKey("linkedin_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String, nullable=False, default="connection")  # connection | invitation
+    url_key = Column(String, nullable=False)                     # dedup.normalize_linkedin_url
+    profile_url = Column(String, nullable=False)
+    name = Column(String, nullable=False, default="")
+    headline = Column(String, default="")
+    location = Column(String, default="")
+    source = Column(String, default="sync")                      # sync | csv
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    __table_args__ = (Index("ux_account_connections", "account_id", "kind", "url_key", unique=True),)

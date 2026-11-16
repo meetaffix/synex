@@ -1,4 +1,5 @@
 import { MoreHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -138,6 +139,9 @@ export function AccountRow({ account, actions, checking, error, index = 0 }: Pro
         </Button>
         <Button size="sm" variant="secondary" onClick={actions.onEdit}>
           Edit
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link to={`/linkedin-accounts/${account.id}`} aria-label={`Manage ${account.name}: limits, privacy, health`}>Manage</Link>
         </Button>
       </div>
     </Reveal>
