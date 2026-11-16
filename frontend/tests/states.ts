@@ -137,6 +137,7 @@ export const states: State[] = [
   { name: "account-health", path: "/linkedin-accounts/a1?tab=health", api: accounts_ },
   { name: "account-connections", path: "/linkedin-accounts/a1?tab=connections", api: accounts_ },
   { name: "account-ai", path: "/linkedin-accounts/a1?tab=ai", api: accounts_ },
+  { name: "leads-do-not-contact", path: "/leads?tab=dnc", api: () => newApi() },
   { name: "account-lifecycle", path: "/linkedin-accounts/a1?tab=account", api: accounts_ },
   { name: "connect-form", path: "/linkedin-accounts", api: () => newApi(), prepare: openConnect },
   {

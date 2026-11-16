@@ -42,6 +42,7 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
+  dnc: Record<string, { id: string; kind: string; name: string; profileUrl: string | null; source: string; addedAt: string }[]>;
   management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean; voiceId?: string | null }>;
   policyStatus: number;
   calls: Call[];
@@ -205,6 +206,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    dnc: { person: [], company: [] },
     policyStatus: 200,
     calls: [],
     ...over,
@@ -283,6 +285,25 @@ export async function mockApi(page: Page, api: Api) {
         return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length),
           accounts: Object.fromEntries(api.accounts.map((a, i) => [a.id, { connections: { used: 2, low: 4, high: 6, budget: 5 }, messages: { used: 1, low: 9, high: 11, budget: 10 }, smart: i === 0,
             performance: i === 0 ? { invited: 20, accepted: 8, replied: 2, acceptedPercent: 40, replyPercent: 25 } : { invited: 0, accepted: 0, replied: 0, acceptedPercent: null, replyPercent: null } }])) });
+      const dncPath = path.match(/^\/do-not-contact(\/export|\/import|\/([^/]+))?$/);
+      if (dncPath) {
+        const kind = url.searchParams.get("kind") ?? (body as { kind?: string } | null)?.kind ?? "person";
+        const list = (api.dnc[kind] ??= []);
+        if (method === "DELETE" && dncPath[2]) {
+          for (const k of Object.keys(api.dnc)) api.dnc[k] = api.dnc[k].filter((r) => r.id !== dncPath[2]);
+          return empty();
+        }
+        if (dncPath[1] === "/export") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "linkedin_url,name,source,added\n" + list.map((r) => `${r.profileUrl ?? r.name},,${r.source},2026-11-16`).join("\n") });
+        if (method === "POST") {
+          const lines = String((body as { text?: string; csv?: string }).text ?? (body as { csv?: string }).csv ?? "").split("\n").slice(dncPath[1] === "/import" ? 1 : 0).map((l) => l.trim()).filter(Boolean).filter((l) => dncPath[1] !== "/import" || kind === "company" || l.includes("linkedin"));
+          const good = lines.filter((l) => (kind === "person" ? l.includes("linkedin.com/in/") : true));
+          good.forEach((l, i) => list.push({ id: `d${list.length}${i}`, kind, name: kind === "company" ? l : "", profileUrl: kind === "person" ? l : null, source: dncPath[1] === "/import" ? "csv" : "manual", addedAt: "2026-11-16T10:00:00Z" }));
+          return json(200, { added: good.length, alreadyListed: 0, invalid: lines.length - good.length });
+        }
+        const q = (url.searchParams.get("q") ?? "").toLowerCase();
+        const rows = list.filter((r) => !q || `${r.name} ${r.profileUrl ?? ""}`.toLowerCase().includes(q));
+        return json(200, { items: rows, total: rows.length });
+      }
       const conn = path.match(/^\/linkedin-accounts\/([^/]+)\/connections(\/reload|\/export|\/import)?$/);
       if (conn && api.accounts.some((a) => a.id === conn[1])) {
         const query = url.searchParams;
