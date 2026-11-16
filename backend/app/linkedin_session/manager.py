@@ -282,16 +282,19 @@ class SessionManager:
     async def _login(self, attempt: Attempt, identifier: str, password: str, proxy_url: str | None,
                      timezone: str | None, identity: dict | None) -> "SignedIn":
         async with self._browser(identity, timezone, proxy_url, None) as (used_identity, context, page):
+            stage = "sign-in"
             try:
                 await self.site.open_login(page)
                 await self._drive(attempt, page, identifier, password)
+                stage = "profile"
+                profile = await self.site.read_profile(page)
             except (LoginFailed, ManualVerification, PlaywrightTimeout, asyncio.CancelledError) as exc:
-                await self._record(attempt, page, "navigation_failed" if isinstance(exc, PlaywrightTimeout) and not attempt.last_state else None)
+                force = "profile_not_read" if stage == "profile" else ("navigation_failed" if isinstance(exc, PlaywrightTimeout) and not attempt.last_state else None)
+                await self._record(attempt, page, force)
                 raise
             except Exception as exc:  # noqa: BLE001 - a proxy or network error still gets its page recorded, then is re-raised as is
-                await self._record(attempt, page, "proxy_error" if self.site.is_proxy_error(exc) else None)
+                await self._record(attempt, page, "proxy_error" if self.site.is_proxy_error(exc) else ("profile_not_read" if stage == "profile" else None))
                 raise
-            profile = await self.site.read_profile(page)
             return SignedIn(profile, await context.storage_state(), used_identity)
 
     async def _record(self, attempt: Attempt, page: Page, force: str | None) -> None:

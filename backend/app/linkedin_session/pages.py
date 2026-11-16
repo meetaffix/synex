@@ -13,6 +13,7 @@ the user completes it on LinkedIn themselves.
 """
 from dataclasses import dataclass
 from enum import Enum
+import re
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -80,7 +81,7 @@ REAL_SELECTORS = Selectors(
     captcha_marker="iframe[src*='captcha' i], #captcha-internal",
     logged_in_marker="#global-nav, nav.global-nav",
     restricted_marker=":text('account has been restricted')",
-    profile_name="h1",
+    profile_name="main h2",  # fallback only: the name is read from the page title
     profile_headline=".text-body-medium.break-words",
     profile_avatar="img.pv-top-card-profile-picture__image--show",
 )
@@ -100,6 +101,16 @@ class LoginSite(Protocol):
     async def read_challenge(self, page: Page) -> Challenge: ...
     async def read_profile(self, page: Page) -> Profile: ...
     def is_proxy_error(self, exc: BaseException) -> bool: ...
+
+
+_TITLE_NAME = re.compile(r"^(?:\(\d+\)\s*)?(?P<name>.+?)\s*\|\s*LinkedIn\s*$")
+
+
+def name_from_title(title: str) -> str | None:
+    """The person's name from a profile page title, or None when the title is not a profile title."""
+    match = _TITLE_NAME.match(title.strip())
+    name = match.group("name").strip() if match else ""
+    return name or None
 
 
 class Site:
@@ -153,7 +164,10 @@ class Site:
 
     async def read_profile(self, page: Page) -> Profile:
         await page.goto(self.base_url + self._profile_path, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
-        name = (await page.locator(self.sel.profile_name).first.inner_text(timeout=10_000)).strip()
+        if not urlsplit(page.url).path.startswith("/in/"):  # signed out, or sent to a checkpoint: not a profile
+            raise PlaywrightTimeout("the profile page did not open")
+        # The real profile page has no <h1> (checked 16 Nov 2026); its title is "<Name> | LinkedIn", sometimes "(3) <Name> | LinkedIn".
+        name = name_from_title(await page.title()) or (await page.locator(self.sel.profile_name).first.inner_text(timeout=10_000)).strip()
         avatar = await _optional_attribute(page, self.sel.profile_avatar, "src")
         parts = urlsplit(page.url)
         return Profile(name=name, headline=await _optional_text(page, self.sel.profile_headline),

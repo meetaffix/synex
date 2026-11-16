@@ -16,11 +16,11 @@ os.environ["AUTH_PROVIDER"] = "local"
 os.environ.setdefault("DEEPGRAM_API_KEY", "dg-SENTINEL-never-leak-9f3a7c")
 import safety
 safety.assert_isolated_database(os.environ["DATABASE_URL"])
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeout_, async_playwright
 from app import database
 from app.linkedin_session import manager
 from app.linkedin_session.manager import Attempt, LoginFailed, SessionManager
-from app.linkedin_session.pages import LINKEDIN, PageState, REAL_SELECTORS, Site
+from app.linkedin_session.pages import LINKEDIN, PageState, REAL_SELECTORS, Site, name_from_title
 from mock_linkedin import MockLinkedIn
 
 atexit.register(database.engine.dispose)
@@ -102,6 +102,31 @@ class RealShapeSignInTest(unittest.TestCase):
         with self.assertRaises(LoginFailed) as caught:
             asyncio.run(self.manager()._login(self.attempt(), "ada@example.com", "definitely-wrong", None, "Asia/Calcutta", None))
         self.assertEqual(caught.exception.code, "invalid_credentials")
+
+
+class ProfileReadTest(unittest.TestCase):
+    def test_the_name_comes_from_the_profile_page_title_and_a_login_title_is_not_a_name(self):
+        self.assertEqual(name_from_title("Ada Lovelace | LinkedIn"), "Ada Lovelace")
+        self.assertEqual(name_from_title("(3) Ada Lovelace | LinkedIn"), "Ada Lovelace")
+        self.assertEqual(name_from_title("  Ada  Lovelace  |  LinkedIn "), "Ada  Lovelace")
+        for not_a_profile in ("LinkedIn", "", "Ada Lovelace", " | LinkedIn"):
+            self.assertIsNone(name_from_title(not_a_profile), not_a_profile)
+
+    def test_a_failure_reading_the_profile_after_sign_in_is_captured_and_named(self):
+        mock = MockLinkedIn(real_shape=True).start()
+        self.addCleanup(mock.stop)
+
+        class NoProfile(Site):
+            async def read_profile(self, page):
+                from playwright.async_api import TimeoutError as PlaywrightTimeout
+                raise PlaywrightTimeout("profile not found")
+
+        mgr = SessionManager(NoProfile(mock.base_url, REAL_SELECTORS), max_browsers=1, attempt_timeout=90, poll_interval=0.1, headless=True)
+        attempt = Attempt(id="profile-fail", workspace_id="w", key="k", target_account_id=None, token_digest=None)
+        with self.assertRaises(PlaywrightTimeout_):
+            asyncio.run(mgr._login(attempt, "ada@example.com", mock.password, None, "Asia/Calcutta", None))
+        self.assertEqual(attempt.diagnosis.classification, "profile_not_read")
+        self.assertEqual(attempt.last_state, "logged_in")  # the sign-in itself worked; only the profile read failed
 
 
 class StuckPageTest(unittest.TestCase):
