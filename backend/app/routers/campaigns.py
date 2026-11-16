@@ -9,7 +9,7 @@ from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import campaign_out
 from ..schemas import CampaignIn, CampaignUpdateIn, RunActionIn
-from .. import models, engine
+from .. import campaign_settings, models, engine
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -64,7 +64,11 @@ def _validate_launch(db: Session, campaign: models.Campaign) -> None:
         if any(s.type in ("message", "follow_up") and not (s.message or "").strip() for s in actionable):
             missing("empty_message", "steps", "One or more message steps are empty. Write the message copy before launching.")
     days, start, end = campaign.working_days or [], campaign.start_hour, campaign.end_hour
-    hours_ok = (
+    if campaign.week_schedule:
+        hours_ok = engine._zone(campaign.timezone) is not None and any(e.get("on") for e in campaign.week_schedule.values())
+    else:
+        hours_ok = None
+    hours_ok = hours_ok if hours_ok is not None else (
         bool(days) and all(isinstance(d, int) and 0 <= d <= 6 for d in days)
         and isinstance(start, int) and isinstance(end, int) and 0 <= start < end <= 24
         and engine._zone(campaign.timezone) is not None
@@ -141,6 +145,8 @@ def _create(payload: CampaignIn, db: Session, user: models.User):
         ai_personalization=payload.ai_personalization if payload.ai_personalization is not None else False,
         pause_on_failure=payload.pause_on_failure if payload.pause_on_failure is not None else False,
         audience_source=payload.audience_source,
+        week_schedule=payload.week_schedule, exclusions=payload.exclusions, allocation=payload.allocation,
+        ai_context=payload.ai_context, sequence_mode=payload.sequence_mode or "classic", graph=payload.graph,
     )
     db.add(campaign)
     db.flush()
@@ -159,6 +165,7 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
         "timezone", "start_hour", "end_hour", "working_days",
         "random_delay", "stop_when_replied", "stop_when_accepted",
         "ai_personalization", "pause_on_failure", "audience_source",
+        "week_schedule", "exclusions", "allocation", "ai_context", "sequence_mode", "graph",
     ):
         if key in data and data[key] is not None:
             setattr(campaign, key, data[key])

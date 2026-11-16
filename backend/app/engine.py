@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from . import dnc, models
+from . import campaign_settings, dnc, models
 from .config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING, settings
 from .providers import render_variables  # the engine never imports an AI provider: it sends finished text only
 
@@ -164,13 +164,17 @@ def launch_campaign(db: Session, campaign: models.Campaign) -> int:
     first = steps[0].id if steps else None
     now = _now()
     created = 0
+    excluded: dict[str, int] = {}
     for index, lead in enumerate(sorted(campaign.lead_list.leads, key=lambda l: (l.created_at, l.id))):
         if lead.campaign_id is None:
             lead.campaign_id = campaign.id
         if lead.id in existing:
             continue
-        if dnc.blocked(db, campaign.user_id, lead):
-            continue  # on the do-not-contact list: never started
+        reason = "do_not_contact" if dnc.blocked(db, campaign.user_id, lead) else campaign_settings.exclusion_reason(db, campaign, lead)
+        if reason:  # on the do-not-contact list, or left out by this campaign's exclusion settings: never started
+            excluded[reason] = excluded.get(reason, 0) + 1
+            record_event(db, lead, "excluded", campaign_settings.EXCLUSION_TEXT.get(reason, reason), campaign=campaign)
+            continue
         db.add(
             models.SequenceRun(
                 user_id=campaign.user_id, campaign_id=campaign.id, lead_id=lead.id,
@@ -180,6 +184,8 @@ def launch_campaign(db: Session, campaign: models.Campaign) -> int:
         )
         record_event(db, lead, "added_to_campaign", campaign.name, campaign=campaign)
         created += 1
+    previous = (campaign.launch_summary or {}).get("excluded", {}) if campaign.launch_summary else {}
+    campaign.launch_summary = {"enrolled": len(existing) + created, "excluded": {k: previous.get(k, 0) + v for k, v in excluded.items()} if excluded else previous}
     return created
 
 
@@ -263,6 +269,9 @@ def pick_account(accounts: list[models.LinkedInAccount], now: datetime) -> model
 def within_hours(campaign: models.Campaign, now: datetime, lead: models.Lead | None = None) -> bool:
     """Is now inside the working days/hours, in the lead's timezone when it has one?"""
     local = _local(now, lead_tz(campaign, lead))
+    if campaign.week_schedule:
+        window = campaign_settings.day_window(campaign, local)
+        return window is not None and window[0] <= local.hour * 60 + local.minute < window[1]
     days = campaign.working_days or []
     if days and ((local.weekday() + 1) % 7) not in days:  # 0=Sun..6=Sat
         return False
@@ -282,6 +291,10 @@ def pacing_base(campaign: models.Campaign, now: datetime, lead: models.Lead | No
         return None
     local = _local(now, lead_tz(campaign, lead))
     end_hour = campaign.end_hour if campaign.end_hour is not None else 18
+    if campaign.week_schedule:
+        window = campaign_settings.day_window(campaign, local)
+        if window is not None:
+            end_hour = -(-window[1] // 60)  # round the day's end up to a whole hour
     end_local = local.replace(hour=min(max(end_hour, local.hour + 1), 23), minute=0, second=0, microsecond=0)
     secs_left = max((end_local - local).total_seconds(), 60 * 60)
     return max(45.0, min(secs_left / remaining, 20 * 60))
@@ -373,6 +386,9 @@ def type_room(db: Session, campaign: models.Campaign, account: models.LinkedInAc
     limit = campaign_type_limit(campaign, ttype)
     if limit is not None:
         rooms.append(limit - _count_today(db, account, ttype, now, campaign) - planned_today)
+    reserved = ((campaign.allocation or {}).get(account.id) or {}).get(ttype)
+    if reserved is not None:  # this campaign's own daily slice of the sender's day
+        rooms.append(min(reserved, DAILY_TYPE_CEILINGS.get(ttype, reserved)) - _count_today(db, account, ttype, now, campaign) - planned_today)
     return min(rooms) if rooms else None
 
 

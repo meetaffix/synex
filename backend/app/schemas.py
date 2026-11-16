@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from pydantic.alias_generators import to_camel
 
+from . import campaign_settings
 from .config import DAILY_TYPE_CEILINGS
 from .linkedin_session.identity import validate_timezone
 
@@ -183,7 +184,44 @@ class StepIn(CamelIn):
 
 
 # ------------------------------- Campaigns -------------------------------
-class CampaignIn(CamelIn):
+class CampaignSettingsIn(CamelIn):
+    """Schedule, exclusions, sender allocation, AI context and sequence mode; validated by campaign_settings."""
+    week_schedule: dict | None = None
+    exclusions: dict | None = None
+    allocation: dict | None = None
+    ai_context: dict | None = None
+    sequence_mode: str | None = None
+    graph: dict | None = None
+
+    @field_validator("week_schedule")
+    @classmethod
+    def _week(cls, value):
+        return campaign_settings.check_week_schedule(value)
+
+    @field_validator("exclusions")
+    @classmethod
+    def _exclusions(cls, value):
+        return campaign_settings.check_exclusions(value)
+
+    @field_validator("allocation")
+    @classmethod
+    def _allocation(cls, value):
+        return campaign_settings.check_allocation(value)
+
+    @field_validator("ai_context")
+    @classmethod
+    def _context(cls, value):
+        return campaign_settings.check_ai_context(value)
+
+    @field_validator("sequence_mode")
+    @classmethod
+    def _mode(cls, value):
+        if value not in (None, "classic", "smart"):
+            raise ValueError("Choose classic or smart.")
+        return value
+
+
+class CampaignIn(CampaignSettingsIn):
     name: str
     description: str | None = None
     account_id: str | None = None
@@ -206,7 +244,7 @@ class CampaignIn(CamelIn):
     steps: list[StepIn] | None = None
 
 
-class CampaignUpdateIn(CamelIn):
+class CampaignUpdateIn(CampaignSettingsIn):
     name: str | None = None
     description: str | None = None
     status: str | None = None

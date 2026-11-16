@@ -255,6 +255,19 @@ class Campaign(Base):
     pause_on_failure = Column(Boolean, default=False)
     # How the prospect list was built: {"type": "...", "filters": {...}, "sourceUrl": "..."}
     audience_source = Column(JSON, nullable=True)
+    # Weekly schedule {"mon": {"on": true, "start": "08:00", "end": "20:00"}, ...} in `timezone`; null uses working_days and the hours above.
+    week_schedule = Column(JSON, nullable=True)
+    # Who is left out at launch (see campaign_settings.EXCLUSION_KEYS). The do-not-contact list always applies.
+    exclusions = Column(JSON, nullable=True)
+    # {account_id: {action: daily number}}: a daily slice reserved for this campaign on a sender.
+    allocation = Column(JSON, nullable=True)
+    # Shared knowledge for AI messages and replies (see campaign_settings.check_ai_context).
+    ai_context = Column(JSON, nullable=True)
+    # classic (linear steps) or smart (a graph of nodes in `graph`).
+    sequence_mode = Column(String, default="classic")
+    graph = Column(JSON, nullable=True)
+    # What the last launch did: {"enrolled": n, "excluded": {reason: n}}.
+    launch_summary = Column(JSON, nullable=True)
 
     launched_at = Column(DateTime(timezone=True), nullable=True)
     # Consecutive failed tasks; reset by any success. Drives pause_on_failure.

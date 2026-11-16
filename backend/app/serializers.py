@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from . import models
+from . import campaign_settings, models
 
 # An account is shown "connected" only while its extension heartbeat is fresh.
 # Keep in sync with engine.AGENT_STALE_MINUTES.
@@ -203,6 +203,13 @@ def campaign_out(c: models.Campaign) -> dict:
             "pauseOnFailure": bool(c.pause_on_failure),
         },
         "audienceSource": c.audience_source,
+        "weekSchedule": c.week_schedule,
+        "exclusions": {**campaign_settings.DEFAULT_EXCLUSIONS, **(c.exclusions or {})},
+        "allocation": c.allocation or {},
+        "aiContext": c.ai_context or {},
+        "sequenceMode": c.sequence_mode or "classic",
+        "graph": c.graph,
+        "launchSummary": c.launch_summary,
         "steps": [step_out(s) for s in sorted(c.steps, key=lambda x: x.order)],
         "stats": campaign_stats(c),
         "createdAt": _iso(c.created_at),
