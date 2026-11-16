@@ -53,3 +53,39 @@ def timeseries(
 @router.get("/accounts")
 def accounts(db: Session = Depends(get_db), user: models.User = Depends(get_data_user), f: dashboard_feeds.FeedFilters = Depends(_filters)):
     return dashboard_feeds.accounts(db, user.id, f)
+
+
+@router.get("/funnel")
+def funnel(db: Session = Depends(get_db), user: models.User = Depends(get_data_user), f: dashboard_feeds.FeedFilters = Depends(_filters)):
+    return dashboard_feeds.funnel(db, user.id, f)
+
+
+@router.get("/campaigns")
+def campaigns(db: Session = Depends(get_db), user: models.User = Depends(get_data_user), f: dashboard_feeds.FeedFilters = Depends(_filters)):
+    return dashboard_feeds.campaigns(db, user.id, f)
+
+
+@router.get("/export")
+def export(kind: Literal["campaigns", "timeseries", "accounts"] = "campaigns", granularity: Literal["week", "day"] = "week", db: Session = Depends(get_db),
+           user: models.User = Depends(get_data_user), f: dashboard_feeds.FeedFilters = Depends(_filters)):
+    """The numbers the dashboard shows, as CSV. Names are neutralised so a spreadsheet never runs them as a formula."""
+    import csv
+    import io
+
+    from fastapi.responses import Response
+    safe = lambda v: "'" + v if isinstance(v, str) and v[:1] in ("=", "+", "-", "@") else v  # noqa: E731
+    out = io.StringIO()
+    writer = csv.writer(out)
+    if kind == "campaigns":
+        writer.writerow(["campaign", "status", "leads", "contacted", "accepted", "replied", "interested", "accepted_percent", "reply_percent"])
+        for r in dashboard_feeds.campaigns(db, user.id, f):
+            writer.writerow([safe(r["name"]), r["status"], r["leads"], r["contacted"], r["accepted"], r["replied"], r["interested"], r["acceptedPercent"] or "", r["replyPercent"] or ""])
+    elif kind == "timeseries":
+        writer.writerow(["date", "requests", "accepted", "replies"])
+        for p in dashboard_feeds.timeseries(db, user.id, f, granularity)["points"]:
+            writer.writerow([p["date"], p["requests"], p["accepted"], p["replies"]])
+    else:
+        writer.writerow(["account_id", "requests_sent", "accepted_percent", "leads_contacted", "reply_percent"])
+        for a in dashboard_feeds.accounts(db, user.id, f):
+            writer.writerow([a["accountId"], a["requestsSent"], a["acceptedPercent"], a["leadsContacted"], a["replyPercent"]])
+    return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="synex-{kind}.csv"'})

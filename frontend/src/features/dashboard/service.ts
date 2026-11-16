@@ -33,6 +33,12 @@ export const accountStatsSchema = z.array(
   }),
 );
 
+export const funnelSchema = z.object({ stages: z.array(z.object({ key: z.string(), label: z.string(), count: z.number(), percentOfPrevious: z.number().nullable() })) });
+export const campaignTableSchema = z.array(z.object({
+  campaignId: z.string(), name: z.string(), status: z.string(), leads: z.number(), contacted: z.number(), accepted: z.number(), replied: z.number(), interested: z.number(),
+  acceptedPercent: z.number().nullable(), replyPercent: z.number().nullable(),
+}));
+
 export type Summary = z.infer<typeof summarySchema>;
 export type Series = z.infer<typeof seriesSchema>;
 export type AccountStats = z.infer<typeof accountStatsSchema>;
@@ -76,4 +82,9 @@ export const dashboardService = {
   timeseries: (filters: DashboardFilters, granularity: Granularity) =>
     feed(seriesSchema, `/dashboard/timeseries${query(filters, { granularity })}`),
   accounts: (filters: DashboardFilters) => feed(accountStatsSchema, `/dashboard/accounts${query(filters)}`),
+  funnel: (filters: DashboardFilters) => feed(funnelSchema, `/dashboard/funnel${query(filters)}`),
+  campaigns: (filters: DashboardFilters) => feed(campaignTableSchema, `/dashboard/campaigns${query(filters)}`),
 };
+
+/** The same filters as the screen, for an export. */
+export const exportQuery = (filters: DashboardFilters, kind: string) => query(filters, { kind });

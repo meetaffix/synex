@@ -81,7 +81,7 @@ def summary(db: Session, user_id: str, f: FeedFilters) -> dict:
     accepted = sum(1 for l in leads.values() if l.connected_at and f.covers(l.connected_at))
     conversations = _conversations(db, user_id, f)
     replies = sum(1 for c in conversations for m in _inbound(c) if f.covers(m.sent_at))
-    interested = [c for c in conversations if c.status == "interested" and f.covers(c.last_message_at)]
+    interested = [c for c in conversations if (c.status == "interested" or c.interest in ("interested", "meeting_booked")) and f.covers(c.last_message_at)]
     answered = [c for c in interested if _response_seconds(c) is not None]
     times = [t for c in conversations if (t := _response_seconds(c)) is not None and f.covers(_inbound(c)[0].sent_at)]
     return {
@@ -145,3 +145,50 @@ def accounts(db: Session, user_id: str, f: FeedFilters) -> list[dict]:
             "replyPercent": round(replied / len(contacted) * 100, 1),
         })
     return result
+
+
+INTERESTED = ("interested", "meeting_booked")
+
+
+def _is_interested(c: models.Conversation) -> bool:
+    return c.status == "interested" or c.interest in INTERESTED
+
+
+def _stage_counts(db: Session, user_id: str, f: FeedFilters) -> dict[str, int]:
+    runs = db.query(models.SequenceRun.lead_id).filter(models.SequenceRun.user_id == user_id)
+    if f.campaign_id:
+        runs = runs.filter(models.SequenceRun.campaign_id == f.campaign_id)
+    in_campaign = {lead_id for (lead_id,) in runs}
+    invites = _invitations(db, user_id, f)
+    contacted = {lead_id for lead_id, _, when in invites if f.covers(when)}
+    leads = _leads(db, contacted)
+    accepted = {lead_id for lead_id in contacted if leads.get(lead_id) and leads[lead_id].connected_at and f.covers(leads[lead_id].connected_at)}
+    conversations = _conversations(db, user_id, f)
+    replied = {c.lead_id for c in conversations if any(f.covers(m.sent_at) for m in _inbound(c))}
+    interested = {c.lead_id for c in conversations if _is_interested(c) and f.covers(c.last_message_at)}
+    return {"leads": len(in_campaign), "contacted": len(contacted), "accepted": len(accepted), "replied": len(replied), "interested": len(interested)}
+
+
+def funnel(db: Session, user_id: str, f: FeedFilters) -> dict:
+    """Leads in campaigns, then how many were contacted, accepted, replied and were interested. Each step also says what share of the one before it."""
+    counts = _stage_counts(db, user_id, f)
+    stages = [("leads", "In campaigns"), ("contacted", "Contacted"), ("accepted", "Accepted"), ("replied", "Replied"), ("interested", "Interested")]
+    out, previous = [], None
+    for key, label in stages:
+        value = counts[key]
+        out.append({"key": key, "label": label, "count": value, "percentOfPrevious": round(100 * value / previous, 1) if previous else None})
+        previous = value
+    return {"stages": out}
+
+
+def campaigns(db: Session, user_id: str, f: FeedFilters) -> list[dict]:
+    rows = []
+    query = db.query(models.Campaign).filter_by(user_id=user_id)
+    if f.campaign_id:
+        query = query.filter(models.Campaign.id == f.campaign_id)
+    for campaign in query.order_by(models.Campaign.name).all():
+        counts = _stage_counts(db, user_id, FeedFilters(f.since, f.until, campaign.id, f.account_id))
+        rows.append({"campaignId": campaign.id, "name": campaign.name, "status": campaign.status, **counts,
+                     "acceptedPercent": round(100 * counts["accepted"] / counts["contacted"], 1) if counts["contacted"] else None,
+                     "replyPercent": round(100 * counts["replied"] / counts["accepted"], 1) if counts["accepted"] else None})
+    return rows

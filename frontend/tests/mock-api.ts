@@ -382,6 +382,11 @@ export async function mockApi(page: Page, api: Api) {
       if (path === "/dashboard/summary" && api.feeds.summary) return json(200, api.feeds.summary);
       if (path === "/dashboard/timeseries" && api.feeds.series) return json(200, api.feeds.series);
       if (path === "/dashboard/accounts" && api.feeds.accounts) return json(200, api.feeds.accounts);
+      if (path === "/dashboard/funnel" && api.feeds.summary)
+        return json(200, { stages: [{ key: "leads", label: "In campaigns", count: 40, percentOfPrevious: null }, { key: "contacted", label: "Contacted", count: 30, percentOfPrevious: 75 }, { key: "accepted", label: "Accepted", count: 12, percentOfPrevious: 40 }, { key: "replied", label: "Replied", count: 5, percentOfPrevious: 41.7 }, { key: "interested", label: "Interested", count: 2, percentOfPrevious: 40 }] });
+      if (path === "/dashboard/campaigns" && api.feeds.summary)
+        return json(200, [{ campaignId: "c1", name: "Q4 outreach", status: "active", leads: 40, contacted: 30, accepted: 12, replied: 5, interested: 2, acceptedPercent: 40, replyPercent: 41.7 }, { campaignId: "c2", name: "Quiet", status: "paused", leads: 0, contacted: 0, accepted: 0, replied: 0, interested: 0, acceptedPercent: null, replyPercent: null }]);
+      if (path === "/dashboard/export") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "campaign,status\nQ4 outreach,active\n" });
       if (path.startsWith("/dashboard/")) return json(404, { detail: "Not Found" });
       const reconnectInfo = path.match(/^\/reconnect\/([^/]+)$/);
       if (reconnectInfo && method === "GET") return json(api.linkInfo.status, api.linkInfo.body);

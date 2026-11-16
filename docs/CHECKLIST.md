@@ -320,17 +320,17 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 6.29 Axe, 360/768/1280, both themes, keyboard path (axe and 360 px pass for inbox-no-account, inbox-empty, inbox-thread, inbox-filters-and-bulk; keyboard path not a dedicated test)
 
 ## Area 7: Dashboard and analytics
-- [~] 7.01 Dashboard exists (audit)
-- [ ] 7.02 Funnel: leads, invites, accepted, messages, replies, interested
-- [ ] 7.03 Acceptance and reply rate per campaign
-- [ ] 7.04 Per-account activity and limits used
-- [ ] 7.05 Date range selector
-- [ ] 7.06 Campaign and account filters
-- [ ] 7.07 Charts follow the dataviz rules, both themes
-- [ ] 7.08 Export CSV
-- [ ] 7.09 Empty, loading, error states
-- [ ] 7.10 Numbers reconcile with the database (backend test)
-- [ ] 7.11 Axe, 360/768/1280, both themes
+- [x] 7.01 Dashboard exists (audit) (dashboard exists with summary, trend chart, account table and attention panel (app-shell.spec, states dashboard-*))
+- [x] 7.02 Funnel: leads, invites, accepted, messages, replies, interested (dashboard-funnel.spec 'the funnel shows each stage'; test_dashboard_funnel)
+- [x] 7.03 Acceptance and reply rate per campaign (dashboard-funnel.spec (By campaign table, 'No data' instead of 0%); test_dashboard_funnel campaign table)
+- [~] 7.04 Per-account activity and limits used (per-account table with requests, accepted % and reply % exists; limits used today are on the account list (area 3), not on the dashboard)
+- [x] 7.05 Date range selector (date range select; dashboard-funnel.spec 'the filters apply to the funnel too')
+- [x] 7.06 Campaign and account filters (campaign and account selects; dashboard-funnel.spec)
+- [~] 7.07 Charts follow the dataviz rules, both themes (trend chart and funnel bars use theme tokens; axe passes in both themes; not yet reviewed against the data-viz rules)
+- [x] 7.08 Export CSV (dashboard-funnel.spec exports; test_dashboard_funnel exports)
+- [x] 7.09 Empty, loading, error states (states dashboard-no-account, first-run, campaign-totals, live-feeds; funnel 'unavailable' test)
+- [x] 7.10 Numbers reconcile with the database (backend test) (test_dashboard_funnel (counts reconcile with rows; daily export adds up to invitations sent))
+- [~] 7.11 Axe, 360/768/1280, both themes (axe and 360 px pass for all dashboard states; 768 px and screenshots not yet viewed)
 
 ## Area 8: AI assistant
 - [~] 8.01 Voice and text assistant exists (Deepgram Voice Agent)

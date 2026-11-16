@@ -11,6 +11,7 @@ import { useConversationList } from "@/features/inbox/hooks";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { useSenderAccounts } from "@/features/linkedin-accounts/hooks";
 import { OnboardingChecklist } from "@/features/onboarding/OnboardingChecklist";
+import { FunnelPanel } from "./FunnelPanel";
 import { AccountTable } from "./AccountTable";
 import { ActivityFeed, AttentionPanel } from "./AttentionPanel";
 import { HeroMetric } from "./HeroMetric";
@@ -184,6 +185,7 @@ export function DashboardPage() {
         />
         <ActivityFeed conversations={conversations.data ?? []} />
       </div>
+      <FunnelPanel filters={filters} />
       <AccountTable accounts={accounts.data ?? []} campaigns={campaigns.data ?? []} stats={stats.data} />
     </div>
   );
