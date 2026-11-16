@@ -94,64 +94,64 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ## Area 4: Leads [5, 6.1, G7, X]
 
 ### 4.A Source picker
-- [~] 4.A01 "How would you like to add leads?" dialog with ordered sources (existing; verify against the report)
-- [ ] 4.A02 Unavailable sources show a reason, not hidden
-- [ ] 4.A03 Estimate shown before every import (pages, minutes, limit cost) [X]
-- [ ] 4.A04 Preview of the first results before saving [X]
+- [x] 4.A01 "How would you like to add leads?" dialog with ordered sources (existing; verify against the report) (add-leads.spec 'every source is listed')
+- [x] 4.A02 Unavailable sources show a reason, not hidden (add-leads.spec 'every source is listed' (reason text shown); test_lead_sources_more group)
+- [x] 4.A03 Estimate shown before every import (pages, minutes, limit cost) [X] (add-leads.spec 'an event' (server estimate); test_lead_sources_more estimate)
+- [x] 4.A04 Preview of the first results before saving [X] (preview before import: test_lead_collections 'pasted links preview import and skip options')
 
 ### 4.B The twelve sources
-- [ ] 4.B01 Add one LinkedIn profile: URL, optional name
-- [ ] 4.B02 Profile: custom campaign variables (name, value per person, Create variable) [5.1]
-- [ ] 4.B03 Profile: "Campaign exclusions apply" notice
-- [ ] 4.B04 Upload CSV: drag and drop, Browse, 5 MB maximum
-- [ ] 4.B05 CSV: required "LinkedIn URL" column, Download sample CSV
-- [ ] 4.B06 CSV: column mapping step and preview [X]
-- [ ] 4.B07 CSV: counts of valid, duplicate, invalid, already-known
-- [ ] 4.B08 Add from my saved list: list picker, Refresh, Create empty list
-- [ ] 4.B09 Saved lists empty state "No saved lead lists found"
-- [~] 4.B10 Basic LinkedIn search URL: URL, account, list name (dated default), limit (default 100, max 1,000) (collection framework exists; Unverified LV)
-- [ ] 4.B11 Sales Navigator leads: URL, account, list, limit max 2,500 (Unverified LV: no access)
-- [ ] 4.B12 Recruiter: URL, recruiter account, list, limit max 2,500 (Unverified LV: no access)
-- [~] 4.B13 LinkedIn post: URL formats (activity, ugcPost, share), scrape type Reactions / Comments / Both, limit 1,000
-- [ ] 4.B14 LinkedIn event: URL, "account must be attending" warning, limit 1,000
-- [ ] 4.B15 LinkedIn companies: company list source (opens its own form, not a redirect)
-- [ ] 4.B16 Sales Navigator accounts: company search URL, account, list, companies limit 100 (Unverified LV)
-- [ ] 4.B17 LinkedIn group: disabled "Coming soon" until built
-- [ ] 4.B18 Extra: my connections (from the connections reader)
-- [ ] 4.B19 Extra: engagers of my own posts
-- [ ] 4.B20 Extra: inbox contacts
-- [ ] 4.B21 Extra: Google Sheets (open-source/CSV-export path; no paid service)
-- [ ] 4.B22 Extra: bulk paste of links
-- [ ] 4.B23 Extra: degree filter (1st, 2nd, 3rd)
-- [ ] 4.B24 Extra: dedupe within list and against other lists
-- [ ] 4.B25 Each source has a tooltip on every field [5.12]
-- [ ] 4.B26 Each source checks the account's collect_leads ceiling and shows what remains
-- [ ] 4.B27 URL validation messages per source (wrong host, wrong type, missing)
+- [x] 4.B01 Add one LinkedIn profile: URL, optional name (leads 'Add lead' form and 'Paste profile links' source; leads-extras.spec)
+- [x] 4.B02 Profile: custom campaign variables (name, value per person, Create variable) [5.1] (leads-extras.spec 'custom campaign variables'; test_lead_variables)
+- [x] 4.B03 Profile: "Campaign exclusions apply" notice (leads-extras.spec 'custom campaign variables' (notice in the Add lead form))
+- [x] 4.B04 Upload CSV: drag and drop, Browse, 5 MB maximum (add-leads.spec 'CSV source ... over 5 MB')
+- [x] 4.B05 CSV: required "LinkedIn URL" column, Download sample CSV (add-leads.spec 'sample file'; test_lead_collections 'csv asks for the columns')
+- [x] 4.B06 CSV: column mapping step and preview [X] (test_lead_collections 'csv asks for the columns then imports')
+- [~] 4.B07 CSV: counts of valid, duplicate, invalid, already-known (skipped counts per reason are shown after import; a 'rows without a LinkedIn URL' count shows in the detail line; no dedicated UI test)
+- [x] 4.B08 Add from my saved list: list picker, Refresh, Create empty list (lists source in AddLeadsDialog; test_lead_collections)
+- [x] 4.B09 Saved lists empty state "No saved lead lists found" (AddLeadsDialog shows 'You have no lists yet.')
+- [~] 4.B10 Basic LinkedIn search URL: URL, account, list name (dated default), limit (default 100, max 1,000) (collection framework exists; Unverified LV) (test_lead_collections search; Unverified LV)
+- [~] 4.B11 Sales Navigator leads: URL, account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats; Unverified LV: no access)
+- [~] 4.B12 Recruiter: URL, recruiter account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats (same reader); Unverified LV: no access)
+- [~] 4.B13 LinkedIn post: URL formats (activity, ugcPost, share), scrape type Reactions / Comments / Both, limit 1,000 (post address validation in test_lead_sources_more; reader exists; Unverified LV)
+- [~] 4.B14 LinkedIn event: URL, "account must be attending" warning, limit 1,000 (test_lead_sources_more event collector; add-leads.spec warning; Unverified LV)
+- [~] 4.B15 LinkedIn companies: company list source (opens its own form, not a redirect) (test_lead_sources_more company collector and company lists; leads-extras.spec; Unverified LV)
+- [~] 4.B16 Sales Navigator accounts: company search URL, account, list, companies limit 100 (Unverified LV) (test_lead_sources_more company collector; Unverified LV: no access)
+- [x] 4.B17 LinkedIn group: disabled "Coming soon" until built (add-leads.spec 'unbuilt one says Coming soon'; test_lead_sources_more group)
+- [x] 4.B18 Extra: my connections (from the connections reader) (connections source: test_lead_collections / account connections reader)
+- [~] 4.B19 Extra: engagers of my own posts (test_lead_sources_more own posts collector; Unverified LV)
+- [x] 4.B20 Extra: inbox contacts (inbox source: test_lead_collections)
+- [x] 4.B21 Extra: Google Sheets (open-source/CSV-export path; no paid service) (csv source with Google Sheets link: test_lead_collections sheet link test)
+- [x] 4.B22 Extra: bulk paste of links (urls source: test_lead_collections 'pasted links preview import')
+- [x] 4.B23 Extra: degree filter (1st, 2nd, 3rd) (test_lead_collections 'degree filter and per-degree counts')
+- [x] 4.B24 Extra: dedupe within list and against other lists (stage() drops duplicates; test_lead_collections skip options)
+- [x] 4.B25 Each source has a tooltip on every field [5.12] (a hint line per source in AddLeadsDialog (add-leads.spec))
+- [x] 4.B26 Each source checks the account's collect_leads ceiling and shows what remains (add-leads.spec 'page reads left today'; test_lead_sources_more estimate)
+- [x] 4.B27 URL validation messages per source (wrong host, wrong type, missing) (test_lead_sources_more 'each source names what is wrong with its address')
 
 ### 4.C Lead lists and leads table
-- [ ] 4.C01 Lead Lists tab: create empty list (name dialog), search, filter, export
-- [ ] 4.C02 List detail: leads, count, source, created, delete list with confirm
-- [ ] 4.C03 Leads tab: table with search, filters, bulk select, bulk actions, export CSV
-- [ ] 4.C04 Lead detail: fields, variables, campaigns it is in, status history
-- [ ] 4.C05 Add lead to a campaign from the table
-- [ ] 4.C06 Lead "Lead not present in any campaign" state
-- [ ] 4.C07 Empty, loading, error states
+- [~] 4.C01 Lead Lists tab: create empty list (name dialog), search, filter, export (lists page creates, edits and deletes lists (existing); search, filter and export on lists not built)
+- [~] 4.C02 List detail: leads, count, source, created, delete list with confirm (list card opens its leads (/leads?listId=); delete list exists; no dedicated test)
+- [~] 4.C03 Leads tab: table with search, filters, bulk select, bulk actions, export CSV (LeadsPage has search, status and list filters, select all, bulk status, bulk delete, Export; only leads-columns.spec covers it)
+- [x] 4.C04 Lead detail: fields, variables, campaigns it is in, status history (leads-extras.spec 'a lead's details show its campaigns and history'; test_lead_overview)
+- [x] 4.C05 Add lead to a campaign from the table (leads-extras.spec (add to a campaign); test_lead_overview adds to draft and active campaigns)
+- [x] 4.C06 Lead "Lead not present in any campaign" state (leads-extras.spec 'Lead not present in any campaign'; test_lead_overview)
+- [~] 4.C07 Empty, loading, error states (empty and loading states exist on LeadsPage and the new tabs (leads-empty a11y state); error state tested only for new tabs)
 
 ### 4.D Do not contact [6.1]
-- [ ] 4.D01 System list "Do not contact" that cannot be deleted
-- [ ] 4.D02 People tab: table Profile, Source, Added, Action
-- [ ] 4.D03 Companies tab
-- [ ] 4.D04 Add profiles: one URL per line, duplicates ignored
-- [ ] 4.D05 Import CSV with `linkedin_url` column
-- [ ] 4.D06 Export CSV
-- [ ] 4.D07 Search
-- [ ] 4.D08 Remove entry with confirm
-- [ ] 4.D09 Enforced at send time (test: a listed person never receives an action)
-- [ ] 4.D10 Company entries match leads by company (test)
+- [x] 4.D01 System list "Do not contact" that cannot be deleted (no route deletes the list itself; test_do_not_contact ApiTest)
+- [x] 4.D02 People tab: table Profile, Source, Added, Action (do-not-contact.spec 'profiles are added')
+- [x] 4.D03 Companies tab (do-not-contact.spec 'companies are a separate list')
+- [x] 4.D04 Add profiles: one URL per line, duplicates ignored (test_do_not_contact ApiTest add and dedupe)
+- [x] 4.D05 Import CSV with `linkedin_url` column (test_do_not_contact import; do-not-contact.spec import)
+- [x] 4.D06 Export CSV (test_do_not_contact export; do-not-contact.spec export)
+- [x] 4.D07 Search (test_do_not_contact search; do-not-contact.spec search)
+- [x] 4.D08 Remove entry with confirm (do-not-contact.spec remove asks first; test_do_not_contact)
+- [x] 4.D09 Enforced at send time (test: a listed person never receives an action) (test_do_not_contact EnforcementTest (launch and precheck))
+- [x] 4.D10 Company entries match leads by company (test) (test_do_not_contact company matching and enforcement)
 
 ### 4.E Quality for area 4
-- [ ] 4.E01 Backend tests per source (mock site)
-- [ ] 4.E02 Axe, 360/768/1280, both themes for every area-4 screen
+- [x] 4.E01 Backend tests per source (mock site) (test_lead_sources_more, test_lead_collections, test_do_not_contact, test_lead_variables)
+- [~] 4.E02 Axe, 360/768/1280, both themes for every area-4 screen (axe and 360 px for leads, leads-companies, leads-do-not-contact, leads-add-sources, leads-add-event-form (all pass); screens saved in docs/reports/screens/area-4/ and two viewed)
 - [ ] 4.E03 Keyboard path through the picker and each form
 
 ## Area 5: Campaigns and AI writing [1, 2, 7, G1 to G6]

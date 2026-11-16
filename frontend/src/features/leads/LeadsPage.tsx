@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LeadFormDialog } from "./components/LeadFormDialog";
+import { LeadOverviewDialog } from "./components/LeadOverviewDialog";
 import { OPTIONAL_COLUMNS, useLeadColumns } from "./columns";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AddLeadsDialog } from "./components/AddLeadsDialog";
@@ -234,6 +235,7 @@ export function LeadsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const [overviewLead, setOverviewLead] = useState<Lead | null>(null);
   const openEdit = (lead: Lead) => {
     setEditLead(lead);
     setFormOpen(true);
@@ -577,6 +579,9 @@ export function LeadsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setOverviewLead(lead)}>
+                            Details and campaigns
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(lead)}>
                             <Pencil className="h-4 w-4" />
                             Edit
@@ -653,6 +658,7 @@ export function LeadsPage() {
         lead={editLead}
       />
       <AddLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
+      <LeadOverviewDialog lead={overviewLead} onClose={() => setOverviewLead(null)} />
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}

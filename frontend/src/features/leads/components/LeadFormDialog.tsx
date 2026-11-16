@@ -301,6 +301,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
             {vars.length < 20 && <Button type="button" variant="outline" size="sm" onClick={() => setVars([...vars, { name: "", value: "" }])}>New variable</Button>}
           </fieldset>
 
+          <p className="text-xs text-muted-foreground">The do-not-contact list and each campaign's exclusion settings apply when this person is added to a campaign.</p>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea

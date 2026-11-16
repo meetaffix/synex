@@ -15,7 +15,7 @@ from ..schemas import (
     LeadIn, LeadUpdateIn, BulkImportIn, BulkDeleteIn, BulkStatusIn,
     LeadImportIn, ProspectReviewIn,
 )
-from .. import models, engine
+from .. import dnc, models, engine
 from ..dedup import lead_dedup_key
 
 
@@ -619,3 +619,43 @@ def write_leads(
     if action == "enrich-all":
         return _enrich_all(db, user)
     raise HTTPException(status_code=400, detail=f"Unknown leads action: {action!r}")
+
+
+
+# ---- one lead's overview: its campaigns, history, and the do-not-contact check ---------------------------------------
+
+@router.get("/{lead_id}/overview")
+def lead_overview(lead_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    lead = _owned(db, user, lead_id)
+    runs = db.query(models.SequenceRun).filter_by(lead_id=lead.id).all()
+    campaign_ids = {r.campaign_id for r in runs} | ({lead.campaign_id} if lead.campaign_id else set())
+    campaigns = {c.id: c for c in db.query(models.Campaign).filter(models.Campaign.id.in_(campaign_ids)).all()} if campaign_ids else {}
+    by_run = {r.campaign_id: r for r in runs}
+    events = db.query(models.LeadEvent).filter_by(lead_id=lead.id).order_by(models.LeadEvent.created_at.desc()).limit(30).all()
+    return {
+        "lead": lead_out(lead),
+        "campaigns": [{"id": c.id, "name": c.name, "status": c.status, "runStatus": by_run[c.id].status if c.id in by_run else None,
+                       "stopReason": by_run[c.id].stop_reason if c.id in by_run else None} for c in campaigns.values()],
+        "events": [{"type": e.type, "detail": e.detail, "createdAt": e.created_at.isoformat(), "campaign": campaigns[e.campaign_id].name if e.campaign_id in campaigns else None} for e in events],
+        "doNotContact": dnc.blocked(db, user.id, lead),
+    }
+
+
+@router.post("/{lead_id}/add-to-campaign")
+def add_to_campaign(lead_id: str, body: dict, db: Session = Depends(get_db), user: models.User = Depends(get_manager_user)):
+    """Put the lead on the campaign's lead list. On an active campaign its sequence starts, within the campaign's limits and hours."""
+    lead = _owned(db, user, lead_id)
+    campaign = db.get(models.Campaign, body.get("campaignId") or "")
+    if campaign is None or campaign.user_id != user.id:
+        raise HTTPException(404, "Campaign not found")
+    if dnc.blocked(db, user.id, lead):
+        raise HTTPException(409, "This person or their company is on the do-not-contact list, so they cannot be added to a campaign.")
+    if campaign.lead_list is None:
+        raise HTTPException(409, "This campaign has no lead list yet. Choose one in the campaign's Leads step first.")
+    if lead not in campaign.lead_list.leads:
+        campaign.lead_list.leads.append(lead)
+    started = 0
+    if campaign.status == "active":
+        started = engine.launch_campaign(db, campaign)
+    db.commit()
+    return {"added": True, "started": bool(started)}

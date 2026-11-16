@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { callsTo, mockApi, newApi } from "./mock-api";
+import { callsTo, campaign, lead, mockApi, newApi } from "./mock-api";
 
 /* Custom campaign variables on a lead, and company lists. The API is mocked. */
 
@@ -12,6 +12,7 @@ test("a lead can carry custom campaign variables; bad names are explained and bl
   await dialog.getByLabel("First name").fill("Ada");
   await dialog.getByLabel("Last name").fill("Lovelace");
   await expect(dialog.getByText(/Use one in a message as/)).toBeVisible();
+  await expect(dialog.getByText(/do-not-contact list and each campaign/)).toBeVisible();
   await dialog.getByRole("button", { name: "New variable" }).click();
   await dialog.getByLabel("Variable 1 name").fill("company");
   await expect(dialog.getByText("Synex already fills this one in. Choose another name.")).toBeVisible();
@@ -48,4 +49,30 @@ test("company lists: empty state, view, add all to do-not-contact, delete with c
   await expect(page.getByText("List deleted.")).toBeVisible();
   await expect(page.getByText(/No company lists yet/)).toBeVisible();
   expect(callsTo(api, "POST", /\/do-not-contact$/)).toHaveLength(1);
+});
+
+test("a lead's details show its campaigns and history, and it can be added to a campaign", async ({ page }) => {
+  const api = newApi({ leads: [lead("l1", { firstName: "Ada", lastName: "Lovelace", variables: { eventName: "SaaStr" } })], campaigns: [campaign("c1", "Autumn outreach")] });
+  await mockApi(page, api);
+  await page.goto("/leads");
+  await page.getByRole("button", { name: /More actions|Actions/ }).first().click();
+  await page.getByRole("menuitem", { name: "Details and campaigns" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Lead not present in any campaign.")).toBeVisible();
+  await expect(dialog.getByText("{{eventName}}")).toBeVisible();
+  await expect(dialog.getByText("imported")).toBeVisible();
+  await dialog.getByLabel("Add to a campaign").selectOption({ label: "Autumn outreach" });
+  await dialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("Added to the campaign's lead list.")).toBeVisible();
+  expect(callsTo(api, "POST", /\/add-to-campaign$/)).toHaveLength(1);
+});
+
+test("a listed lead shows the do-not-contact notice and offers no way into a campaign", async ({ page }) => {
+  const api = newApi({ leads: [lead("l1", { firstName: "Ada", lastName: "Lovelace" })], campaigns: [campaign("c1", "Autumn outreach")], syncStatus: "blocked" });
+  await mockApi(page, api);
+  await page.goto("/leads");
+  await page.getByRole("button", { name: /More actions|Actions/ }).first().click();
+  await page.getByRole("menuitem", { name: "Details and campaigns" }).click();
+  await expect(page.getByRole("dialog").getByText(/On the do-not-contact list/)).toBeVisible();
+  await expect(page.getByRole("dialog").getByLabel("Add to a campaign")).toHaveCount(0);
 });

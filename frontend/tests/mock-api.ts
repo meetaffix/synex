@@ -260,6 +260,11 @@ export async function mockApi(page: Page, api: Api) {
       if (path === "/campaigns") return json(200, api.campaigns);
       if (path === "/conversations") return json(200, url.searchParams.has("conversationId") ? api.messages : api.conversations);
       if (path === "/leads" && method === "GET") return json(200, api.leads);
+      const overview = path.match(/^\/leads\/([^/]+)\/(overview|add-to-campaign)$/);
+      if (overview) {
+        if (overview[2] === "add-to-campaign") return json(200, { added: true, started: false });
+        return json(200, { campaigns: [], events: [{ type: "imported", detail: "From a CSV", createdAt: "2026-11-15T10:00:00Z", campaign: null }], doNotContact: api.syncStatus === "blocked" ? "person" : null });
+      }
       if (path === "/leads" && method === "POST") return json(200, { id: "new1", tags: [], listIds: [], status: "new", createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
       if (path === "/lead-lists" && method === "GET") return json(200, api.lists);
       if (path === "/dashboard/summary" && api.feeds.summary) return json(200, api.feeds.summary);
