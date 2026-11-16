@@ -65,7 +65,7 @@ export function ConnectionsTab({ accountId, disabled }: { accountId: string; dis
     <div className="grid grid-cols-1 gap-4">
       <div role="group" aria-label="List to show" className="flex flex-wrap gap-2">
         {KINDS.map((item) => (
-          <Button key={item.id} size="sm" variant={kind === item.id ? "secondary" : "outline"} aria-pressed={kind === item.id} onClick={() => { setKind(item.id); setOffset(0); }}>
+          <Button key={item.id} size="sm" variant={kind === item.id ? "default" : "outline"} aria-pressed={kind === item.id} onClick={() => { setKind(item.id); setOffset(0); }}>
             {item.label}
           </Button>
         ))}

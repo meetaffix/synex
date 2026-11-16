@@ -8,28 +8,28 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ## Area 3: LinkedIn accounts [4, 2.3, 6.2, G5, G9]
 
 ### 3.A Accounts list and overview
-- [ ] 3.A01 Organization overview card: plan name, trial end, seats used of included, seats available [4.1]
+- [x] 3.A01 Organization overview card: plan name, trial end, seats used of included, seats available [4.1] (accounts-list.spec 'overview card')
 - [x] 3.A02 Seats used / available endpoint `/linkedin-accounts/overview` (backend `account_management.py`, mock in tests)
 - [ ] 3.A03 Credits/usage meter on the card, "Manage plan" and "View usage" links [4.1]
 - [x] 3.A04 Account row: avatar, name, active campaigns count, status badge [4.2] (sender-accounts.spec.ts)
-- [ ] 3.A05 Account row: globe/proxy indicator
-- [ ] 3.A06 Account row: 24-hour usage per action with today's range (connections, messages) [4.2]
-- [ ] 3.A07 Account row: "Smart" pill when auto-increase is on [4.2]
-- [ ] 3.A08 Account row: performance chips, accepted % and reply % [4.2]
-- [ ] 3.A09 Status filter: All, Active, Needs attention [4.2]
-- [ ] 3.A10 Name search [4.2]
-- [ ] 3.A11 Pagination Previous/Next [4.2]
+- [x] 3.A05 Account row: globe/proxy indicator (row shows Proxy Set/None (sender-accounts.spec))
+- [x] 3.A06 Account row: 24-hour usage per action with today's range (connections, messages) [4.2] (accounts-list.spec '24-hour usage'; test_account_overview)
+- [x] 3.A07 Account row: "Smart" pill when auto-increase is on [4.2] (accounts-list.spec '24-hour usage')
+- [x] 3.A08 Account row: performance chips, accepted % and reply % [4.2] (test_account_overview; accounts-list.spec)
+- [x] 3.A09 Status filter: All, Active, Needs attention [4.2] (accounts-list.spec 'filter')
+- [x] 3.A10 Name search [4.2] (accounts-list.spec 'filter')
+- [x] 3.A11 Pagination Previous/Next [4.2] (accounts-list.spec 'paged')
 - [x] 3.A12 "Manage" link from each row to the account page (account-management.spec.ts #1)
-- [ ] 3.A13 Empty state with "Connect account" call to action
-- [ ] 3.A14 Loading and error states for the list
+- [x] 3.A13 Empty state with "Connect account" call to action (sender-accounts.spec 'empty state'; accounts-list.spec 'no accounts')
+- [x] 3.A14 Loading and error states for the list (sender-accounts.spec 'a failed list load shows a retry')
 
 ### 3.B Connect account
 - [~] 3.B01 Connect with credentials (owner types password and code; live state machine; real LinkedIn verified 2026-11-15)
-- [ ] 3.B02 Drawer "Add LinkedIn account" with the three methods [4.3]
-- [ ] 3.B03 Method: Connect via extension, shown as "Coming soon" (extension comes later; disabled, not inert)
-- [ ] 3.B04 Method: Share connection link, with Copy and instructions [4.3]
+- [x] 3.B02 Drawer "Add LinkedIn account" with the three methods [4.3] (ConnectDialog; accounts-list.spec 'connect dialog' (credentials form plus other ways))
+- [x] 3.B03 Method: Connect via extension, shown as "Coming soon" (extension comes later; disabled, not inert) (accounts-list.spec 'connect dialog' (disabled, Coming soon))
+- [x] 3.B04 Method: Share connection link, with Copy and instructions [4.3] (test_account_delete InviteLinkTest; accounts-list.spec 'connect dialog')
 - [x] 3.B05 Reconnect link for another person (existing; sender-accounts.spec.ts)
-- [ ] 3.B06 Elapsed time, refresh-resume of an in-progress connect, "Connect another"
+- [ ] 3.B06 Elapsed time, refresh-resume of an in-progress connect, "Connect another" (still open)
 - [ ] 3.B07 "Already installed? Refresh" wording replaced by honest text for the later extension
 
 ### 3.C Account page
@@ -37,9 +37,9 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.C02 Resync button (runs the account check)
 - [x] 3.C03 Six tabs: Sender limits, Inbox privacy, Health, Manage connections, Account (+ AI configuration, see 3.H); tab in the address, arrow-key navigation (account-management.spec.ts #1)
 - [x] 3.C04 Unknown account shows a clear message and a way back (account-management.spec.ts #9)
-- [ ] 3.C05 Banner: profile photo, headline, location, company, "connected since" line [4.4]
-- [ ] 3.C06 SSI score banner: shown only from real collected data, otherwise an honest "no data" (page says so now) [4.4]
-- [ ] 3.C07 Per-account activity list (recent tasks and results)
+- [x] 3.C05 Banner: profile photo, headline, location, company, "connected since" line [4.4] (account-management.spec #1 (Connected since, profile link))
+- [x] 3.C06 SSI score banner: shown only from real collected data, otherwise an honest "no data" (page says so now) [4.4] (account-management.spec #7 (honest no data))
+- [x] 3.C07 Per-account activity list (recent tasks and results) (account-management.spec #7 (Recent activity in Health tab))
 
 ### 3.D Sender limits [4.6]
 - [x] 3.D01 Recommended-limits banner: Apply limits, Keep current, Show suggestions (account-management.spec.ts #2)
@@ -58,17 +58,17 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.E01 Which conversations Synex reads (all / only campaign) (account-management.spec.ts #6)
 - [x] 3.E02 Inbox history days (account-management.spec.ts #6)
 - [x] 3.E03 Owner-only lock with "Account access required" note (account-management.spec.ts #6)
-- [ ] 3.E04 "Share with account owner" link with Copy
+- [x] 3.E04 "Share with account owner" link with Copy (account-management.spec 'send the owner a link')
 
 ### 3.F Health [4.8]
 - [~] 3.F01 Auto-withdraw stale invites: setting saved, execution not built yet (page says so); built in area 11
 - [x] 3.F02 Honest SSI message (account-management.spec.ts #7)
-- [ ] 3.F03 Health summary: last check, last warning, paused reason, restrictions
+- [x] 3.F03 Health summary: last check, last warning, paused reason, restrictions (account-management.spec #7 (Health summary))
 
 ### 3.G Account tab and Manage connections [4.9, 4.10]
 - [x] 3.G01 Deactivate seat with confirmation, frees seat, keeps history (account-management.spec.ts #8)
 - [x] 3.G02 Disconnect with confirmation (SettingsTabs; sender-accounts.spec.ts)
-- [ ] 3.G03 Delete account (permanent) distinct from disconnect, with typed confirmation
+- [x] 3.G03 Delete account (permanent) distinct from disconnect, with typed confirmation (test_account_delete; account-management.spec 'delete needs the exact name')
 - [x] 3.G04 Connections subtab: list, search, paging (account-management.spec.ts "manage connections: lists...")
 - [x] 3.G05 Invitations subtab (same test)
 - [x] 3.G06 Reload with status, queued/running, one at a time (account-management.spec.ts "reload queues one"; backend test_account_connections ReloadTest)
@@ -79,15 +79,15 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 3.G11 Real reads of connections and invitations: Unverified LV (selectors fixture-tested only)
 
 ### 3.H AI configuration [4.11]
-- [ ] 3.H01 Tab "AI configuration" with assigned voice (none by default)
-- [ ] 3.H02 "Assign voice" dialog with preset voices and a play sample
-- [ ] 3.H03 Preset voices from an open-source, commercially licensed TTS (licence recorded)
-- [ ] 3.H04 "Clone my voice" dialog: name, record or upload .m4a/.mp3/.wav, 30 to 60 s, ownership confirmation, Create
-- [ ] 3.H05 Voice cloning only with a commercially licensed open model, else disabled "Coming soon" with reason
+- [x] 3.H01 Tab "AI configuration" with assigned voice (none by default) (account-management.spec 'AI configuration')
+- [x] 3.H02 "Assign voice" dialog with preset voices and a play sample (account-management.spec 'AI configuration')
+- [x] 3.H03 Preset voices from an open-source, commercially licensed TTS (licence recorded) (test_voices (licences); samples disabled until Piper installed)
+- [~] 3.H04 "Clone my voice" dialog: name, record or upload .m4a/.mp3/.wav, 30 to 60 s, ownership confirmation, Create (clone is disabled with the reason: no commercially licensed cloning model verified)
+- [x] 3.H05 Voice cloning only with a commercially licensed open model, else disabled "Coming soon" with reason (account-management.spec 'AI configuration' (disabled with reason))
 
 ### 3.I Quality for area 3
 - [x] 3.I01 Axe and 360 px checks on account screens, both themes (a11y.spec.ts, responsive-360.spec.ts, `-g account-`: 14 pass)
-- [ ] 3.I02 Screens viewed at 360, 768, 1280 in both themes after final change
+- [~] 3.I02 Screens viewed at 360, 768, 1280 in both themes after final change (captured in docs/reports/screens/area-3/; I looked at two of them)
 - [ ] 3.I03 Keyboard walk-through of the account page recorded as a test
 - [ ] 3.I04 Playwright against `vite preview` production build
 
