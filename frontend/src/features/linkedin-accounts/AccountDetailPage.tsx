@@ -11,6 +11,7 @@ import { formatRelative } from "@/utils/format";
 import { requestFailureMessage } from "./copy";
 import { useAccountActions, useSenderAccounts } from "./hooks";
 import { useAccountDetails } from "./management";
+import { ConnectionsTab } from "./tabs/ConnectionsTab";
 import { SenderLimitsTab } from "./tabs/SenderLimitsTab";
 import { AccountTab, HealthTab, PrivacyTab } from "./tabs/SettingsTabs";
 
@@ -18,6 +19,7 @@ const TABS: TabItem[] = [
   { id: "limits", label: "Sender limits" },
   { id: "privacy", label: "Inbox privacy" },
   { id: "health", label: "Health" },
+  { id: "connections", label: "Manage connections" },
   { id: "account", label: "Account" },
 ];
 
@@ -96,6 +98,7 @@ export function AccountDetailPage() {
         <TabPanel id="limits" active={tab === "limits"} idPrefix="acct"><SenderLimitsTab accountId={account.id} details={data} /></TabPanel>
         <TabPanel id="privacy" active={tab === "privacy"} idPrefix="acct"><PrivacyTab account={account} details={data} /></TabPanel>
         <TabPanel id="health" active={tab === "health"} idPrefix="acct"><HealthTab accountId={account.id} details={data} /></TabPanel>
+        <TabPanel id="connections" active={tab === "connections"} idPrefix="acct"><ConnectionsTab accountId={account.id} disabled={account.status === "disconnected" || data.lifecycle === "deactivated"} /></TabPanel>
         <TabPanel id="account" active={tab === "account"} idPrefix="acct"><AccountTab account={account} details={data} /></TabPanel>
       </div>
     </div>

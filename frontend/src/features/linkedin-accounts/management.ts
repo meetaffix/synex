@@ -114,6 +114,7 @@ const RECOMMENDED: Record<string, { daily: number; stop: number }> = {
   follow_profile: { daily: 5, stop: 20 },
   check_connection: { daily: 20, stop: 60 },
   sync_inbox: { daily: 20, stop: 100 },
+  sync_connections: { daily: 2, stop: 12 },
   collect_leads: { daily: 5, stop: 20 },
 };
 

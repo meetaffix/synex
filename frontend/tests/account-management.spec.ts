@@ -16,7 +16,7 @@ test("the account page opens from the list and offers its four sections as tabs"
   await expect(page).toHaveURL(/\/linkedin-accounts\/a1$/);
   await expect(page.getByRole("heading", { name: "Ada Lovelace", level: 1 })).toBeVisible();
   const tabs = page.getByRole("tablist", { name: "Account sections" }).getByRole("tab");
-  await expect(tabs).toHaveText(["Sender limits", "Inbox privacy", "Health", "Account"]);
+  await expect(tabs).toHaveText(["Sender limits", "Inbox privacy", "Health", "Manage connections", "Account"]);
   await expect(page.getByRole("tab", { name: "Sender limits" })).toHaveAttribute("aria-selected", "true");
   // Keyboard: arrows move between tabs, and the chosen tab is in the address so a refresh keeps it.
   await page.getByRole("tab", { name: "Sender limits" }).focus();
@@ -36,8 +36,8 @@ test("a new account is offered recommended limits; applying them saves a policy 
   await expect(page.getByText("Limits saved.")).toBeVisible();
   const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { preset: string; actions: Record<string, { dailyLimit: number; stopAt: number }> };
   expect(saved.preset).toBe("conservative");
-  expect(Object.keys(saved.actions)).toHaveLength(7);
-  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, collect_leads: 20 };
+  expect(Object.keys(saved.actions)).toHaveLength(8);
+  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20 };
   for (const [action, policy] of Object.entries(saved.actions)) {
     expect(policy.stopAt).toBeLessThanOrEqual(ceilings[action]);
     expect(policy.dailyLimit).toBeLessThanOrEqual(policy.stopAt);
@@ -49,7 +49,7 @@ test("the limits table shows what was used, today's limit with its range, and th
   await open(page);
   const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
   await expect(table.getByRole("columnheader")).toHaveText(["Action", "Used", "Today's limit", "Range", "Hard maximum"]);
-  await expect(table.getByRole("row")).toHaveCount(8);
+  await expect(table.getByRole("row")).toHaveCount(9);
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
   await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
 });
@@ -123,4 +123,57 @@ test("an unknown account shows a clear message and a way back", async ({ page })
   await page.goto("/linkedin-accounts/nope");
   await expect(page.getByText(/not found|could not read/i)).toBeVisible();
   await expect(page.getByRole("link", { name: "All sender accounts" })).toBeVisible();
+});
+
+const person = (n: string, over: Record<string, string> = {}) => ({ id: n, name: n, headline: `${n} headline`, location: "London", profileUrl: `https://www.linkedin.com/in/${n.toLowerCase().replace(/ /g, "-")}/`, source: "sync", ...over });
+
+test("manage connections: lists, searches and switches to received invitations", async ({ page }) => {
+  const api = await open(page);
+  api.connections.a1 = { connection: [person("Ada Lovelace"), person("Grace Hopper", { location: "New York" })], invitation: [person("Katherine Johnson")] };
+  await page.getByRole("tab", { name: "Manage connections" }).click();
+  await expect(page).toHaveURL(/tab=connections/);
+  await expect(page.getByText(/a little at a time/)).toBeVisible();
+  await expect(page.getByRole("row")).toHaveCount(3);
+  await page.getByLabel("Search").fill("york");
+  await expect(page.getByRole("row", { name: /Grace Hopper/ })).toBeVisible();
+  await expect(page.getByRole("row")).toHaveCount(2);
+  await page.getByLabel("Search").fill("zzz");
+  await expect(page.getByText("No one matches that search.")).toBeVisible();
+  await page.getByLabel("Search").fill("");
+  await page.getByRole("button", { name: "Received invitations" }).click();
+  await expect(page.getByRole("link", { name: "Katherine Johnson" })).toBeVisible();
+});
+
+test("manage connections: an empty list explains how to fill it, and reload queues one gradual read", async ({ page }) => {
+  const api = await open(page);
+  await page.getByRole("tab", { name: "Manage connections" }).click();
+  await expect(page.getByText(/Nothing stored yet/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+  await page.getByRole("button", { name: "Reload connections" }).click();
+  await expect(page.getByText("Reading connections has been queued.")).toBeVisible();
+  expect(callsTo(api, "POST", /\/connections\/reload$/)).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "Reading" })).toBeDisabled();
+  await expect(page.getByText("Synex is reading this list now.")).toBeVisible();
+});
+
+test("manage connections: a CSV is uploaded and the result counts are shown; export downloads a file", async ({ page }) => {
+  const api = await open(page);
+  api.connections.a1 = { connection: [person("Ada Lovelace")], invitation: [] };
+  await page.getByRole("tab", { name: "Manage connections" }).click();
+  await page.getByLabel("Upload a CSV with a linkedin_url column").setInputFiles({ name: "people.csv", mimeType: "text/csv", buffer: Buffer.from("linkedin_url\nhttps://www.linkedin.com/in/new-person/\nnot a url\n") });
+  await expect(page.getByText(/1 added, 0 already stored, 0 repeated in the file, 1 skipped/)).toBeVisible();
+  expect(callsTo(api, "POST", /\/connections\/import$/)).toHaveLength(1);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV" }).click();
+  expect((await download).suggestedFilename()).toBe("synex-connections.csv");
+});
+
+test("manage connections: a stopped seat cannot start a new read", async ({ page }) => {
+  await open(page);
+  await page.getByRole("tab", { name: "Account" }).click();
+  await page.getByRole("button", { name: "Deactivate seat" }).click();
+  await page.getByRole("alertdialog").or(page.getByRole("dialog")).getByRole("button", { name: "Deactivate seat" }).click();
+  await expect(page.getByText("Seat deactivated.")).toBeVisible();
+  await page.getByRole("tab", { name: "Manage connections" }).click();
+  await expect(page.getByRole("button", { name: "Reload connections" })).toBeDisabled();
 });

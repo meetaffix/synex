@@ -40,6 +40,8 @@ export interface Api {
   /** Serve /auth/me as signed out, for the sign-in pages. */
   signedOut: boolean;
   /** Per-account management data (limits policy, lifecycle), created on first read. */
+  connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
+  syncStatus: string;
   management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean }>;
   policyStatus: number;
   calls: Call[];
@@ -111,6 +113,7 @@ export const CEILINGS: Record<string, [string, number]> = {
   follow_profile: ["Profile follows", 50],
   check_connection: ["Connection checks", 80],
   sync_inbox: ["Inbox reads", 48],
+  sync_connections: ["Connection list reads", 12],
   collect_leads: ["Lead collection pages", 20],
 };
 
@@ -200,6 +203,8 @@ export function newApi(over: Partial<Api> = {}): Api {
     templates: [],
     signedOut: false,
     management: {},
+    connections: {},
+    syncStatus: "idle",
     policyStatus: 200,
     calls: [],
     ...over,
@@ -274,6 +279,31 @@ export async function mockApi(page: Page, api: Api) {
 
       if (path === "/linkedin-accounts/overview")
         return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length) });
+      const conn = path.match(/^\/linkedin-accounts\/([^/]+)\/connections(\/reload|\/export|\/import)?$/);
+      if (conn && api.accounts.some((a) => a.id === conn[1])) {
+        const query = url.searchParams;
+        const kind = query.get("kind") ?? (body as { kind?: string } | null)?.kind ?? "connection";
+        const store = (api.connections[conn[1]] ??= { connection: [], invitation: [] });
+        const sync = { status: api.syncStatus, detail: null, lastSyncedAt: null, lastAdded: null };
+        const note = "Synex reads your connections a little at a time, so a long list takes a while to fill.";
+        if (conn[2] === "/reload") {
+          api.syncStatus = "queued";
+          return json(202, { sync: { ...sync, status: "queued" }, note });
+        }
+        if (conn[2] === "/export") {
+          const lines = store[kind].map((r) => [r.profileUrl, r.name, r.headline, r.location].join(","));
+          return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: ["linkedin_url,name,headline,location", ...lines].join("\n") });
+        }
+        if (conn[2] === "/import") {
+          const urls = String((body as { csv: string }).csv).split("\n").slice(1).filter((l) => l.includes("linkedin.com/in/"));
+          urls.forEach((u, i) => store.connection.push({ id: `u${i}`, name: u.split("/in/")[1].replace(/[/,].*$/, ""), headline: "", location: "", profileUrl: u.split(",")[0], source: "csv" }));
+          return json(200, { added: urls.length, alreadyStored: 0, duplicatesInFile: 0, invalid: 1 });
+        }
+        const q = (query.get("q") ?? "").toLowerCase();
+        const rows = store[kind].filter((r) => !q || `${r.name} ${r.headline} ${r.location}`.toLowerCase().includes(q));
+        const offset = Number(query.get("offset") ?? 0);
+        return json(200, { items: rows.slice(offset, offset + Number(query.get("limit") ?? 50)), total: rows.length, sync, note });
+      }
       const manage = path.match(/^\/linkedin-accounts\/([^/]+)\/(details|policy|deactivate)$/);
       if (manage && api.accounts.some((a) => a.id === manage[1])) {
         const state = (api.management[manage[1]] ??= { policy: emptyPolicy(), lifecycle: "active", canChangePrivacy: true });

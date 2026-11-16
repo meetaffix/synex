@@ -25,7 +25,8 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export async function request<T>(
   method: Method,
   path: string,
-  body?: unknown
+  body?: unknown,
+  asText = false
 ): Promise<T> {
   let res: Response;
   try {
@@ -62,12 +63,14 @@ export async function request<T>(
   }
 
   if (res.status === 204) return undefined as T;
+  if (asText) return (await res.text()) as T;
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
+  getText: (path: string) => request<string>("GET", path, undefined, true),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
