@@ -19,12 +19,49 @@ from ..linkedin_session import service
 router = APIRouter()
 
 
+ACCEPTED = {"connected", "replied", "interested", "not_interested"}
+REPLIED = {"replied", "interested", "not_interested"}
+
+
+def _percent(part: int, whole: int):
+    return round(100 * part / whole, 1) if whole else None
+
+
+def _performance(db: Session, workspace_id: str, accounts, campaigns) -> dict:
+    """Per account: of the people its campaigns contacted, how many accepted, and of those how many replied."""
+    by_campaign = {}
+    for lead in db.query(models.Lead.campaign_id, models.Lead.status).filter(models.Lead.user_id == workspace_id, models.Lead.campaign_id.isnot(None)):
+        counts = by_campaign.setdefault(lead.campaign_id, {"invited": 0, "accepted": 0, "replied": 0})
+        if lead.status != "new":
+            counts["invited"] += 1
+        counts["accepted"] += lead.status in ACCEPTED
+        counts["replied"] += lead.status in REPLIED
+    out = {}
+    for account in accounts:
+        total = {"invited": 0, "accepted": 0, "replied": 0}
+        for campaign in campaigns:
+            if campaign.account_id == account.id or account.id in (campaign.account_ids or []):
+                for key, value in by_campaign.get(campaign.id, {}).items():
+                    total[key] += value
+        out[account.id] = {**total, "acceptedPercent": _percent(total["accepted"], total["invited"]), "replyPercent": _percent(total["replied"], total["accepted"])}
+    return out
+
+
 @router.get("/overview")
 def overview(db: Session = Depends(get_db), workspace: models.User = Depends(get_data_user)):
     accounts = db.query(models.LinkedInAccount).filter_by(user_id=workspace.id).all()
     used = sum(a.status not in ("deactivated", "deleted") for a in accounts)
+    now = datetime.now(timezone.utc)
+    campaigns = db.query(models.Campaign).filter(models.Campaign.user_id == workspace.id).all()
+    performance = _performance(db, workspace.id, accounts, campaigns)
+    per_account = {}
+    for account in accounts:
+        rows = {row["action"]: row for row in account_policy.usage_rows(db, account, now)}
+        pick = lambda action: {k: rows[action][k] for k in ("used", "low", "high", "budget")}  # noqa: E731
+        per_account[account.id] = {"connections": pick("send_invite"), "messages": pick("send_message"),
+                                   "smart": account_policy.policy_for(account).preset != "off", "performance": performance[account.id]}
     return {"plan": "Free", "planPlaceholder": True, "seatsUsed": used,
-            "seatsIncluded": 3, "seatsAvailable": max(0, 3 - used)}
+            "seatsIncluded": 3, "seatsAvailable": max(0, 3 - used), "accounts": per_account}
 
 
 @router.get("/{account_id}/details")

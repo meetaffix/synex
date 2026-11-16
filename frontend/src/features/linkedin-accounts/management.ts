@@ -44,7 +44,17 @@ export const detailsSchema = z.object({
   activity: z.array(z.object({ id: z.string(), step: z.string(), status: z.string(), message: z.string().nullable(), createdAt: z.string() })),
 });
 
+const rangeSchema = z.object({ used: z.number(), low: z.number(), high: z.number(), budget: z.number() });
+export const accountSummarySchema = z.object({
+  connections: rangeSchema,
+  messages: rangeSchema,
+  smart: z.boolean(),
+  performance: z.object({ invited: z.number(), accepted: z.number(), replied: z.number(), acceptedPercent: z.number().nullable(), replyPercent: z.number().nullable() }),
+});
+export type AccountSummary = z.infer<typeof accountSummarySchema>;
+
 export const overviewSchema = z.object({
+  accounts: z.record(accountSummarySchema).default({}),
   plan: z.string(),
   planPlaceholder: z.boolean(),
   seatsUsed: z.number(),

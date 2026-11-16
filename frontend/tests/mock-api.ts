@@ -278,7 +278,9 @@ export async function mockApi(page: Page, api: Api) {
       }
 
       if (path === "/linkedin-accounts/overview")
-        return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length) });
+        return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length),
+          accounts: Object.fromEntries(api.accounts.map((a, i) => [a.id, { connections: { used: 2, low: 4, high: 6, budget: 5 }, messages: { used: 1, low: 9, high: 11, budget: 10 }, smart: i === 0,
+            performance: i === 0 ? { invited: 20, accepted: 8, replied: 2, acceptedPercent: 40, replyPercent: 25 } : { invited: 0, accepted: 0, replied: 0, acceptedPercent: null, replyPercent: null } }])) });
       const conn = path.match(/^\/linkedin-accounts\/([^/]+)\/connections(\/reload|\/export|\/import)?$/);
       if (conn && api.accounts.some((a) => a.id === conn[1])) {
         const query = url.searchParams;

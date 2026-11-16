@@ -14,11 +14,15 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { ReconnectLinkDialog, type LinkState } from "./ReconnectLinkDialog";
 import { complianceNote, requestFailureMessage } from "./copy";
 import { useAccountActions, useSenderAccounts } from "./hooks";
+import { useOverview } from "./management";
 import type { SenderAccount } from "./schemas";
+
+const PAGE = 9;
 
 export function SenderAccountsPage() {
   const accounts = useSenderAccounts();
   const actions = useAccountActions();
+  const overview = useOverview();
   const [params, setParams] = useSearchParams();
   // "Connect LinkedIn account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
   const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" ? {} : null);
@@ -34,13 +38,16 @@ export function SenderAccountsPage() {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const shown = useMemo(
+  const [page, setPage] = useState(0);
+  const matches = useMemo(
     () =>
-      (accounts.data ?? []).filter(
-        (a) => (statusFilter === "all" || a.status === statusFilter) && a.name.toLowerCase().includes(query.trim().toLowerCase()),
-      ),
+      (accounts.data ?? []).filter((a) => {
+        const group = statusFilter === "active" ? a.status === "connected" : statusFilter === "attention" ? ["needs_reconnect", "restricted", "disconnected"].includes(a.status) : statusFilter === "all" || a.status === statusFilter;
+        return group && a.name.toLowerCase().includes(query.trim().toLowerCase());
+      }),
     [accounts.data, query, statusFilter],
   );
+  const shown = matches.slice(page * PAGE, page * PAGE + PAGE);
 
   const setRowError = (id: string, message?: string) =>
     setRowErrors((current) => {
@@ -91,6 +98,13 @@ export function SenderAccountsPage() {
         actions={accounts.data?.length === 0 ? undefined : <Button onClick={() => setConnecting({})}>Connect LinkedIn account</Button>}
       />
 
+      {!!accounts.data?.length && overview.data && (
+        <section aria-label="Workspace overview" className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-lg border border-border bg-surface p-4 text-sm" data-testid="seats">
+          <p><span className="text-muted-foreground">Plan</span> <span className="font-medium">{overview.data.plan}</span> <span className="text-subtle">(placeholder: billing is not built yet)</span></p>
+          <p><span className="text-muted-foreground">Seats used</span> <span className="font-medium">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
+          <p><span className="text-muted-foreground">Seats available</span> <span className="font-medium">{overview.data.seatsAvailable}</span></p>
+        </section>
+      )}
       {accounts.isLoading && <LoadingList />}
       {accounts.isError && !accounts.data && (
         <Problem message={requestFailureMessage(accounts.error)} onRetry={() => void accounts.refetch()} />
@@ -104,18 +118,17 @@ export function SenderAccountsPage() {
       {accounts.data?.length === 0 && <EmptyState onConnect={() => setConnecting({})} />}
       {!!accounts.data?.length && (
         <div className="flex flex-wrap items-center gap-3">
-          <Input aria-label="Search accounts" placeholder="Search accounts" className="max-w-xs" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <NativeSelect aria-label="Filter by status" className="w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="all">All statuses</option>
+          <Input aria-label="Search accounts" placeholder="Search accounts" className="max-w-xs" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} />
+          <NativeSelect aria-label="Filter by status" className="w-auto" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="attention">Needs attention</option>
             <option value="connected">Connected</option>
             <option value="paused">Paused</option>
             <option value="needs_reconnect">Needs reconnect</option>
             <option value="restricted">Restricted</option>
             <option value="disconnected">Disconnected</option>
           </NativeSelect>
-          <p className="ml-auto text-sm text-muted-foreground" data-testid="seats">
-            Seats used: {accounts.data.length} of 3 <span className="text-subtle">(plan: Free, placeholder)</span>
-          </p>
         </div>
       )}
       {!!accounts.data?.length && shown.length === 0 && <p role="status" className="text-sm text-muted-foreground">No accounts match.</p>}
@@ -129,9 +142,17 @@ export function SenderAccountsPage() {
               actions={rowActions(account)}
               checking={actions.check.isPending && actions.check.variables === account.id}
               error={rowErrors[account.id]}
+              summary={overview.data?.accounts[account.id]}
             />
           ))}
         </ul>
+      )}
+      {matches.length > PAGE && (
+        <nav aria-label="Account pages" className="flex items-center gap-3 text-sm">
+          <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+          <span>{page * PAGE + 1} to {Math.min((page + 1) * PAGE, matches.length)} of {matches.length}</span>
+          <Button size="sm" variant="outline" disabled={(page + 1) * PAGE >= matches.length} onClick={() => setPage(page + 1)}>Next</Button>
+        </nav>
       )}
       {!!accounts.data?.length && <p className="text-xs text-muted-foreground">{complianceNote}</p>}
 
