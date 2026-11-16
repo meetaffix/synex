@@ -78,3 +78,33 @@ test("manual CRM, preferences, calendar controls and sign-out persist", async ({
     page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
 });
+
+test("a time zone typed before the saved one has loaded is kept, saved and shown again", async ({
+  page,
+}) => {
+  // The saved preferences arrive late: the old page overwrote what had been typed meanwhile, and saved UTC.
+  await page.route("**/publishing/preferences", async (route) => {
+    if (route.request().method() === "GET") {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    await route.continue();
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill("browser@example.com");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Browser-Test-Password!");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 }),
+  ).toBeVisible();
+  await page.goto("/settings");
+  const zone = page.getByLabel("Time zone", { exact: true });
+  await zone.fill("Europe/Amsterdam");
+  await page.waitForTimeout(2500); // longer than the delayed response
+  await expect(zone).toHaveValue("Europe/Amsterdam");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByText("Preferences saved")).toBeVisible();
+  await page.reload();
+  await expect(zone).toHaveValue("Europe/Amsterdam", { timeout: 10_000 });
+});
