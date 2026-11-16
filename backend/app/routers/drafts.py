@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .. import drafts, engine, models
+from ..config import DEEPGRAM_USD_PER_MINUTE  # noqa: F401
 from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 
@@ -120,3 +121,34 @@ def reject(campaign_id: str, draft_id: str, owner: models.User = Depends(get_man
     db.delete(draft)
     db.commit()
     return {"ok": True}
+
+
+class PreviewIn(BaseModel):
+    step_type: str = Field(alias="stepType")
+    lead_id: str | None = Field(default=None, alias="leadId")
+    config: dict | None = None
+    model_config = {"populate_by_name": True}
+
+
+@router.post("/preview")
+def preview(campaign_id: str, body: PreviewIn, owner: models.User = Depends(get_manager_user), db: Session = Depends(get_db)):
+    """One sample message for one lead, from the settings in the open drawer (saved or not). A user action before launch; never part of sending.
+    The cost of one draft is returned with it."""
+    from .. import ai_prompt, providers
+    campaign = _campaign(db, owner, campaign_id)
+    if body.step_type not in drafts.DRAFT_STEP_TYPES:
+        raise HTTPException(status_code=422, detail="Only a connection note, a message or a follow-up can be previewed.")
+    try:
+        config = ai_prompt.check_step_ai(body.config) if body.config is not None else None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    leads = campaign.lead_list.leads if campaign.lead_list else []
+    lead = next((l for l in leads if l.id == body.lead_id), None) if body.lead_id else (leads[0] if leads else None)
+    if lead is None:
+        raise HTTPException(status_code=409, detail="Add a lead to this campaign's list first, so the preview has a real person to write about.")
+    fields = {f: getattr(lead, f, None) or "" for f in drafts.LEAD_FIELDS}
+    context = dict(campaign.ai_context or {})
+    db.rollback()  # nothing stays open while the provider is called
+    text, source = drafts._make_text(body.step_type, fields, {"config": config, "context": context})
+    per = round(drafts.DRAFT_SECONDS_ESTIMATE / 60 * drafts.DEEPGRAM_USD_PER_MINUTE, 4) if providers.provider_name() == "deepgram" else 0.0
+    return {"text": text, "source": source, "provider": providers.provider_name(), "leadName": f"{fields['first_name']} {fields['last_name']}".strip(), "estimatedUsd": per}

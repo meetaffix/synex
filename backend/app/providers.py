@@ -66,7 +66,8 @@ def render_variables(text: str | None, lead) -> str:
 # --------------------------------------------------------------------------
 class AIProvider(ABC):
     @abstractmethod
-    def generate_message(self, step_type: str, tone: str, ctx: dict) -> str: ...
+    def generate_message(self, step_type: str, tone: str, ctx: dict, brief: dict | None = None) -> str:
+        """``brief`` (optional) carries {"config": per-step AI settings, "context": the campaign's shared context}."""
 
 
 class TemplateAIProvider(AIProvider):
@@ -77,7 +78,7 @@ class TemplateAIProvider(AIProvider):
     personalize. This is a drafting aid, not a fabricated 'AI result'.
     """
 
-    def generate_message(self, step_type: str, tone: str, ctx: dict) -> str:
+    def generate_message(self, step_type: str, tone: str, ctx: dict, brief: dict | None = None) -> str:
         first = ctx.get("first_name") or "{{first_name}}"
         company = ctx.get("company") or "{{company}}"
         role = ctx.get("job_title") or "{{job_title}}"
@@ -116,21 +117,66 @@ class DeepgramAIProvider(AIProvider):
               "no emojis, no placeholder brackets. Personalize only from the details given and never invent facts "
               "about the prospect.")
 
-    def generate_message(self, step_type: str, tone: str, ctx: dict) -> str:
+    def generate_message(self, step_type: str, tone: str, ctx: dict, brief: dict | None = None) -> str:
         import json
 
         from .deepgram_text import complete
 
-        brief = self.STEP_BRIEF.get(step_type, "a short LinkedIn first message to a new connection")
+        if brief is not None:
+            from .ai_prompt import build_prompt
+            system, prompt = build_prompt(step_type, ctx, brief.get("config"), brief.get("context"), brief.get("sender"))
+            return complete(system, prompt)
+        step_brief = self.STEP_BRIEF.get(step_type, "a short LinkedIn first message to a new connection")
         known = {k: v for k, v in ctx.items() if v}
-        prompt = (f"Write {brief} in a {tone or 'friendly'} tone, 1-3 sentences.\n"
+        prompt = (f"Write {step_brief} in a {tone or 'friendly'} tone, 1-3 sentences.\n"
                   f"Prospect details: {json.dumps(known) if known else 'unknown'}.")
         return complete(self.SYSTEM, prompt)
 
 
-def get_ai_provider() -> AIProvider:
-    from .assistant.config import assistant_config
+class OllamaAIProvider(AIProvider):
+    """A model running on this computer or network through Ollama (MIT licence; the models carry their own licences). Free and private.
 
-    if assistant_config.deepgram_api_key:
+    Talks to ``OLLAMA_URL`` over plain HTTP with the standard library; nothing is sent anywhere else. Any failure raises, and callers fall
+    back to the template provider.
+    """
+
+    def generate_message(self, step_type: str, tone: str, ctx: dict, brief: dict | None = None) -> str:
+        import json
+        import urllib.request
+
+        from .ai_prompt import build_prompt
+        from .config import settings
+
+        brief = brief or {}
+        system, prompt = build_prompt(step_type, ctx, brief.get("config"), brief.get("context"), brief.get("sender"))
+        body = json.dumps({"model": settings.ollama_model, "system": system, "prompt": prompt, "stream": False, "options": {"temperature": 0.7}}).encode()
+        request = urllib.request.Request(settings.ollama_url.rstrip("/") + "/api/generate", data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=90) as response:  # noqa: S310 - the address is the owner's own setting
+            text = (json.loads(response.read().decode()).get("response") or "").strip()
+        if not text:
+            raise RuntimeError("Ollama returned an empty reply.")
+        return text
+
+
+def provider_name() -> str:
+    """Which service writes drafts right now: deepgram, ollama or template."""
+    from .assistant.config import assistant_config
+    from .config import settings
+
+    choice = (settings.ai_provider or "auto").lower()
+    if choice == "ollama":
+        return "ollama"
+    if choice == "template":
+        return "template"
+    if choice in ("auto", "deepgram") and assistant_config.deepgram_api_key:
+        return "deepgram"
+    return "template"
+
+
+def get_ai_provider() -> AIProvider:
+    name = provider_name()
+    if name == "ollama":
+        return OllamaAIProvider()
+    if name == "deepgram":
         return DeepgramAIProvider()
     return TemplateAIProvider()

@@ -23,7 +23,8 @@ from sqlalchemy.orm import Session
 from . import engine, models
 from .config import DEEPGRAM_USD_PER_MINUTE, DRAFT_BATCH_SIZE, DRAFT_CAP_PER_CAMPAIGN, DRAFT_SECONDS_ESTIMATE
 from .database import SessionLocal
-from .providers import DeepgramAIProvider, TemplateAIProvider, get_ai_provider, render_variables
+from . import ai_prompt
+from .providers import DeepgramAIProvider, OllamaAIProvider, TemplateAIProvider, get_ai_provider, provider_name, render_variables
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class DraftError(Exception):
 
 def _targets(db: Session, campaign: models.Campaign) -> tuple[list[tuple[models.Lead, models.CampaignStep]], int, int]:
     """(leads and steps still without a draft, up to the cap; how many were available before the cap; drafts that exist)."""
-    steps = [s for s in engine.sorted_steps(campaign) if s.type in DRAFT_STEP_TYPES]
+    steps = [s for s in engine.sorted_steps(campaign) if s.type in DRAFT_STEP_TYPES and ai_prompt.wants_ai(s, campaign)]
     leads = sorted(campaign.lead_list.leads if campaign.lead_list else [], key=lambda l: (l.created_at, l.id))
     have = {(d.step_id, d.lead_id) for d in db.query(models.LeadDraft).filter_by(campaign_id=campaign.id).all()}
     wanted = []
@@ -58,26 +59,32 @@ def _targets(db: Session, campaign: models.Campaign) -> tuple[list[tuple[models.
 def estimate(db: Session, campaign: models.Campaign) -> dict:
     """What generating the missing drafts would do and cost, shown to the user before anything is generated."""
     targets, available, existing = _targets(db, campaign)
-    using_ai = isinstance(get_ai_provider(), DeepgramAIProvider)
+    name = provider_name()
+    paid = name == "deepgram"
     seconds = len(targets) * DRAFT_SECONDS_ESTIMATE
+    notes = {"deepgram": "Each draft is one short Deepgram Voice Agent connection, billed by the minute. This is an estimate.",
+             "ollama": "Drafts are written by the model running on your own computer or network. They cost nothing and nothing leaves it.",
+             "template": "No AI service is set up, so drafts come from the built-in templates and cost nothing."}
     return {
         "count": len(targets), "available": available, "existing": existing, "cap": DRAFT_CAP_PER_CAMPAIGN,
-        "capped": available > len(targets), "provider": "deepgram" if using_ai else "template",
+        "capped": available > len(targets), "provider": name,
         "secondsPerDraft": DRAFT_SECONDS_ESTIMATE, "estimatedSeconds": seconds, "usdPerMinute": DEEPGRAM_USD_PER_MINUTE,
-        "estimatedUsd": round(seconds / 60 * DEEPGRAM_USD_PER_MINUTE, 4) if using_ai else 0.0,
-        "note": ("Each draft is one short Deepgram Voice Agent connection, billed by the minute. This is an estimate."
-                 if using_ai else "Deepgram is not configured, so drafts come from the templates and cost nothing."),
+        "estimatedUsd": round(seconds / 60 * DEEPGRAM_USD_PER_MINUTE, 4) if paid else 0.0,
+        "note": notes[name],
     }
 
 
-def _make_text(step_type: str, lead_fields: dict) -> tuple[str, str]:
+def _make_text(step_type: str, lead_fields: dict, brief: dict | None = None) -> tuple[str, str]:
     """One draft's text and its source. The only AI call in a campaign's life; always outside a transaction."""
-    fields = {"first_name": lead_fields.get("first_name"), "company": lead_fields.get("company"), "job_title": lead_fields.get("job_title")}
+    fields = {"first_name": lead_fields.get("first_name"), "last_name": lead_fields.get("last_name"), "company": lead_fields.get("company"),
+              "job_title": lead_fields.get("job_title"), "headline": lead_fields.get("headline")}
+    if brief is None:
+        fields.pop("last_name"), fields.pop("headline")  # the original prompt used three fields
     source = "ai"
     try:
         provider = get_ai_provider()
-        body = provider.generate_message(step_type, "friendly", fields)
-        if not isinstance(provider, DeepgramAIProvider):
+        body = provider.generate_message(step_type, "friendly", fields, brief) if brief is not None else provider.generate_message(step_type, "friendly", fields)
+        if not isinstance(provider, (DeepgramAIProvider, OllamaAIProvider)):
             source = "template"
     except Exception:  # Deepgram unreachable, refused or empty: the local template is still a usable starting point
         body, source = TemplateAIProvider().generate_message(step_type, "friendly", fields), "template"
@@ -99,12 +106,14 @@ def generate_drafts(campaign_id: str, confirmed_count: int, session_factory: Cal
         current = estimate(db, campaign)
         if confirmed_count != len(targets):
             raise DraftError("The number of drafts changed since the estimate was shown. Review the new estimate.", current)
+        context = dict(campaign.ai_context or {})
         plan = [{"lead_id": lead.id, "step_id": step.id, "step_type": step.type,
+                 "brief": {"config": step.ai_config, "context": context} if (step.ai_config or context) else None,
                  "fields": {**{f: getattr(lead, f, None) or "" for f in LEAD_FIELDS}, "id": lead.id}} for lead, step in targets]
     done = {"requested": len(plan), "created": 0, "ai": 0, "templateFallback": 0}
     for start in range(0, len(plan), DRAFT_BATCH_SIZE):
         batch = plan[start:start + DRAFT_BATCH_SIZE]
-        results = [(item, *_make_text(item["step_type"], item["fields"])) for item in batch]  # no database session open here
+        results = [(item, *_make_text(item["step_type"], item["fields"], item["brief"])) for item in batch]  # no database session open here
         with session_factory() as db:  # one short transaction per batch, holding no external call
             for item, body, source in results:
                 exists = db.query(models.LeadDraft.id).filter_by(campaign_id=campaign_id, step_id=item["step_id"], lead_id=item["lead_id"]).first()

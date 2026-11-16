@@ -108,6 +108,12 @@ class Settings(BaseSettings):
     outreach_acceptance_check_interval_hours: float = 12
     outreach_inbox_sync_interval_minutes: float = 15
 
+    # Which service writes AI drafts: "auto" (Deepgram when its key is set, else the built-in templates), "deepgram", "ollama" (a model on
+    # this computer or network, free and private) or "template". Paid services stay optional.
+    ai_provider: str = "auto"
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "llama3.2"
+
     # Authentication. "local" is the built-in email and password sign-in (used by the tests); "clerk" accepts only
     # Clerk session tokens (see docs/CLERK_MIGRATION.md). One variable switches back if Clerk is misconfigured.
     auth_provider: str = "local"

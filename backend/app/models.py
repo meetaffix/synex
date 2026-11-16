@@ -301,6 +301,8 @@ class CampaignStep(Base):
     # Reserved for conditional branches; execution is not implemented yet.
     parent_step_id = Column(String, nullable=True)
     branch_condition = Column(JSON, nullable=True)
+    # Per-message AI settings (see ai_prompt.check_step_ai); null means a plain message.
+    ai_config = Column(JSON, nullable=True)
 
     campaign = relationship("Campaign", back_populates="steps")
 

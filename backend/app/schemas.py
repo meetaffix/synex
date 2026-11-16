@@ -181,6 +181,13 @@ class StepIn(CamelIn):
     # Reserved for conditional branches: stored and returned, not executed yet.
     parent_step_id: str | None = None
     branch_condition: dict | None = None
+    ai_config: dict | None = None
+
+    @field_validator("ai_config")
+    @classmethod
+    def _ai_config(cls, value):
+        from .ai_prompt import check_step_ai
+        return check_step_ai(value)
 
 
 # ------------------------------- Campaigns -------------------------------

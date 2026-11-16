@@ -94,6 +94,7 @@ def _apply_steps(campaign: models.Campaign, steps) -> None:
         step.delay_hours = data.get("delay_hours")
         step.parent_step_id = data.get("parent_step_id")
         step.branch_condition = data.get("branch_condition")
+        step.ai_config = data.get("ai_config")
         updated.append(step)
     campaign.steps[:] = updated
 
