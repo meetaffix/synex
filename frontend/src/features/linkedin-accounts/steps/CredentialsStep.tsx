@@ -67,7 +67,7 @@ export function CredentialsStep({ defaults, withOptions, notice, onSubmit, onCan
   const submit = (values: FormValues) => {
     const credentials: Credentials = { identifier: values.identifier, password: values.password };
     if (withOptions) {
-      credentials.timezone = values.timezone || undefined;
+      credentials.timezone = values.timezone || BROWSER_ZONE || undefined; // set automatically from this browser; there is no field for it
       credentials.proxyUrl = values.proxyUrl || undefined;
       credentials.syncMode = values.syncMode;
     }
@@ -124,24 +124,6 @@ export function CredentialsStep({ defaults, withOptions, notice, onSubmit, onCan
       </div>
       {withOptions && (
         <>
-          <div className="grid gap-2">
-            <Label htmlFor={`${id}-timezone`}>Time zone</Label>
-            <Input
-              id={`${id}-timezone`}
-              list={`${id}-zones`}
-              autoComplete="off"
-              aria-describedby={`${id}-timezone-help`}
-              {...register("timezone")}
-            />
-            <datalist id={`${id}-zones`}>
-              {TIME_ZONES.map((zone) => (
-                <option key={zone} value={zone} />
-              ))}
-            </datalist>
-            <p id={`${id}-timezone-help`} className="text-xs text-muted-foreground">
-              Used for this account's browser and daily limits. It cannot be changed later.
-            </p>
-          </div>
           <Disclosure title="Sync preferences">
             <SyncModeFields value={watch("syncMode")} onChange={(mode) => setValue("syncMode", mode)} />
           </Disclosure>

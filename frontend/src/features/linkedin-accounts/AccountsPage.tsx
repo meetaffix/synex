@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState as SharedEmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -30,6 +32,15 @@ export function SenderAccountsPage() {
   const [disconnecting, setDisconnecting] = useState<SenderAccount | null>(null);
   const [link, setLink] = useState<{ account: SenderAccount; state: LinkState } | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const shown = useMemo(
+    () =>
+      (accounts.data ?? []).filter(
+        (a) => (statusFilter === "all" || a.status === statusFilter) && a.name.toLowerCase().includes(query.trim().toLowerCase()),
+      ),
+    [accounts.data, query, statusFilter],
+  );
 
   const setRowError = (id: string, message?: string) =>
     setRowErrors((current) => {
@@ -92,8 +103,25 @@ export function SenderAccountsPage() {
       )}
       {accounts.data?.length === 0 && <EmptyState onConnect={() => setConnecting({})} />}
       {!!accounts.data?.length && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Input aria-label="Search accounts" placeholder="Search accounts" className="max-w-xs" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <NativeSelect aria-label="Filter by status" className="w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="connected">Connected</option>
+            <option value="paused">Paused</option>
+            <option value="needs_reconnect">Needs reconnect</option>
+            <option value="restricted">Restricted</option>
+            <option value="disconnected">Disconnected</option>
+          </NativeSelect>
+          <p className="ml-auto text-sm text-muted-foreground" data-testid="seats">
+            Seats used: {accounts.data.length} of 3 <span className="text-subtle">(plan: Free, placeholder)</span>
+          </p>
+        </div>
+      )}
+      {!!accounts.data?.length && shown.length === 0 && <p role="status" className="text-sm text-muted-foreground">No accounts match.</p>}
+      {!!shown.length && (
         <ul aria-label="Connected accounts" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
-          {accounts.data.map((account, index) => (
+          {shown.map((account, index) => (
             <AccountRow
               key={account.id}
               index={index}

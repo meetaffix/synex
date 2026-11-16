@@ -74,7 +74,7 @@ export function ConnectFlow({ scope, onClose }: Props) {
         </WaitingStep>
       )}
       {view.kind === "manual" && <ManualStep onRetry={flow.reset} onClose={onClose} />}
-      {view.kind === "succeeded" && <SucceededStep accountId={scope.kind === "account" ? view.accountId : undefined} onClose={onClose} />}
+      {view.kind === "succeeded" && <SucceededStep accountId={scope.kind === "account" ? view.accountId : undefined} onClose={onClose} onConnectAnother={() => { setKept((k) => ({ ...k, identifier: "" })); flow.reset(); }} />}
       {view.kind === "failed" && <FailedStep code={view.code} message={view.message} onRetry={flow.reset} onClose={onClose} />}
       {view.kind === "lost" && <LostStep message={view.message} onRetry={flow.retryPolling} onCancel={cancel} />}
     </div>

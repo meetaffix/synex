@@ -15,7 +15,9 @@ import { formatDate, formatRelative } from "@/utils/format";
 import type { SenderAccount } from "./schemas";
 
 const problemHints: Partial<Record<SenderAccount["status"], string>> = {
-  needs_reconnect: "LinkedIn signed this account out. Reconnect it to keep sending.",
+  connected: "Connected. Synex can use this account within its daily limits.",
+  paused: "Paused by you. Nothing is sent until you resume it.",
+  needs_reconnect: "LinkedIn signed this account out or asked for a check. Reconnect it to keep sending.",
   restricted: "LinkedIn has restricted this account. Resolve it on LinkedIn, then check again.",
   disconnected: "This account is disconnected. Reconnect it to send again.",
 };

@@ -7,10 +7,12 @@ interface Props {
   /** Set on the signed-in flow; the public reconnect page has no account list. */
   accountId?: string;
   onClose?: () => void;
+  /** Starts a new sign-in form in the same panel. */
+  onConnectAnother?: () => void;
 }
 
 /** A short, quiet celebration: the check draws itself once, and the next step is right there. */
-export function SucceededStep({ accountId, onClose }: Props) {
+export function SucceededStep({ accountId, onClose, onConnectAnother }: Props) {
   return (
     <div className="grid justify-items-center gap-4 text-center">
       <Illustration name="success" className="h-32 animate-pop" />
@@ -20,11 +22,18 @@ export function SucceededStep({ accountId, onClose }: Props) {
       ) : (
         <p className="text-sm text-muted-foreground">The account is signed in again. You can close this page. The link cannot be used a second time.</p>
       )}
-      {onClose && (
-        <Button type="button" onClick={onClose}>
-          Done
-        </Button>
-      )}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        {accountId && onConnectAnother && (
+          <Button type="button" variant="outline" onClick={onConnectAnother}>
+            Connect another account
+          </Button>
+        )}
+        {onClose && (
+          <Button type="button" onClick={onClose}>
+            Done
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
