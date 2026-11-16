@@ -37,8 +37,8 @@ test("a new account is offered recommended limits; applying them saves a policy 
   await expect(page.getByText("Limits saved.")).toBeVisible();
   const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { preset: string; actions: Record<string, { dailyLimit: number; stopAt: number }> };
   expect(saved.preset).toBe("conservative");
-  expect(Object.keys(saved.actions)).toHaveLength(8);
-  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20 };
+  expect(Object.keys(saved.actions)).toHaveLength(9);
+  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20, withdraw_invite: 20 };
   for (const [action, policy] of Object.entries(saved.actions)) {
     expect(policy.stopAt).toBeLessThanOrEqual(ceilings[action]);
     expect(policy.dailyLimit).toBeLessThanOrEqual(policy.stopAt);
@@ -50,7 +50,7 @@ test("the limits table shows what was used, today's limit with its range, and th
   await open(page);
   const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
   await expect(table.getByRole("columnheader")).toHaveText(["Action", "Used", "Today's limit", "Range", "Hard maximum"]);
-  await expect(table.getByRole("row")).toHaveCount(9);
+  await expect(table.getByRole("row")).toHaveCount(10);
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
   await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
 });
@@ -97,10 +97,10 @@ test("inbox privacy: only the connecting person may change it, otherwise the pag
   await expect(page.getByLabel("Inbox history (days)")).toBeDisabled();
 });
 
-test("health: auto-withdraw can be switched on and saved, and the page is honest that nothing is withdrawn yet", async ({ page }) => {
+test("health: auto-withdraw can be switched on and saved, and the page says what it needs", async ({ page }) => {
   const api = await open(page);
   await page.getByRole("tab", { name: "Health" }).click();
-  await expect(page.getByText(/withdrawing is not active yet/)).toBeVisible();
+  await expect(page.getByText(/not yet verified on real LinkedIn/)).toBeVisible();
   await page.getByRole("switch", { name: "Auto-withdraw stale invitations" }).click();
   await expect(page.getByText("Health settings saved.")).toBeVisible();
   expect((callsTo(api, "PUT", /\/policy$/)[0].body as { autoWithdraw: boolean }).autoWithdraw).toBe(true);

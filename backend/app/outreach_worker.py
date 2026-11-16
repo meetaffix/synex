@@ -234,6 +234,8 @@ class OutreachWorker:
             return await actions.visit_profile(session, task.profile_url)
         if task.type == "follow_profile":
             return await actions.follow_profile(session, task.profile_url)
+        if task.type == "withdraw_invite":
+            return await actions.withdraw_invite(session, task.profile_url)
         if task.type == "check_connection":
             return await actions.get_connection_status(session, task.profile_url)
         if task.type == "sync_inbox":

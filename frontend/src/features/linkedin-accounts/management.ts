@@ -137,6 +137,7 @@ const RECOMMENDED: Record<string, { daily: number; stop: number }> = {
   sync_inbox: { daily: 20, stop: 100 },
   sync_connections: { daily: 2, stop: 12 },
   collect_leads: { daily: 5, stop: 20 },
+  withdraw_invite: { daily: 3, stop: 20 },
 };
 
 export function recommendedActions(usage: UsageRow[]): Record<string, ActionPolicy> {

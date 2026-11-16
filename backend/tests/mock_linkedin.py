@@ -75,6 +75,7 @@ class MockLinkedIn:
         self.conversations: dict[str, list[dict]] = {}
         self.invites: list[tuple[str, str]] = []
         self.follows: list[str] = []
+        self.withdrawals: list[str] = []
         self.sent_messages: list[tuple[str, str]] = []
         self._event = 0
         self._lock = threading.Lock()
@@ -98,6 +99,7 @@ class MockLinkedIn:
         self.conversations.clear()
         self.invites.clear()
         self.follows.clear()
+        self.withdrawals.clear()
         self.sent_messages.clear()
 
     # ---- simulation helpers ------------------------------------------------------------
@@ -191,7 +193,7 @@ class MockLinkedIn:
                     return self._send(404, '<div id="unavailable">Profile is not available</div>')
                 state = profile["state"]
                 connect = {"connected": f'<a id="message" href="/messaging/compose/{user}/">Message</a>',
-                           "pending": '<button id="pending" disabled>Pending</button>',
+                           "pending": f'<a id="pending" href="/in/{user}/withdraw/">Pending</a>',  # opens the withdraw confirmation
                            "not_connected": f'<a id="connect" href="/in/{user}/connect/">Connect</a>'}[state]
                 follow = ('<span id="following">Following</span>' if profile["following"] else
                           f'<form method="post" action="/in/{user}/follow/"><button id="follow">Follow</button></form>')
@@ -239,6 +241,8 @@ class MockLinkedIn:
                         return self._send(body='<div id="invite-limit">You have reached the weekly invitation limit</div>')
                     return self._send(body=f'<form method="post" action="/in/{parts[1]}/connect/"><textarea id="note" name="note"></textarea>'
                                            '<button id="send-invite">Send</button></form>')
+                if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "withdraw":
+                    return self._send(body=f'<form method="post" action="/in/{parts[1]}/withdraw/"><button id="confirm-withdraw">Withdraw</button></form>')
                 if parts[:2] == ["messaging", "compose"] and len(parts) == 3:
                     return self._send(body=f'{self._messages_html(parts[2])}<form method="post" action="/messaging/compose/{parts[2]}/">'
                                            '<textarea id="composer" name="text"></textarea><button id="composer-send">Send</button></form>')
@@ -285,6 +289,12 @@ class MockLinkedIn:
                         return self._send(body='<div id="note-error">Note is too long</div>')
                     mock.invites.append((parts[1], note))
                     mock.profile(parts[1])["state"] = "pending"
+                    return self._redirect(f"/in/{parts[1]}/")
+                if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "withdraw":
+                    if self._consume_fault():
+                        return
+                    mock.withdrawals.append(parts[1])
+                    mock.profile(parts[1])["state"] = "not_connected"
                     return self._redirect(f"/in/{parts[1]}/")
                 if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "follow":
                     if self._consume_fault():

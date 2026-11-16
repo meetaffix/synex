@@ -611,6 +611,35 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
 # --------------------------------------------------------------------------
 # Inbox sync scheduling
 # --------------------------------------------------------------------------
+def emit_stale_withdrawals(db: Session, now: datetime, per_tick: int = 3) -> int:
+    """For senders that switched on auto-withdraw: take back connection requests that stayed unanswered longer than the chosen number of days.
+    A few at a time, inside the withdraw_invite ceiling and the account's own policy; never an invitation that has been accepted."""
+    from .account_policy import action_room, policy_for
+    emitted = 0
+    for account in db.query(models.LinkedInAccount).filter(models.LinkedInAccount.status == "active", models.LinkedInAccount.session_status == "connected").all():
+        policy = policy_for(account)
+        if not policy.auto_withdraw:
+            continue
+        cutoff = now - timedelta(days=policy.stale_invite_days)
+        room = min(per_tick, action_room(db, account, "withdraw_invite", now))
+        if room <= 0:
+            continue
+        rows = (db.query(models.AgentTask, models.SequenceRun.lead_id).join(models.SequenceRun, models.AgentTask.sequence_run_id == models.SequenceRun.id)
+                .filter(models.AgentTask.account_id == account.id, models.AgentTask.type == "send_invite", models.AgentTask.status == "done",
+                        models.AgentTask.committed_at.isnot(None), models.AgentTask.committed_at <= cutoff).order_by(models.AgentTask.committed_at).limit(200).all())
+        for task, lead_id in rows:
+            if room <= 0:
+                break
+            lead = db.get(models.Lead, lead_id)
+            if lead is None or lead.connected_at is not None or lead.status in ACCEPTED_STATES or not (lead.linkedin_url or "").strip():
+                continue
+            made = emit_task(db, account, "withdraw_invite", {"leadId": lead.id, "linkedinUrl": lead.linkedin_url}, f"withdraw:{account.id}:{lead.id}")
+            if made is not None:
+                emitted += 1
+                room -= 1
+    return emitted
+
+
 def emit_inbox_syncs(db: Session, now: datetime) -> int:
     """Queue one inbox read per live account when its interval has elapsed (and one right after connecting).
     sync_mode decides what is STORED (outreach_results.apply_inbox), not whether the inbox is read."""
@@ -639,6 +668,7 @@ def emit_inbox_syncs(db: Session, now: datetime) -> int:
 def tick(db: Session) -> dict:
     from .routers.inbox import release_due
     release_due(db, _now())  # scheduled replies whose time has come, each checked against the sender's limits
+    emit_stale_withdrawals(db, _now())
     """Process all due sequence runs once, queueing tasks for the worker to execute."""
     if kill_switch_active(db):
         return {"processed": 0, "killed": True}

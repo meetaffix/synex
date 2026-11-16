@@ -125,6 +125,7 @@ export const CEILINGS: Record<string, [string, number]> = {
   sync_inbox: ["Inbox reads", 48],
   sync_connections: ["Connection list reads", 12],
   collect_leads: ["Lead collection pages", 20],
+  withdraw_invite: ["Invitation withdrawals", 20],
 };
 
 export const emptyPolicy = () => ({ preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 });

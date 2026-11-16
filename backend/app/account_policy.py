@@ -20,7 +20,7 @@ LABELS = {
     "send_message": "Messages", "follow_profile": "Profile follows",
     "check_connection": "Connection checks", "sync_inbox": "Inbox reads",
     "sync_connections": "Connection list reads",
-    "collect_leads": "Lead collection pages",
+    "collect_leads": "Lead collection pages", "withdraw_invite": "Invitation withdrawals",
 }
 
 

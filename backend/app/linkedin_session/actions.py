@@ -63,6 +63,13 @@ class ConnectionStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class WithdrawResult(str, Enum):
+    WITHDRAWN = "withdrawn"
+    NOT_PENDING = "not_pending"
+    PROFILE_UNAVAILABLE = "profile_unavailable"
+
+
+@dataclass(frozen=True)
 class InboundConversation:
     thread_id: str
     profile_url: str
@@ -144,6 +151,18 @@ async def send_message(session: ActionSession, profile_url: str, text: str) -> M
     if await session.pages.last_sent_text(session.page) != text.strip():
         raise RuntimeError("message was not confirmed in the thread")
     return MessageResult.SENT
+
+
+async def withdraw_invite(session: ActionSession, profile_url: str) -> WithdrawResult:
+    """Take back a connection request that is still pending. Does nothing when the person has accepted or it is not pending."""
+    if not await _open(session, profile_url):
+        return WithdrawResult.PROFILE_UNAVAILABLE
+    if await session.pages.connection_state(session.page) != "pending":
+        return WithdrawResult.NOT_PENDING
+    await session.before_commit()
+    await session.pages.withdraw_invite(session.page)
+    await _guard(session)
+    return WithdrawResult.WITHDRAWN if await session.pages.connection_state(session.page) != "pending" else WithdrawResult.PROFILE_UNAVAILABLE
 
 
 async def follow_profile(session: ActionSession, profile_url: str) -> FollowResult:

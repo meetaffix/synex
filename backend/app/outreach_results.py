@@ -350,7 +350,14 @@ def _check(ctx: TaskContext, result: str) -> str | None:
     return None
 
 
-HANDLERS = {"send_invite": _invite, "send_message": _message, "visit_profile": _visit,
+def _withdraw(ctx: TaskContext, result: str) -> str | None:
+    """A stale invitation taken back. The person stays a lead; the history says what happened."""
+    if ctx.lead is not None and result in ("withdrawn", "not_pending"):
+        engine.record_event(ctx.db, ctx.lead, "invite_withdrawn" if result == "withdrawn" else "invite_not_pending", "Stale invitation", campaign=ctx.lead.campaign, account=ctx.account)
+    return "withdrawn" if result == "withdrawn" else None
+
+
+HANDLERS = {"withdraw_invite": _withdraw, "send_invite": _invite, "send_message": _message, "visit_profile": _visit,
             "follow_profile": _follow, "check_connection": _check,
             "collect_leads": lambda ctx, result: None, "sync_connections": lambda ctx, result: None}
 

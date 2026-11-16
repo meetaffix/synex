@@ -103,7 +103,7 @@ export function HealthTab({ account, details }: { account: SenderAccount; detail
           <Button size="sm" disabled={days === details.policy.staleInviteDays || days < 7 || days > 365} loading={savePolicy.isPending} onClick={() => save({ staleInviteDays: days })}>Save days</Button>
         </div>
         <p role="note" className="rounded-lg border border-border bg-surface-muted p-3 text-xs text-muted-foreground">
-          The setting is saved, but withdrawing is not active yet: Synex does not withdraw any invitation until that part is built and verified. Nothing is withdrawn today.
+          Withdrawing runs a few at a time, only for invitations still pending, and counts against the "Invitation withdrawals" limit on the Limits tab (set it above 0 to allow it). Built and tested on the mock site; not yet verified on real LinkedIn.
         </p>
       </section>
       <section aria-labelledby={`${id}-activity`} className="grid gap-2">

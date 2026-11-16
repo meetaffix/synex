@@ -355,6 +355,12 @@ class ProfilePages:
     async def follow(self, page: Page) -> None:
         await self._click_and_settle(page, self.sel.follow_button)
 
+    async def withdraw_invite(self, page: Page) -> None:
+        """Open the pending invitation and confirm the withdrawal. UNVERIFIED on the real site: the Pending button is clicked, then the last
+        button or link that says Withdraw (a menu item, then the confirmation) is clicked."""
+        await self._click_and_settle(page, self.sel.pending_marker)
+        await self._click_and_settle(page, "button:has-text('Withdraw'), a:has-text('Withdraw')")
+
     async def last_sent_text(self, page: Page) -> str | None:
         out = page.locator(f"{self.sel.thread_message}[data-direction='out']")
         count = await out.count()
