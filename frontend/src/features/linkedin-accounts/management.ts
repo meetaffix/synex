@@ -16,7 +16,7 @@ export const presetSchema = z.enum(["off", "conservative", "balanced", "aggressi
 export const policySchema = z.object({
   preset: presetSchema,
   range: z.number(),
-  actions: z.record(actionPolicySchema),
+  actions: z.record(z.string(), actionPolicySchema),
   autoWithdraw: z.boolean(),
   staleInviteDays: z.number(),
   inboxHistoryDays: z.number(),
@@ -55,7 +55,7 @@ export const accountSummarySchema = z.object({
 export type AccountSummary = z.infer<typeof accountSummarySchema>;
 
 export const overviewSchema = z.object({
-  accounts: z.record(accountSummarySchema).default({}),
+  accounts: z.record(z.string(), accountSummarySchema).default({}),
   plan: z.string(),
   planPlaceholder: z.boolean(),
   seatsUsed: z.number(),

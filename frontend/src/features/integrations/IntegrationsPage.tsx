@@ -144,23 +144,24 @@ function WebhooksTab() {
 
 /* ----------------------------------------------------------------------------------------------- API and MCP */
 
-interface Key { id: string; name: string; prefix: string; lastUsedAt: string | null; revoked: boolean }
+interface Key { id: string; name: string; prefix: string; lastUsedAt: string | null; revoked: boolean; scopes?: string[] }
 function ApiTab() {
   const qc = useQueryClient();
   const keys = useJson<Key[]>(["int", "keys"], "/integrations/api-keys");
   const [name, setName] = useState("");
+  const [canWrite, setCanWrite] = useState(false);
   const [fresh, setFresh] = useState<string | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ["int", "keys"] });
-  const create = useMutation({ mutationFn: () => api.post<{ key: string }>("/integrations/api-keys", { name: name || "API key" }), onSuccess: (r) => { setFresh(r.key); setName(""); void refresh(); }, onError: fail });
+  const create = useMutation({ mutationFn: () => api.post<{ key: string }>("/integrations/api-keys", { name: name || "API key", scopes: canWrite ? ["read", "write"] : ["read"] }), onSuccess: (r) => { setFresh(r.key); setName(""); void refresh(); }, onError: fail });
   const revoke = useMutation({ mutationFn: (id: string) => api.delete(`/integrations/api-keys/${id}`), onSuccess: () => { toast.success("Key revoked."); void refresh(); } });
   const base = typeof window !== "undefined" ? window.location.origin.replace(/:\d+$/, ":8010") : "";
   return (
     <section aria-labelledby="api-h" className="grid max-w-3xl gap-5">
-      <div><h2 id="api-h" className="text-base font-semibold">API keys</h2><p className="text-sm text-muted-foreground">A key lets another program read your campaigns, leads and conversations and add leads. The same key connects an AI client over MCP.</p></div>
-      <div className="flex flex-wrap items-end gap-3"><div className="grid gap-1"><Label htmlFor="key-name">Key name</Label><Input id="key-name" value={name} placeholder="My CRM" onChange={(e) => setName(e.target.value)} /></div><Button loading={create.isPending} onClick={() => create.mutate()}>Create key</Button></div>
+      <div><h2 id="api-h" className="text-base font-semibold">API keys</h2><p className="text-sm text-muted-foreground">A key lets another program read your campaigns, leads and conversations and, if you allow it, add leads. Keys are limited to 60 requests a minute. The same key connects an AI client over MCP.</p></div>
+      <div className="flex flex-wrap items-end gap-3"><div className="grid gap-1"><Label htmlFor="key-name">Key name</Label><Input id="key-name" value={name} placeholder="My CRM" onChange={(e) => setName(e.target.value)} /></div><label className="flex items-center gap-2 text-sm"><Checkbox checked={canWrite} onCheckedChange={(v) => setCanWrite(v === true)} /> Allow adding leads (otherwise read only)</label><Button loading={create.isPending} onClick={() => create.mutate()}>Create key</Button></div>
       {fresh && <p role="status" className="rounded-lg bg-primary-soft p-3 text-sm text-primary-soft-foreground">Copy this key now. It is shown only once: <code className="break-all">{fresh}</code></p>}
       <ul aria-label="API keys" className="grid gap-2 text-sm">
-        {(keys.data ?? []).map((k) => <li key={k.id} className="flex flex-wrap items-center gap-2"><span className="font-medium">{k.name}</span><code>{k.prefix}…</code><span className="text-muted-foreground">{k.revoked ? "Revoked" : k.lastUsedAt ? `Used ${formatRelative(k.lastUsedAt)}` : "Never used"}</span>{!k.revoked && <Button size="sm" variant="ghost" className="ml-auto text-danger" onClick={() => revoke.mutate(k.id)}>Revoke</Button>}</li>)}
+        {(keys.data ?? []).map((k) => <li key={k.id} className="flex flex-wrap items-center gap-2"><span className="font-medium">{k.name}</span><code>{k.prefix}…</code><span className="text-muted-foreground">{k.scopes?.includes("write") ? "Read and add leads" : "Read only"}</span><span className="text-muted-foreground">{k.revoked ? "Revoked" : k.lastUsedAt ? `Used ${formatRelative(k.lastUsedAt)}` : "Never used"}</span>{!k.revoked && <Button size="sm" variant="ghost" className="ml-auto text-danger" onClick={() => revoke.mutate(k.id)}>Revoke</Button>}</li>)}
         {keys.data?.length === 0 && <li className="text-muted-foreground">No keys yet.</li>}
       </ul>
       <div className="grid gap-2 text-sm">

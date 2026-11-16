@@ -51,10 +51,12 @@ test("webhooks: a private address is refused with the reason, a good one shows i
 test("API keys: the key is shown once, listed only by its prefix, and can be revoked; the page explains the API and MCP", async ({ page }) => {
   await open(page, "api");
   await page.getByLabel("Key name").fill("My CRM");
+  await expect(page.getByLabel("Allow adding leads (otherwise read only)")).not.toBeChecked();
   await page.getByRole("button", { name: "Create key" }).click();
   await expect(page.getByText(/shown only once/)).toContainText("syx_abcdefgh_THE_WHOLE_KEY");
   const row = page.getByRole("list", { name: "API keys" }).getByRole("listitem").first();
   await expect(row).toContainText("My CRM");
+  await expect(row).toContainText("Read only");
   await expect(row).not.toContainText("THE_WHOLE_KEY");
   await expect(page.getByText(/Tools that change data are not offered/)).toBeVisible();
   await row.getByRole("button", { name: "Revoke" }).click();

@@ -20,12 +20,27 @@ from ..serializers import campaign_out, lead_out
 router = APIRouter(tags=["public api"])
 
 
-def api_key_user(request: Request, db: Session = Depends(get_db)) -> models.User:
-    header = request.headers.get("authorization", "")
-    user = core.user_for_key(db, header[7:].strip() if header.lower().startswith("bearer ") else None)
-    if user is None:
-        raise HTTPException(401, "A valid API key is required. Send it as 'Authorization: Bearer syx_...'.")
-    return user
+def _authorised(scope: str):
+    """A dependency: a valid, unrevoked key that has the scope and is under its rate limit. Returns the workspace the key belongs to, and no other."""
+    def dependency(request: Request, db: Session = Depends(get_db)) -> models.User:
+        header = request.headers.get("authorization", "")
+        row = core.authenticate(db, header[7:].strip() if header.lower().startswith("bearer ") else None)
+        if row is None:
+            raise HTTPException(401, "A valid API key is required. Send it as 'Authorization: Bearer syx_...'.")
+        wait = core.retry_after(row.id)
+        if wait:
+            raise HTTPException(429, f"Too many requests for this key. Try again in {wait} seconds.", headers={"Retry-After": str(wait)})
+        if scope not in core.key_scopes(row):
+            raise HTTPException(403, f"This key does not have the {scope} permission. Make a key with it in Settings.")
+        user = db.get(models.User, row.user_id)
+        if user is None:
+            raise HTTPException(401, "A valid API key is required.")
+        return user
+    return dependency
+
+
+api_key_user = _authorised("read")
+api_key_writer = _authorised("write")
 
 
 @router.get("/public/v1/campaigns")
@@ -40,7 +55,7 @@ def leads(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), db
 
 
 @router.post("/public/v1/leads", status_code=201)
-def create_lead(body: LeadIn, db: Session = Depends(get_db), user: models.User = Depends(api_key_user)):
+def create_lead(body: LeadIn, db: Session = Depends(get_db), user: models.User = Depends(api_key_writer)):
     from .leads import _create
     return _create(body, db, user)
 

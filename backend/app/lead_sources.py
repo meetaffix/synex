@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
 
-from . import dnc, models
+from . import csv_safe, dnc, models
 from .dedup import normalize_linkedin_url
 
 # id -> (label, reads LinkedIn?, people per page, built?, note shown when it is not available)
@@ -146,9 +146,7 @@ def read_csv(text: str) -> tuple[list[str], list[dict]]:
         dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
     except csv.Error:
         dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
-    rows = [dict(r) for r in reader]
-    return list(reader.fieldnames or []), rows
+    return csv_safe.parse(text, dialect=dialect)  # row limit, no binary content; raises csv_safe.CsvTooLarge (a ValueError)
 
 
 def rows_to_people(rows: list[dict], mapping: dict[str, str]) -> tuple[list[dict], int]:

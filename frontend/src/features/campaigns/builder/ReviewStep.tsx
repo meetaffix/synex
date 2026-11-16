@@ -91,7 +91,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         <ul aria-label="Who is left out" className="grid gap-3">
           <li className="flex items-center justify-between gap-3 text-sm">
             <span>Do not contact list <Link className="underline underline-offset-2" to="/leads?tab=dnc">Manage list</Link></span>
-            <Switch checked disabled aria-label="Do not contact list (always on)" />
+            <Switch checked disabled onCheckedChange={() => undefined} aria-label="Do not contact list (always on)" />
           </li>
           {EXCLUSIONS.map((e) => (
             <li key={e.key} className="flex items-center justify-between gap-3 text-sm">

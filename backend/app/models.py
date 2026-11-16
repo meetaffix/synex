@@ -720,6 +720,7 @@ class ApiKey(Base):
     name = Column(String, default="API key")
     prefix = Column(String, nullable=False)
     key_hash = Column(String, nullable=False, unique=True)
+    scopes = Column(JSON, nullable=True)  # read, or read and write; empty means read-only
     created_at = Column(DateTime(timezone=True), default=_now)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)

@@ -342,7 +342,7 @@ export async function mockApi(page: Page, api: Api) {
         if (path === "/integrations/notifications/test") { st.outbox = [{ id: "o1", to: st.notify.emails[0], subject: "Synex: test notification", status: "stored", createdAt: "2026-11-16T10:00:00Z" }]; return json(200, { results: ["stored"], note: "Emails are always saved in the outbox below. They are sent only when SMTP is set up on the server." }); }
         if (path === "/integrations/outbox") return json(200, st.outbox);
         if (path === "/integrations/api-keys" && method === "GET") return json(200, st.keys);
-        if (path === "/integrations/api-keys" && method === "POST") { st.keys.push({ id: "k1", name: (body as { name: string }).name, prefix: "syx_abcdefgh", createdAt: "2026-11-16T10:00:00Z", lastUsedAt: null, revoked: false }); return json(201, { id: "k1", key: "syx_abcdefgh_THE_WHOLE_KEY", prefix: "syx_abcdefgh" }); }
+        if (path === "/integrations/api-keys" && method === "POST") { const scopes = (body as { scopes?: string[] }).scopes ?? ["read"]; st.keys.push({ id: "k1", name: (body as { name: string }).name, prefix: "syx_abcdefgh", createdAt: "2026-11-16T10:00:00Z", lastUsedAt: null, revoked: false, scopes }); return json(201, { id: "k1", key: "syx_abcdefgh_THE_WHOLE_KEY", prefix: "syx_abcdefgh" }); }
         if (path === "/integrations/api-keys/k1" && method === "DELETE") { st.keys[0].revoked = true; return empty(); }
         if (path === "/integrations/webhooks" && method === "GET") return json(200, st.hooks);
         if (path === "/integrations/webhooks" && method === "POST") {

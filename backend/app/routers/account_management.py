@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import account_policy, connections_runner, engine, models, voices
+from .. import account_policy, connections_runner, csv_safe, engine, models, voices
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
@@ -214,7 +214,7 @@ def export_connections(account_id: str, kind: Kind = "connection", db: Session =
     writer.writerow(["linkedin_url", "name", "headline", "location"])
     for row in db.query(models.AccountConnection).filter_by(account_id=account.id, kind=kind).order_by(models.AccountConnection.name):
         # A spreadsheet runs text that starts with = + - @ as a formula: neutralise it.
-        writer.writerow([("'" + v if v[:1] in "=+-@" else v) for v in (row.profile_url, row.name or "", row.headline or "", row.location or "")])
+        writer.writerow(csv_safe.row([row.profile_url, row.name, row.headline, row.location]))
     name = "connections.csv" if kind == "connection" else "invitations.csv"
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
@@ -229,14 +229,17 @@ class ImportIn(BaseModel):
 @router.post("/{account_id}/connections/import")
 def import_connections(account_id: str, body: ImportIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_manager_user)):
     account = service.owned_account(db, workspace.id, account_id)
-    reader = csv.DictReader(io.StringIO(body.csv_text.lstrip("﻿")))
-    fields = {(name or "").strip().lower().replace(" ", "_"): name for name in (reader.fieldnames or [])}
+    try:
+        headers, rows = csv_safe.parse(body.csv_text)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    fields = {(name or "").strip().lower().replace(" ", "_"): name for name in headers}
     column = next((fields[k] for k in ("linkedin_url", "linkedin", "profile_url", "url") if k in fields), None)
     if column is None:
         raise HTTPException(422, "The file needs a column named linkedin_url (one LinkedIn profile address per row).")
     people, invalid, seen = [], 0, set()
     duplicates_in_file = 0
-    for row in reader:
+    for row in rows:
         url = (row.get(column) or "").strip()
         key = normalize_linkedin_url(url) if "linkedin.com/in/" in url.lower() else None
         if not key:

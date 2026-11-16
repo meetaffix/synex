@@ -103,7 +103,7 @@ class NotificationTest(Case):
 
 class KeyAndApiTest(Case):
     def test_a_key_is_shown_once_stored_hashed_works_for_the_public_api_and_stops_when_revoked(self):
-        made = self.client.post("/integrations/api-keys", json={"name": "CRM"}).json()
+        made = self.client.post("/integrations/api-keys", json={"name": "CRM", "scopes": ["read", "write"]}).json()
         key = made["key"]
         self.assertTrue(key.startswith("syx_"))
         listed = self.client.get("/integrations/api-keys").json()[0]

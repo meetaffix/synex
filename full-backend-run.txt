@@ -26,3 +26,139 @@ ok   test_assistant.ConfirmationTest                                          6 
 ok   test_assistant.SessionApiTest                                            6 tests   23.6s
 ok   test_linkedin_session.IsolatedManagerTest                                4 tests   25.2s
 ok   test_outreach.ActionLayerTest                                            6 tests   40.9s
+ok   test_outreach.CampaignFlowTest                                           6 tests   51.7s
+ok   test_worker_process.LeaseLossTest                                        1 tests   10.7s
+ok   test_prepared_messages.DraftPreparationTest                             11 tests   55.0s
+ok   test_assistant.PermissionTest                                            5 tests   19.4s
+ok   test_outreach.DryRunMatchesWorkerTest                                    5 tests   70.8s
+ok   test_assistant.CeilingTest                                               4 tests   17.2s
+ok   test_inbox.FilterTest                                                    8 tests   29.6s
+ok   test_outreach.DryRunTest                                                 4 tests   23.1s
+ok   test_outreach.ReplyTest                                                  4 tests   27.7s
+ok   test_outreach.LeadTimezoneTest                                           4 tests   17.1s
+ok   test_assistant_local.LocalAssistantTest                                  7 tests   35.4s
+ok   test_lead_collections.ParsingTest                                        7 tests    3.1s
+ok   test_lead_sources_more.SourceApiTest                                     7 tests   26.6s
+ok   test_clerk.SignInTest                                                    6 tests   27.0s
+ok   test_dashboard_funnel.FunnelTest                                         6 tests   26.0s
+ok   test_launch_check.CheckTest                                              6 tests   23.2s
+ok   test_outreach.LaunchValidationTest                                       3 tests   17.8s
+ok   test_outreach.CampaignActionsTest                                        3 tests   15.4s
+ok   test_outreach.DailyUsageTimezoneTest                                     3 tests   15.9s
+ok   test_clerk.WebhookTest                                                   5 tests   25.0s
+ok   test_do_not_contact.ApiTest                                              5 tests   22.9s
+ok   test_drafting.GenerateMessageTest                                        5 tests   23.5s
+ok   test_env.DatabaseUrlTest                                                 5 tests    4.8s
+ok   test_lead_collections.CollectionApiTest                                  5 tests   23.7s
+FAIL test_new_account_limit.NewAccountLimitTest                               5 tests   17.4s
+ok   test_prepared_messages.NoAiWhileSendingTest                              5 tests   34.5s
+ok   test_account_policy.PolicyApiTest                                        4 tests   24.2s
+ok   test_ai_writing.PromptTest                                               4 tests    2.6s
+ok   test_campaign_list.RowActionsTest                                        4 tests   17.6s
+ok   test_dashboard_feeds.SummaryTest                                         4 tests   16.8s
+ok   test_dashboard_feeds.SeriesAndAccountsTest                               4 tests   18.6s
+ok   test_env.ConnectionBudgetTest                                            4 tests    2.2s
+ok   test_env.BundleCheckTest                                                 4 tests    3.9s
+ok   test_inbox.DraftScheduleTest                                             4 tests   20.9s
+ok   test_integrations.WebhookTest                                            4 tests   22.5s
+ok   test_integrations.OtherTest                                              4 tests   18.4s
+ok   test_lead_overview.OverviewTest                                          4 tests   18.9s
+ok   test_lead_sources_more.CollectorTest                                     4 tests   56.0s
+ok   test_outreach.BranchColumnTest                                           2 tests   14.7s
+ok   test_outreach.LimitApiTest                                               2 tests   11.2s
+ok   test_proxy_gate.ProxyGateTest                                            4 tests   11.1s
+ok   test_withdraw.SweepTest                                                  4 tests   22.2s
+ok   test_account_connections.ExportImportTest                                3 tests   16.0s
+ok   test_account_connections.ReloadTest                                      3 tests   16.2s
+ok   test_account_delete.DeleteTest                                           3 tests   17.0s
+ok   test_account_overview.OverviewTest                                       3 tests   16.8s
+ok   test_account_policy.PolicyMathTest                                       3 tests    5.5s
+ok   test_ai_writing.OllamaTest                                               3 tests    8.0s
+ok   test_ai_writing.ApiTest                                                  3 tests   12.5s
+ok   test_campaign_settings.ScheduleTest                                      3 tests   13.3s
+ok   test_clerk.BadTokenTest                                                  3 tests   15.8s
+ok   test_clerk.OriginRegexTest                                               3 tests   19.5s
+ok   test_do_not_contact.EnforcementTest                                      3 tests   21.0s
+ok   test_drafting.OneShotCompletionTest                                      3 tests   22.6s
+ok   test_drafting.PostAssistTest                                             3 tests   21.4s
+ok   test_drafting.SpintaxFallbackTest                                        3 tests    4.2s
+ok   test_env.RequiredTest                                                    3 tests    1.3s
+ok   test_env.ClerkAndAiTest                                                  3 tests    1.3s
+ok   test_env.NamesInTheFileTest                                              3 tests    1.3s
+ok   test_env.StartupTest                                                     3 tests    6.1s
+ok   test_lead_variables.LeadVariablesTest                                    3 tests   15.0s
+ok   test_linkedin_session.SecretsTest                                        1 tests    9.7s
+ok   test_message_variables.ApiTest                                           3 tests   16.2s
+ok   test_prepared_messages.NoTransactionDuringExternalCallsTest              3 tests   16.5s
+ok   test_safety.DatabaseGuardTest                                            3 tests    5.2s
+ok   test_templates_and_sequences.ShortcutTest                                3 tests   15.2s
+ok   test_voices.VoicesTest                                                   3 tests   14.7s
+ok   test_account_connections.ListSearchTest                                  2 tests   12.0s
+ok   test_account_connections.RunnerTest                                      2 tests   16.5s
+ok   test_assistant_local.NewToolsTest                                        9 tests   51.1s
+ok   test_campaign_settings.ValidationTest                                    2 tests    9.0s
+ok   test_campaign_settings.ExclusionTest                                     2 tests   10.3s
+ok   test_ceilings_cover_every_type.CeilingCoverage                           2 tests    1.2s
+ok   test_env.BrowserCapTest                                                  2 tests    4.2s
+ok   test_env.BrowserCheckTest                                                2 tests    6.2s
+ok   test_inbox.BulkTest                                                      2 tests   16.5s
+ok   test_inbox.SuggestTest                                                   2 tests   15.5s
+ok   test_inbox.ExportRefreshTest                                             2 tests   15.4s
+ok   test_integrations.NotificationTest                                       2 tests   13.5s
+ok   test_integrations.KeyAndApiTest                                          2 tests   13.2s
+ok   test_login_capture.ClassifyTest                                          2 tests   21.3s
+ok   test_login_capture.RedactionTest                                         2 tests    5.9s
+ok   test_message_variables.PureTest                                          2 tests    4.7s
+ok   test_outreach.MigrationTest                                              1 tests    6.8s
+ok   test_real_selectors.RealSelectorsTest                                    2 tests    7.4s
+ok   test_real_selectors.RealShapeSignInTest                                  2 tests   27.2s
+ok   test_real_selectors.ProfileReadTest                                      2 tests    5.1s
+ok   test_templates_and_sequences.SequenceFileTest                            2 tests    6.9s
+ok   test_account_delete.InviteLinkTest                                       4 tests   19.2s
+ok   test_campaign_list.StatusTest                                            1 tests    4.6s
+ok   test_campaign_settings.AllocationTest                                    1 tests   12.2s
+ok   test_clerk.IssuerTest                                                    1 tests   13.7s
+ok   test_clerk.LocalModeTest                                                 1 tests   13.7s
+ok   test_clerk.GatewayTest                                                   1 tests   11.0s
+ok   test_clerk.MigrationTest                                                 1 tests   10.7s
+ok   test_launch_check.DryRunTest                                             1 tests    4.2s
+ok   test_login_capture.AttemptMessageTest                                    1 tests    3.0s
+ok   test_login_capture.StuckLoginTest                                        1 tests    4.5s
+ok   test_proxy_gate.ServiceGateTest                                          1 tests    4.6s
+ok   test_real_selectors.StuckPageTest                                        1 tests    3.2s
+ok   test_withdraw.ActionTest                                                 1 tests    7.4s
+ok   test_withdraw.WorkerTest                                                 1 tests    6.0s
+run 1: 508 tests in 483.0s, 1 failed class(es), 2 database file(s), each in its own job folder: yes
+
+===== run 1: test_new_account_limit.NewAccountLimitTest =====
+....F
+======================================================================
+FAIL: test_the_agreed_hard_ceilings_are_unchanged (test_new_account_limit.NewAccountLimitTest.test_the_agreed_hard_ceilings_are_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\iamdn\Downloads\synex-zip\synex\backend\tests\test_new_account_limit.py", line 95, in test_the_agreed_hard_ceilings_are_unchanged
+    self.assertEqual(DAILY_TYPE_CEILINGS, {"send_invite": 40, "send_message": 100, "visit_profile": 80,
+AssertionError: {'sen[117 chars]48, 'withdraw_invite': 20, 'sync_connections':[20 chars]: 20} != {'sen[117 chars]48, 'sync_connections': 12, 'collect_leads': 20}
+  {'check_connection': 80,
+   'collect_leads': 20,
+   'follow_profile': 50,
+   'send_invite': 40,
+   'send_message': 100,
+   'sync_connections': 12,
+   'sync_inbox': 48,
+-  'visit_profile': 80,
+?                     ^
+
++  'visit_profile': 80}
+?                     ^
+
+-  'withdraw_invite': 20}
+
+----------------------------------------------------------------------
+Ran 5 tests in 14.037s
+
+FAILED (failures=1)
+
+1 run(s): 483s; tests per run: [508]
+NOT READY:
+  run 1: test_new_account_limit.NewAccountLimitTest failed

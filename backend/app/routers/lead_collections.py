@@ -111,7 +111,10 @@ def _resolve_local(db: Session, user: models.User, c: models.LeadCollection) -> 
         c.detail = f"{len(rejected)} lines were not LinkedIn profile links and were ignored." if rejected else None
     elif c.source == "csv":
         text = p.get("text") or (_fetch_sheet(p["sheetUrl"]) if p.get("sheetUrl") else "")
-        headers, rows = ls.read_csv(text)
+        try:
+            headers, rows = ls.read_csv(text)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         mapping = p.get("mapping")
         if not mapping:
             return {"needsMapping": {"headers": headers, "suggested": ls.suggest_mapping(headers), "rows": len(rows)}}

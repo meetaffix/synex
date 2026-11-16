@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from .. import dnc, models
+from .. import csv_safe, dnc, models
 from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 
@@ -59,15 +59,15 @@ class ImportIn(BaseModel):
 
 @router.post("/import")
 def import_csv(body: ImportIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_manager_user)):
-    reader = csv.DictReader(io.StringIO(body.csv_text))
-    fields = {(f or "").strip().lower(): f for f in (reader.fieldnames or [])}
+    try:
+        headers, rows = csv_safe.parse(body.csv_text, max_rows=MAX_LINES)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    fields = {(f or "").strip().lower(): f for f in headers}
     column = fields.get("linkedin_url") if body.kind == "person" else (fields.get("company") or fields.get("name") or fields.get("linkedin_url"))
     if column is None:
         need = "linkedin_url" if body.kind == "person" else "company"
         raise HTTPException(422, f"The file needs a column named {need}.")
-    rows = list(reader)
-    if len(rows) > MAX_LINES:
-        raise HTTPException(422, f"Import at most {MAX_LINES} rows at a time.")
     name_col = fields.get("name")
     entries = [{"value": row.get(column) or "", "name": (row.get(name_col) or "") if name_col and name_col != column else ""} for row in rows]
     result = dnc.add_entries(db, workspace.id, body.kind, entries, "csv")
@@ -81,10 +81,9 @@ def export(kind: Kind = "person", db: Session = Depends(get_db), workspace: mode
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["linkedin_url", "name", "source", "added"] if kind == "person" else ["company", "source", "added"])
-    safe = lambda v: "'" + v if v[:1] in ("=", "+", "-", "@") else v  # noqa: E731 - stop spreadsheets running a pasted formula
     for r in rows:
-        writer.writerow([safe(r.profile_url or ""), safe(r.name or ""), r.source, r.created_at.date().isoformat()] if kind == "person"
-                        else [safe(r.name or ""), r.source, r.created_at.date().isoformat()])
+        writer.writerow(csv_safe.row([r.profile_url, r.name, r.source, r.created_at.date().isoformat()]) if kind == "person"
+                        else csv_safe.row([r.name, r.source, r.created_at.date().isoformat()]))
     filename = "synex-do-not-contact-people.csv" if kind == "person" else "synex-do-not-contact-companies.csv"
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 

@@ -73,13 +73,13 @@ def export(kind: Literal["campaigns", "timeseries", "accounts"] = "campaigns", g
     import io
 
     from fastapi.responses import Response
-    safe = lambda v: "'" + v if isinstance(v, str) and v[:1] in ("=", "+", "-", "@") else v  # noqa: E731
+    from .. import csv_safe
     out = io.StringIO()
     writer = csv.writer(out)
     if kind == "campaigns":
         writer.writerow(["campaign", "status", "leads", "contacted", "accepted", "replied", "interested", "accepted_percent", "reply_percent"])
         for r in dashboard_feeds.campaigns(db, user.id, f):
-            writer.writerow([safe(r["name"]), r["status"], r["leads"], r["contacted"], r["accepted"], r["replied"], r["interested"], r["acceptedPercent"] or "", r["replyPercent"] or ""])
+            writer.writerow(csv_safe.row([r["name"], r["status"], r["leads"], r["contacted"], r["accepted"], r["replied"], r["interested"], r["acceptedPercent"] or "", r["replyPercent"] or ""]))
     elif kind == "timeseries":
         writer.writerow(["date", "requests", "accepted", "replies"])
         for p in dashboard_feeds.timeseries(db, user.id, f, granularity)["points"]:

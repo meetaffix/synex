@@ -27,7 +27,7 @@ const aiConfigSchema = z.object({
   tone: z.string(),
   strategy: z.string(),
   instructions: z.string(),
-  profile_data: z.record(z.boolean()),
+  profile_data: z.record(z.string(), z.boolean()),
 });
 export type AiConfig = z.infer<typeof aiConfigSchema>;
 export const defaultAi = (): AiConfig => ({ mode: "direct", tone: "auto", strategy: "auto", instructions: "", profile_data: { role_company: true, recent_posts: false, skills: false, career: false, interests: false } });
@@ -62,11 +62,11 @@ const campaignSchema = z.object({
   dailyConnectionLimit: z.number().nullable(),
   dailyMessageLimit: z.number().nullable(),
   schedule: z.object({ timezone: z.string().nullable() }).passthrough(),
-  weekSchedule: z.record(z.object({ on: z.boolean(), start: z.string(), end: z.string() })).nullable().optional(),
-  exclusions: z.record(z.boolean()),
-  allocation: z.record(z.record(z.number())),
-  aiContext: z.record(z.unknown()),
-  launchSummary: z.object({ enrolled: z.number(), excluded: z.record(z.number()) }).nullable().optional(),
+  weekSchedule: z.record(z.string(), z.object({ on: z.boolean(), start: z.string(), end: z.string() })).nullable().optional(),
+  exclusions: z.record(z.string(), z.boolean()),
+  allocation: z.record(z.string(), z.record(z.string(), z.number())),
+  aiContext: z.record(z.string(), z.unknown()),
+  launchSummary: z.object({ enrolled: z.number(), excluded: z.record(z.string(), z.number()) }).nullable().optional(),
   steps: z.array(stepSchema),
 });
 export type ServerCampaign = z.infer<typeof campaignSchema>;
@@ -148,7 +148,7 @@ export const useLaunchCheck = (id: string, version: number) =>
 
 const estimateSchema = z.object({ count: z.number(), available: z.number(), existing: z.number(), cap: z.number(), capped: z.boolean(), provider: z.string(), estimatedSeconds: z.number(), estimatedUsd: z.number(), note: z.string() });
 const draftSchema = z.object({ id: z.string(), leadId: z.string(), leadName: z.string(), stepId: z.string(), stepOrder: z.number().nullable(), stepType: z.string().nullable(), body: z.string(), status: z.string(), source: z.string() });
-const draftListSchema = z.object({ counts: z.record(z.number()), drafts: z.array(draftSchema), job: z.object({ state: z.string(), requested: z.number(), created: z.number(), error: z.string().nullable() }).passthrough().nullable() });
+const draftListSchema = z.object({ counts: z.record(z.string(), z.number()), drafts: z.array(draftSchema), job: z.object({ state: z.string(), requested: z.number(), created: z.number(), error: z.string().nullable() }).passthrough().nullable() });
 export type Draft = z.infer<typeof draftSchema>;
 const previewSchema = z.object({ text: z.string(), source: z.string(), provider: z.string(), leadName: z.string(), estimatedUsd: z.number() });
 

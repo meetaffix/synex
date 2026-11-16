@@ -13,7 +13,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from .. import integrations_core as core, lead_sources, models
+from .. import csv_safe, integrations_core as core, lead_sources, models
 from ..database import get_db
 from ..deps import get_admin_user, get_data_user, get_manager_user
 from ..dedup import normalize_linkedin_url
@@ -67,20 +67,21 @@ def outbox(db: Session = Depends(get_db), user: models.User = Depends(get_data_u
 
 class KeyIn(BaseModel):
     name: str = Field("API key", max_length=80)
+    scopes: list[Literal["read", "write"]] = Field(["read"], min_length=1, max_length=2)
 
 
 @router.get("/api-keys")
 def list_keys(db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
     rows = db.query(models.ApiKey).filter_by(user_id=user.id).order_by(models.ApiKey.created_at.desc()).all()
     return [{"id": r.id, "name": r.name, "prefix": r.prefix, "createdAt": r.created_at.isoformat(), "lastUsedAt": r.last_used_at.isoformat() if r.last_used_at else None,
-             "revoked": r.revoked_at is not None} for r in rows]
+             "revoked": r.revoked_at is not None, "scopes": sorted(core.key_scopes(r))} for r in rows]
 
 
 @router.post("/api-keys", status_code=201)
 def create_key(body: KeyIn, db: Session = Depends(get_db), user: models.User = Depends(get_admin_user)):
-    row, key = core.create_api_key(db, user.id, body.name)
+    row, key = core.create_api_key(db, user.id, body.name, body.scopes)
     db.commit()
-    return {"id": row.id, "name": row.name, "prefix": row.prefix, "key": key, "note": "Copy this key now. It is shown only once."}
+    return {"id": row.id, "name": row.name, "prefix": row.prefix, "scopes": sorted(core.key_scopes(row)), "key": key, "note": "Copy this key now. It is shown only once."}
 
 
 @router.delete("/api-keys/{key_id}", status_code=204)
@@ -210,15 +211,14 @@ def export_for_email_tool(tool: Literal["smartlead", "instantly"], list_id: str 
     leads = [l for l in _list_leads(db, user, list_id) if (l.email or "").strip()]
     out = io.StringIO()
     writer = csv.writer(out)
-    safe = lambda v: "'" + v if (v or "")[:1] in ("=", "+", "-", "@") else (v or "")  # noqa: E731
     if tool == "smartlead":
         writer.writerow(["email", "first_name", "last_name", "company_name", "title", "location", "linkedin_profile", "phone_number"])
         for l in leads:
-            writer.writerow([l.email, safe(l.first_name), safe(l.last_name), safe(l.company), safe(l.job_title), safe(l.location), l.linkedin_url or "", l.phone or ""])
+            writer.writerow(csv_safe.row([l.email, l.first_name, l.last_name, l.company, l.job_title, l.location, l.linkedin_url, l.phone]))
     else:
         writer.writerow(["Email", "First Name", "Last Name", "Company Name", "Job Title", "Website", "Personalization"])
         for l in leads:
-            writer.writerow([l.email, safe(l.first_name), safe(l.last_name), safe(l.company), safe(l.job_title), l.linkedin_url or "", ""])
+            writer.writerow(csv_safe.row([l.email, l.first_name, l.last_name, l.company, l.job_title, l.linkedin_url, ""]))
     skipped = len(_list_leads(db, user, list_id)) - len(leads)
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="synex-{tool}.csv"', "X-Skipped-No-Email": str(skipped)})
 
@@ -236,7 +236,10 @@ class ImportIn(BaseModel):
 def import_leads(body: ImportIn, db: Session = Depends(get_db), user: models.User = Depends(get_manager_user)):
     """Leads from another outreach tool's CSV export (HeyReach, OutFlo and similar). Columns are matched by name; a list column (campaign or list name)
     puts people on lists of that name. Campaigns and conversation history are not imported: they do not carry over safely."""
-    headers, rows = lead_sources.read_csv(body.csv_text)
+    try:
+        headers, rows = lead_sources.read_csv(body.csv_text)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     mapping = lead_sources.suggest_mapping(headers)
     if "linkedin_url" not in mapping:
         raise HTTPException(422, "The file needs a column with each person's LinkedIn profile address (for example 'linkedin_url' or 'Profile URL').")
