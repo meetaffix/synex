@@ -19,6 +19,7 @@ interface Source {
   available: boolean;
   note: string | null;
   maxLeads: number | null;
+  produces?: string;
 }
 interface Person {
   name: string;
@@ -50,6 +51,24 @@ const HINTS: Record<string, string> = {
   csv: "Upload a CSV, paste its text, or paste a Google Sheets link (shared so anyone with the link can view).",
   lists: "Pick one or more of your existing lists.",
   inbox: "People you already have conversations with.",
+  event: "Paste a LinkedIn event address. The sender account you choose must be marked as attending the event, or LinkedIn shows no attendee list.",
+  own_posts: "Reads the people who reacted to or commented on your sender account's five most recent posts. Nothing to paste.",
+  sales_navigator: "Paste a Sales Navigator people search or lead list address. Needs a Sales Navigator subscription on the sender account.",
+  recruiter: "Paste a LinkedIn Recruiter search address. Needs a Recruiter licence on the sender account.",
+  companies: "Paste a LinkedIn company search results address. This makes a list of companies, not people; no one is messaged.",
+  sales_nav_accounts: "Paste a Sales Navigator account search address. This makes a list of companies, not people; no one is messaged.",
+};
+const URL_SOURCES = ["search", "event", "sales_navigator", "recruiter", "companies", "sales_nav_accounts"];
+const PLACEHOLDER: Record<string, string> = {
+  post: "https://www.linkedin.com/feed/update/urn:li:activity:…",
+  search: "https://www.linkedin.com/search/results/people/?keywords=…",
+  event: "https://www.linkedin.com/events/…",
+  sales_navigator: "https://www.linkedin.com/sales/search/people?…",
+  recruiter: "https://www.linkedin.com/talent/search?…",
+  companies: "https://www.linkedin.com/search/results/companies/?keywords=…",
+  sales_nav_accounts: "https://www.linkedin.com/sales/search/company?…",
+  csv: "Paste CSV text or a Google Sheets link",
+  urls: "https://www.linkedin.com/in/…",
 };
 const SKIP_LABELS: Record<string, string> = {
   degree_filter: "outside the chosen connection degrees",
@@ -93,6 +112,12 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const poll = useRef<number | undefined>(undefined);
 
   const connected = (accounts.data ?? []).filter((a) => a.status === "connected");
+  const estimate = useQuery({
+    queryKey: ["lead-estimate", source?.id, limit],
+    queryFn: () => api.get<{ people: number; pages: number; minutes: number; reads_linkedin: boolean; maxPagesPerRun: number }>(`/lead-collections/estimate?source=${source?.id}&limit=${limit}`),
+    enabled: open && !!source?.readsLinkedin,
+  });
+  const companies = source?.produces === "companies";
   useEffect(() => {
     if (!accountId && connected.length) setAccountId(connected[0].id);
   }, [connected, accountId]);
@@ -121,8 +146,8 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     switch (source?.id) {
       case "post":
         return { urls: text.split(/\s+/).filter(Boolean), reactions, comments };
-      case "search":
-        return { url: text.trim() };
+      case "own_posts":
+        return {};
       case "connections":
         return { filters };
       case "csv":
@@ -132,7 +157,7 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       case "inbox":
         return {};
       default:
-        return { text };
+        return source && URL_SOURCES.includes(source.id) ? { url: text.trim() } : { text };
     }
   }, [source, text, reactions, comments, filters, listIds, mapping]);
 
@@ -216,7 +241,7 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         <DialogDescription>Pick a source. You will see an estimate and a preview before anything is added.</DialogDescription>
 
         {!source && (
-          <div className="grid gap-2 sm:grid-cols-2" role="list">
+          <div className="grid gap-2 sm:grid-cols-2" role="list" aria-label="Lead sources">
             {sources.isLoading && <p className="text-sm text-muted-foreground">Loading sources…</p>}
             {(sources.data ?? []).map((s) => (
               <button
@@ -229,6 +254,7 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               >
                 <span className="block font-medium">{s.label}</span>
                 <span className="block text-xs text-muted-foreground">{s.available ? (s.readsLinkedin ? "Reads LinkedIn, paced" : "Nothing is read from LinkedIn") : s.note}</span>
+                {s.available && s.note && <span className="block text-xs text-muted-foreground">{s.note}</span>}
               </button>
             ))}
           </div>
@@ -242,8 +268,8 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
             <p className="text-sm text-muted-foreground">{HINTS[source.id]}</p>
 
-            {["post", "search", "urls", "csv"].includes(source.id) && (
-              <Textarea aria-label="Links or data" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={source.id === "csv" ? "Paste CSV text or a Google Sheets link" : "https://www.linkedin.com/…"} />
+            {["post", "urls", "csv", ...URL_SOURCES].includes(source.id) && (
+              <Textarea aria-label="Links or data" rows={source.id === "urls" || source.id === "csv" || source.id === "post" ? 5 : 2} value={text} onChange={(e) => setText(e.target.value)} placeholder={PLACEHOLDER[source.id] ?? "https://www.linkedin.com/…"} />
             )}
             {source.id === "csv" && (
               <input
@@ -315,10 +341,13 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
             {source.readsLinkedin && (
               <p className="text-sm text-muted-foreground" data-testid="estimate">
-                Estimate: up to {Math.min(limit, Math.ceil(limit / 10) * 10)} people, about {Math.max(1, Math.ceil(limit / 20))} page loads, a few minutes. Paced with random pauses and counted against this account&apos;s daily reading limit.
+                {estimate.data
+                  ? `Estimate: up to ${estimate.data.people} ${companies ? "companies" : "people"}, about ${estimate.data.pages} page loads, around ${estimate.data.minutes} minutes. One run reads at most ${estimate.data.maxPagesPerRun} pages; run it again for more. `
+                  : "Estimating. "}
+                Paced with random pauses and counted against this account&apos;s daily reading limit.
               </p>
             )}
-            <Options skip={skip} setSkip={setSkip} degrees={degrees} setDegrees={setDegrees} showDegrees={source.readsLinkedin} />
+            {!companies && <Options skip={skip} setSkip={setSkip} degrees={degrees} setDegrees={setDegrees} showDegrees={source.readsLinkedin} />}
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="flex justify-end">
               <Button loading={busy} onClick={preview} disabled={source.readsLinkedin && !accountId}>Preview</Button>

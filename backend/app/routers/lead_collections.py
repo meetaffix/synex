@@ -52,7 +52,16 @@ def _owned(db: Session, user: models.User, collection_id: str) -> models.LeadCol
 @router.get("/sources")
 def sources(user: models.User = Depends(get_data_user)):
     return [{"id": k, "label": v["label"], "readsLinkedin": v["linkedin"], "available": v["built"],
-             "note": v.get("note"), "maxLeads": ls.MAX_LEADS.get(k)} for k, v in ls.SOURCES.items()]
+             "note": v.get("note"), "maxLeads": ls.MAX_LEADS.get(k), "produces": v.get("produces", "people")} for k, v in ls.SOURCES.items()]
+
+
+@router.get("/estimate")
+def estimate(source: str, limit: int = 50, user: models.User = Depends(get_data_user)):
+    """What a run would cost before anything is created: people, page loads, minutes, and whether it reads LinkedIn."""
+    if source not in ls.SOURCES:
+        raise HTTPException(422, "Unknown source.")
+    return {**ls.estimate(source, max(1, min(limit, ls.MAX_LEADS.get(source, limit)))), "maxPagesPerRun": ls.MAX_PAGES_PER_RUN,
+            "secondsBetweenPages": list(ls.SECONDS_PER_PAGE)}
 
 
 @router.get("")

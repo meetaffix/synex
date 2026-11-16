@@ -285,6 +285,29 @@ export async function mockApi(page: Page, api: Api) {
         return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length),
           accounts: Object.fromEntries(api.accounts.map((a, i) => [a.id, { connections: { used: 2, low: 4, high: 6, budget: 5 }, messages: { used: 1, low: 9, high: 11, budget: 10 }, smart: i === 0,
             performance: i === 0 ? { invited: 20, accepted: 8, replied: 2, acceptedPercent: 40, replyPercent: 25 } : { invited: 0, accepted: 0, replied: 0, acceptedPercent: null, replyPercent: null } }])) });
+      if (path === "/lead-collections/sources") return json(200, [{ id: "urls", label: "Paste profile links", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "csv", label: "CSV or Google Sheets", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "lists", label: "From my existing lists", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "search", label: "LinkedIn basic search", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "post", label: "LinkedIn post reactions or comments", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "event", label: "LinkedIn event attendees", readsLinkedin: true, available: true, note: "The sender account must be marked as attending the event.", maxLeads: 500, produces: "people" }, { id: "sales_navigator", label: "Sales Navigator leads", readsLinkedin: true, available: true, note: "Needs a Sales Navigator subscription on the sender account.", maxLeads: 500, produces: "people" }, { id: "companies", label: "LinkedIn companies", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "companies" }, { id: "group", label: "LinkedIn group members", readsLinkedin: true, available: false, note: "Coming soon: LinkedIn only shows a group's member list to its members.", maxLeads: 500, produces: "people" }]);
+      if (path === "/lead-collections/estimate")
+        return json(200, { people: Math.min(Number(url.searchParams.get("limit")), 375), pages: 15, minutes: 5, reads_linkedin: true, maxPagesPerRun: 15 });
+      const coll = path.match(/^\/lead-collections(?:\/(c1)(\/preview|\/run|\/stop)?)?$/);
+      if (coll) {
+        const base = { id: "c1", label: "Source", listName: "List", limit: 50, options: {}, fetched: 0, created: 0, skipped: {}, detail: null, listId: null, accountId: "a1",
+          estimate: { people: 50, pages: 5, minutes: 2, reads_linkedin: true }, createdAt: "2026-11-16T10:00:00Z", source: "event", preview: null };
+        const previewData = { people: [{ name: "Katherine Johnson", headline: "Mathematician", company: null, location: "Hampton", degree: 2, profileUrl: "https://www.linkedin.com/in/katherine-j/" }], total: 1, degrees: { "1": 0, "2": 1, "3": 0, unknown: 0 } };
+        if (method === "POST" && !coll[1]) {
+          if (String((body as { params?: { url?: string } })?.params?.url ?? "").includes("bad")) return json(422, { detail: "Paste a LinkedIn event address (it contains linkedin.com/events/)." });
+          api.syncStatus = "draft";
+          return json(200, { ...base, status: "draft" });
+        }
+        if (coll[2] === "/preview") {
+          api.syncStatus = "previewing";
+          return json(200, { ...base, status: "previewing" });
+        }
+        if (coll[2] === "/run") {
+          api.syncStatus = "completed";
+          return json(200, { ...base, status: "completed", created: 1, listName: "Event list", preview: previewData });
+        }
+        return json(200, { ...base, status: api.syncStatus === "previewing" ? "preview_ready" : api.syncStatus, preview: api.syncStatus === "previewing" ? previewData : null });
+      }
       const dncPath = path.match(/^\/do-not-contact(\/export|\/import|\/([^/]+))?$/);
       if (dncPath) {
         const kind = url.searchParams.get("kind") ?? (body as { kind?: string } | null)?.kind ?? "person";

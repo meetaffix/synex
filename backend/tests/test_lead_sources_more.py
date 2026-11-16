@@ -181,5 +181,33 @@ class SourceApiTest(unittest.TestCase):
             self.assertEqual(db.query(models.CompanyEntry).one().name, "Acme Inc")
 
 
+    def test_the_estimate_is_available_before_anything_is_created(self):
+        data = self.client.get("/lead-collections/estimate", params={"source": "sales_navigator", "limit": 2500}).json()
+        self.assertTrue(data["reads_linkedin"])
+        self.assertEqual(data["pages"], lead_sources.MAX_PAGES_PER_RUN)  # one run never loads more than this many pages
+        self.assertEqual(data["people"], lead_sources.MAX_PAGES_PER_RUN * 25)
+        self.assertGreaterEqual(data["minutes"], 1)
+        local = self.client.get("/lead-collections/estimate", params={"source": "urls", "limit": 40}).json()
+        self.assertEqual((local["reads_linkedin"], local["pages"], local["minutes"]), (False, 0, 0))
+        self.assertEqual(self.client.get("/lead-collections/estimate", params={"source": "nope"}).status_code, 422)
+
+    def test_company_lists_can_be_read_added_to_do_not_contact_and_deleted(self):
+        with SessionLocal() as db:
+            company_list = models.CompanyList(user_id=self.owner_id, name="Cos")
+            db.add(company_list)
+            db.flush()
+            db.add_all([models.CompanyEntry(list_id=company_list.id, key="linkedin.com/company/acme-inc", name="Acme Inc", url="https://www.linkedin.com/company/acme-inc/"),
+                        models.CompanyEntry(list_id=company_list.id, key="linkedin.com/company/12345", name="Globex", url="https://www.linkedin.com/company/12345/")])
+            db.commit()
+            list_id = company_list.id
+        self.assertEqual(self.client.get("/company-lists").json()[0]["count"], 2)
+        self.assertEqual(self.client.get(f"/company-lists/{list_id}").json()["total"], 2)
+        self.assertEqual(self.client.post(f"/company-lists/{list_id}/do-not-contact").json()["added"], 2)
+        self.assertEqual(self.client.post(f"/company-lists/{list_id}/do-not-contact").json()["alreadyListed"], 2)
+        self.assertEqual(self.client.delete(f"/company-lists/{list_id}").status_code, 204)
+        self.assertEqual(self.client.get("/company-lists").json(), [])
+        self.assertEqual(self.client.get(f"/company-lists/{list_id}").status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
