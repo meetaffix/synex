@@ -15,6 +15,7 @@ from collections.abc import Awaitable, Callable
 from concurrent.futures import Future, TimeoutError as FutureTimeout
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, TimeoutError as PlaywrightTimeout, async_playwright
 
@@ -28,6 +29,8 @@ log = logging.getLogger("synex.linkedin_session")
 MAX_CODE_REJECTIONS = 3
 # A checkpoint page mid-navigation looks unrecognisable; only a stable one needs the user.
 MANUAL_VERIFICATION_POLLS = 3
+# A page that stays unrecognisable this long is not "still loading": stop instead of waiting out the whole attempt.
+PENDING_LIMIT_SECONDS = 90
 CHECK_TIMEOUT_SECONDS = 60
 RETENTION_SECONDS = 900
 STEP_TIMEOUT_MS = 30_000
@@ -303,8 +306,18 @@ class SessionManager:
 
     async def _drive(self, attempt: Attempt, page: Page, identifier: str, password: str) -> None:
         submitted, rejections, unrecognised = False, 0, 0
+        last_state, pending_since = None, None
         while True:
             state = await self.site.detect_state(page)
+            if state is not last_state:  # what the browser is looking at, never the query string or any value typed
+                log.info("linkedin login attempt %s page state: %s (path %s)", attempt.id, state.value, urlsplit(page.url).path)
+                last_state = state
+            if state is PageState.PENDING:
+                pending_since = pending_since or time.monotonic()
+                if time.monotonic() - pending_since > PENDING_LIMIT_SECONDS:
+                    raise LoginFailed("unknown", "LinkedIn showed a page Synex could not recognise. Nothing was saved. Try again later.")
+            else:
+                pending_since = None
             unrecognised = unrecognised + 1 if state is PageState.MANUAL_VERIFICATION else 0
             if state is PageState.LOGGED_IN:
                 return

@@ -64,12 +64,14 @@ class Selectors:
     profile_avatar: str
 
 
-# UNVERIFIED against the live site.
+# Checked on 15 Nov 2026 against LinkedIn's public sign-in page (no login): fields have generated ids, so they are
+# found by type; the page has no <form> and the button is type=button with the text "Sign in". Each selector takes the first
+# visible match, because the page ships its markup more than once. The code, error and checkpoint selectors are still guesses.
 REAL_SELECTORS = Selectors(
-    username="#username",
-    password="#password",
-    submit="button[type=submit]",
-    login_error="#error-for-username, #error-for-password",
+    username="input[type=email]:visible >> nth=0",
+    password="input[type=password]:visible >> nth=0",
+    submit="button:has(span:text-is('Sign in')):visible >> nth=0",
+    login_error=":text-matches('not the right password|Wrong email or password|recognize that email|valid username', 'i')",
     code_input="input[name=pin]",
     code_submit="button[type=submit]",
     code_error="#input-error, .form__label--error",
@@ -135,7 +137,7 @@ class Site:
             if await _visible(page, sel.approval_marker):
                 return PageState.APP_APPROVAL
             return PageState.MANUAL_VERIFICATION
-        if await _visible(page, sel.logged_in_marker):
+        if path.startswith("/feed") or await _visible(page, sel.logged_in_marker):
             return PageState.LOGGED_IN
         if "/restricted" in path or await _visible(page, sel.restricted_marker):
             return PageState.RESTRICTED
