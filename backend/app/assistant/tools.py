@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from .. import analytics, engine, models
+from .. import analytics, dashboard_feeds, dnc, engine, models
 from ..deps import ROLE_RANK
 from ..config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING
 from ..linkedin_session.schemas import AccountPatch
@@ -615,3 +615,53 @@ register(Tool("create_campaign_draft", "Prepare a new DRAFT campaign with steps 
 register(Tool("set_campaign_state", "Prepare pausing a running campaign or resuming a paused one. Needs the user's confirmation.", SetCampaignState, "write", "manager", propose=_propose_campaign_state, apply=_apply_campaign_state))
 register(Tool("set_account_state", "Prepare pausing or resuming a sender account. Needs the user's confirmation.", SetAccountState, "write", "admin", propose=_propose_account_state, apply=_apply_account_state))
 register(Tool("set_daily_limits", "Prepare a change to a sender account's or campaign's daily limits, within the hard ceilings. Needs the user's confirmation.", SetDailyLimits, "write", "manager", propose=_propose_limits, apply=_apply_limits))
+
+
+# ---- inbox, funnel, do-not-contact (areas 6, 7 and 4) ---------------------------------------------------------------
+
+class SearchConversations(Args):
+    query: str = Field("", max_length=100)
+    needs_reply: bool = False
+    unread: bool = False
+
+
+def _search_conversations(ctx: ToolContext, a: SearchConversations) -> dict:
+    from ..routers import inbox as inbox_router
+    f = inbox_router.Filters(q=a.query, needs_reply=a.needs_reply, unread=a.unread)
+    total, items = inbox_router._page(ctx.db, ctx.workspace, f, 10, 0)
+    return {"total": total, "conversations": [{"id": c["id"], "name": c["leadName"], "company": c["leadCompany"], "account": c["accountName"], "needsReply": c["needsReply"],
+                                               "unread": c["unread"], "last": (c["lastMessagePreview"] or "")[:120], "interest": c["interest"]} for c in items]}
+
+
+class NoFilters(Args):
+    campaign_id: str | None = None
+
+
+def _get_funnel(ctx: ToolContext, a: NoFilters) -> dict:
+    if a.campaign_id:
+        _owned(ctx, models.Campaign, a.campaign_id, "campaign")
+    return dashboard_feeds.funnel(ctx.db, ctx.workspace.id, dashboard_feeds.FeedFilters(None, None, a.campaign_id, None))
+
+
+class AddDoNotContact(Args):
+    kind: Literal["person", "company"]
+    values: list[str] = Field(min_length=1, max_length=50, description="LinkedIn profile links for people, or company names for companies.")
+
+
+def _propose_dnc(ctx: ToolContext, a: AddDoNotContact) -> Plan:
+    usable = [v for v in a.values if (dnc.person_key(v) if a.kind == "person" else dnc.company_key(v))]
+    if not usable:
+        raise ToolError("None of those look like " + ("LinkedIn profile links." if a.kind == "person" else "company names."))
+    return Plan(f"Add {len(usable)} {'people' if a.kind == 'person' else 'companies'} to the do-not-contact list.",
+                [f"They will never be imported, started in a campaign or messaged: {', '.join(v[:60] for v in usable[:5])}{' and more' if len(usable) > 5 else ''}."])
+
+
+def _apply_dnc(ctx: ToolContext, a: AddDoNotContact) -> dict:
+    result = dnc.add_entries(ctx.db, ctx.workspace.id, a.kind, [{"value": v} for v in a.values], "manual")
+    ctx.db.commit()
+    return result
+
+
+register(Tool("search_conversations", "Find inbox conversations by name, company or text; can show only those needing a reply or unread. Read only.", SearchConversations, "read", "member", run=_search_conversations))
+register(Tool("get_funnel", "The funnel from leads in campaigns to contacted, accepted, replied and interested, for all campaigns or one.", NoFilters, "read", "member", run=_get_funnel))
+register(Tool("add_do_not_contact", "Prepare adding people (profile links) or companies (names) to the do-not-contact list. Needs the user's confirmation.", AddDoNotContact, "write", "manager", propose=_propose_dnc, apply=_apply_dnc))

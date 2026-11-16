@@ -285,6 +285,7 @@ class ConfirmationTest(AssistantCase):
             "set_campaign_state": {"campaign_id": ids["campaign"], "action": "pause"},
             "set_account_state": {"account_id": ids["account"], "action": "pause"},
             "set_daily_limits": {"target": "account", "id": ids["account"], "daily_action_limit": 30},
+            "add_do_not_contact": {"kind": "company", "values": ["Acme Inc"]},
         }
 
     def test_every_write_tool_only_proposes_until_the_user_confirms(self):

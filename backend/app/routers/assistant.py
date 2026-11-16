@@ -144,3 +144,30 @@ async def assistant_socket(websocket: WebSocket):
             await websocket.close()
         except Exception:
             pass
+
+
+class LocalChatIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=2000)
+    history: list[dict] = Field(default_factory=list, max_length=40)
+    page: dict = Field(default_factory=dict)
+
+
+@router.get("/local/status")
+def local_status(user: models.User = Depends(get_current_user)):
+    """Whether the free local-model option is ready, for the settings screen."""
+    from ..assistant import local
+    return local.available()
+
+
+@router.post("/local/chat")
+def local_chat(body: LocalChatIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """A typed conversation answered by a local model (Ollama). Same tools, permissions, audit and confirmation cards as the voice assistant."""
+    from ..assistant import local
+    owner, _ = resolve_workspace(db, user)
+    if not service.get_settings_row(db, owner.id).enabled:
+        raise HTTPException(403, "The assistant is turned off for this workspace.")
+    try:
+        return local.chat(db, user, body.text, body.history, body.page)
+    except local.LocalAssistantError as exc:
+        raise HTTPException(503, str(exc))
