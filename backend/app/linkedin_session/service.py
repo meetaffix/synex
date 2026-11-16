@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..config import settings
-from .manager import Attempt, AttemptActive, CheckFailed, CodeNotExpected, SessionManager
+from .manager import Attempt, AttemptActive, CheckFailed, CodeNotExpected, PROXY_REQUIRED_MESSAGE, SessionManager
 from .pages import LINKEDIN
 from . import proxytest
 from .proxytest import proxy_host_allowed
@@ -25,6 +25,7 @@ def get_manager() -> SessionManager:
             attempt_timeout=settings.linkedin_session_attempt_timeout_seconds,
             poll_interval=settings.linkedin_session_poll_interval_seconds,
             headless=settings.linkedin_session_headless,
+            require_proxy=settings.require_account_proxy,
             capture_dir=Path(settings.linkedin_capture_dir) if settings.linkedin_capture_dir else Path(__file__).resolve().parents[2] / "captures")
     return _manager
 
@@ -93,6 +94,8 @@ def run_check(manager: SessionManager, account: models.LinkedInAccount) -> None:
     state = store.load_state(account)
     if state is None or not account.browser_profile:
         raise HTTPException(409, "This account has no saved session. Reconnect it first.")
+    if settings.require_account_proxy and not store.load_proxy(account):
+        raise HTTPException(409, PROXY_REQUIRED_MESSAGE)
     try:
         result = manager.check_session(storage_state=state, identity=account.browser_profile,
                                        proxy_url=store.load_proxy(account))
