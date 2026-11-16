@@ -1,5 +1,7 @@
 """Glue between the HTTP routers and the session manager. All HTTP errors are
 raised here as HTTPException so the routers stay thin."""
+import threading
+import time
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -90,7 +92,34 @@ def send_code(manager: SessionManager, attempt: Attempt, code: str) -> None:
         raise HTTPException(409, "This connection is not waiting for a verification code.") from None
 
 
+_CHECK_LOCK = threading.Lock()
+_CHECKS: dict[str, float | None] = {}  # account id -> None while a check runs, else when the last one finished
+CHECK_COOLDOWN_SECONDS = 30
+
+
+def _claim_check(account_id: str) -> bool:
+    """True when this call may open a browser. A second call while one runs, or within the cooldown after one, is dropped:
+    repeated checks of the same session add risk and no information."""
+    with _CHECK_LOCK:
+        if account_id in _CHECKS:
+            finished = _CHECKS[account_id]
+            if finished is None or time.monotonic() - finished < CHECK_COOLDOWN_SECONDS:
+                return False
+        _CHECKS[account_id] = None
+        return True
+
+
 def run_check(manager: SessionManager, account: models.LinkedInAccount) -> None:
+    if not _claim_check(account.id):
+        return  # the caller returns the account as it stands; the check in flight (or just done) updates it
+    try:
+        _run_check(manager, account)
+    finally:
+        with _CHECK_LOCK:
+            _CHECKS[account.id] = time.monotonic()
+
+
+def _run_check(manager: SessionManager, account: models.LinkedInAccount) -> None:
     state = store.load_state(account)
     if state is None or not account.browser_profile:
         raise HTTPException(409, "This account has no saved session. Reconnect it first.")

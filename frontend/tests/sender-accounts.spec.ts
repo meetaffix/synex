@@ -343,7 +343,7 @@ test.describe("sender accounts", () => {
     const api = newApi({ accounts: [account()] });
     await mockApi(page, api);
     await page.goto("/linkedin-accounts");
-    await expect(page.getByText("12 of 50")).toBeVisible();
+    await expect(page.getByText("12 today, up to 50 a day")).toBeVisible();
 
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
     await page.getByRole("menuitem", { name: "Pause sending" }).click();
@@ -359,7 +359,7 @@ test.describe("sender accounts", () => {
     await dialog.getByLabel("Daily action limit").fill("30");
     await dialog.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
-    await expect(page.getByText("12 of 30")).toBeVisible();
+    await expect(page.getByText("12 today, up to 30 a day")).toBeVisible();
     expect(callsTo(api, "PATCH", /acc1$/)[1].body).toEqual({ dailyActionLimit: 30 });
   });
 
@@ -376,8 +376,8 @@ test.describe("sender accounts", () => {
     await dialog.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
     expect(callsTo(api, "PATCH", /acc1$/)[0].body).toEqual({ dailyActionLimit: 0 });
-    await expect(page.getByText("Paused for this action")).toBeVisible();
-    await expect(page.getByText("12 of 0")).toHaveCount(0);
+    await expect(page.getByText("Stopped", { exact: true })).toBeVisible();
+    await expect(page.getByText("12 today, up to 0 a day")).toHaveCount(0);
   });
 
   test("the sync preference is read-only for someone who did not connect the account", async ({ page }) => {

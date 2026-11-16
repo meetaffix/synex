@@ -92,7 +92,7 @@ export function AccountRow({ account, actions, checking, error, index = 0 }: Pro
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Actions today</dt>
             <dd className={nearLimit || stopped ? "font-medium text-warning" : undefined}>
-              {stopped ? "Paused for this action" : `${account.dailyActionsUsed} of ${account.dailyActionLimit}`}
+              {stopped ? "Stopped" : `${account.dailyActionsUsed} today, up to ${account.dailyActionLimit} a day`}
               {nearLimit && <span className="sr-only"> (close to the daily limit)</span>}
             </dd>
           </div>
@@ -100,7 +100,7 @@ export function AccountRow({ account, actions, checking, error, index = 0 }: Pro
         <Progress
           value={percent}
           aria-label={`${account.name} actions today`}
-          aria-valuetext={stopped ? "Paused for this action" : `${account.dailyActionsUsed} of ${account.dailyActionLimit}`}
+          aria-valuetext={stopped ? "Stopped" : `${account.dailyActionsUsed} today, up to ${account.dailyActionLimit} a day`}
           className="h-2"
           indicatorClassName={nearLimit ? "bg-warning" : undefined}
         />
