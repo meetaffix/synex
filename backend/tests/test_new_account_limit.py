@@ -92,7 +92,9 @@ class NewAccountLimitTest(unittest.TestCase):
         self.assertEqual(engine.effective_daily_limit(account(5000, 400), NOW), DAILY_ACTION_CEILING)
 
     def test_the_agreed_hard_ceilings_are_unchanged(self):
-        self.assertEqual(DAILY_TYPE_CEILINGS, {"send_invite": 40, "send_message": 100, "visit_profile": 80, "follow_profile": 50})
+        self.assertEqual(DAILY_TYPE_CEILINGS, {"send_invite": 40, "send_message": 100, "visit_profile": 80,
+                                            "follow_profile": 50, "check_connection": 80,
+                                            "sync_inbox": 48, "collect_leads": 20})
         self.assertEqual(WEEKLY_INVITE_CEILING, 150)
         self.assertEqual(DAILY_ACTION_CEILING, 200)
 

@@ -207,6 +207,9 @@ class OutreachWorker:
         session.before_commit = lambda: asyncio.to_thread(results.mark_committed, task_id)
         try:
             outcome = await self._perform(session, snapshot)
+        except results.PolicyChanged as error:
+            await asyncio.to_thread(results.skip_task, task_id, str(error))
+            return False
         except SessionError as error:
             await asyncio.to_thread(results.handle_session_error, account_id, task_id, error.kind.value)
             return True

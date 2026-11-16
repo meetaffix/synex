@@ -361,7 +361,8 @@ def type_room(db: Session, campaign: models.Campaign, account: models.LinkedInAc
     """How many more actions of this type the campaign may queue on the account on `now`'s day (in the account's
     timezone): the least of the hard daily ceiling (counting every campaign), the weekly invite cap and the
     campaign's own limit. The dry run passes what it has already planned. None when the type has no cap."""
-    rooms = []
+    from .account_policy import action_room
+    rooms = [action_room(db, account, ttype, now) - planned_today]
     ceiling = DAILY_TYPE_CEILINGS.get(ttype)
     if ceiling is not None:
         rooms.append(ceiling - _count_today(db, account, ttype, now) - planned_today)
@@ -380,8 +381,14 @@ def _type_limit_reached(db: Session, campaign: models.Campaign, account: models.
 
 def manual_send_refusal(db: Session, account: models.LinkedInAccount, ttype: str, now: datetime) -> str | None:
     """Why a person's own send (an inbox reply) cannot be queued on this account now, or None when it can."""
+    from .account_policy import action_room
+    if account.status in ("deactivated", "archived", "deleted"):
+        return "This sender seat is inactive. Reactivate it before sending."
     if configured_daily_limit(account) == 0:
         return "This account's daily limit is 0, so it is paused. Raise the limit under Sender accounts to send from it."
+    if action_room(db, account, ttype, now) <= 0:
+        from .account_policy import bounds
+        return f"This account has reached its limit of {bounds(account, ttype, now)[2]} for this action in the last 24 hours."
     ceiling = DAILY_TYPE_CEILINGS.get(ttype)
     if ceiling is not None and _count_today(db, account, ttype, now) >= ceiling:
         return f"This account has reached its hard ceiling of {ceiling} messages today. It can send again tomorrow."
@@ -431,7 +438,8 @@ def emit_task(
     ceiling = DAILY_TYPE_CEILINGS.get(ttype)
     if ceiling is None:  # a type with no hard ceiling must never reach LinkedIn
         raise ValueError(f"task type {ttype!r} has no daily ceiling in config.DAILY_TYPE_CEILINGS")
-    if _count_today(db, account, ttype, _now()) >= ceiling:
+    from .account_policy import action_room
+    if account.status in ("deactivated", "archived", "deleted") or action_room(db, account, ttype, _now()) <= 0:
         return None
     task = models.AgentTask(
         account_id=account.id, sequence_run_id=run.id if run else None, type=ttype,

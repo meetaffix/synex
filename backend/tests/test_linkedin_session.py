@@ -366,8 +366,15 @@ class AccountApiTest(SessionApiCase):
         before = self.client.post(url).json()
         self.assertEqual((before["status"], set(before)), ("connected", ACCOUNT_KEYS))
         MOCK.force_logged_out = True
+        # An immediate click must reuse the last result rather than opening another browser.
+        self.assertEqual(self.client.post(url).json()["status"], "connected")
+        from app.linkedin_session import service
+        with service._CHECK_LOCK:
+            service._CHECKS[account_id] = time.monotonic() - service.CHECK_COOLDOWN_SECONDS - 1
         self.assertEqual(self.client.post(url).json()["status"], "needs_reconnect")
         MOCK.force_logged_out, MOCK.force_restricted = False, True
+        with service._CHECK_LOCK:
+            service._CHECKS[account_id] = time.monotonic() - service.CHECK_COOLDOWN_SECONDS - 1
         self.assertEqual(self.client.post(url).json()["status"], "restricted")
         self.assertIsNotNone(self.client.post(url).json()["lastCheckedAt"])
 

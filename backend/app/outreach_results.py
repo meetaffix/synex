@@ -117,6 +117,10 @@ def unclaim_task(task_id: str, worker_id: str) -> None:
 
 
 def mark_committed(task_id: str) -> None:
+    # Re-read after navigation as the owner may have stopped an action while the page loaded.
+    reason = precheck(task_id)
+    if reason:
+        raise PolicyChanged(reason)
     with SessionLocal() as db:
         db.query(models.AgentTask).filter_by(id=task_id).update({"committed_at": datetime.now(timezone.utc)})
         db.commit()
@@ -174,11 +178,22 @@ def _register_success(campaign: models.Campaign | None) -> None:
 
 # ------------------------------------------------------------------ pre-check
 
+class PolicyChanged(Exception):
+    """A queued action became ineligible before its irreversible click."""
+
+
 def precheck(task_id: str) -> str | None:
     """Re-read current state just before acting. Returns a reason to skip, or None to proceed."""
     with SessionLocal() as db:
         ctx = _context(db, db.get(models.AgentTask, task_id))
         task, run, lead, campaign = ctx.task, ctx.run, ctx.lead, ctx.campaign
+        from .account_policy import action_room
+        if ctx.account is None or ctx.account.status in ("deactivated", "archived", "deleted"):
+            return "sender_inactive"
+        if action_room(db, ctx.account, task.type, ctx.now, exclude_task=task.id) <= 0:
+            return "sender_action_limit"
+        if task.type in ("send_message", "send_invite", "follow_profile") and engine.configured_daily_limit(ctx.account) == 0:
+            return "sender_stopped"
         if run is not None:
             if campaign is None or campaign.status != "active":
                 return "campaign_not_active"

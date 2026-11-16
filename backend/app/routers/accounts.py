@@ -17,6 +17,8 @@ from ..linkedin_session.schemas import (AccountOut, AccountPatch, AttemptOut, Co
                                         ProxyTestIn, ProxyTestOut, ReconnectLinkOut)
 
 router = APIRouter(prefix="/linkedin-accounts", tags=["LinkedIn accounts"])
+from .account_management import router as management_router
+router.include_router(management_router)
 
 
 @router.get("", response_model=list[AccountOut])

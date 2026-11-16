@@ -155,7 +155,7 @@ class AccountOut(CamelModel):
         return cls(
             id=account.id, name=account.name, headline=account.headline, profile_url=account.linkedin_url,
             avatar_url=account.avatar_url,
-            status="paused" if account.status == "paused" else (account.session_status or "disconnected"),
+            status="paused" if account.status in ("paused", "deactivated", "archived") else (account.session_status or "disconnected"),
             daily_action_limit=configured_daily_limit(account),
             daily_actions_used=(account.daily_actions_used or 0) if account.last_action_date == today else 0,
             ceilings=CeilingsOut.current(),

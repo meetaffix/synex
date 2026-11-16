@@ -162,6 +162,8 @@ class LinkedInAccount(Base):
     # Why the executor stopped this account (shown in the account object); cleared on reconnect or resume.
     paused_reason = Column(String, nullable=True)
     last_inbox_sync_at = Column(DateTime(timezone=True), nullable=True)
+    # Versioned sender policy. Defaults preserve existing limits; updates replace the JSON value.
+    management_config = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="accounts")
 
