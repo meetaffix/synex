@@ -96,7 +96,8 @@ class LinkedInAccount(Base):
     # Lifecycle intent: pending (awaiting extension pairing) | active | paused.
     # The displayed status also factors in the extension heartbeat.
     status = Column(String, default="pending")
-    daily_action_limit = Column(Integer, default=50)
+    # A new account starts STOPPED (0) until its owner sets a limit; the warm-up then starts at 5 a day. Existing accounts keep theirs.
+    daily_action_limit = Column(Integer, default=0)
     daily_actions_used = Column(Integer, default=0)
     last_action_date = Column(String, nullable=True)  # ISO date of the daily_actions_used window
     # Per-type counters within the same daily window (for the health dashboard).

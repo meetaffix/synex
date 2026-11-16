@@ -34,7 +34,7 @@ function ConnectedMessage({ accountId }: { accountId: string }) {
   const name = accounts.data?.find((account) => account.id === accountId)?.name;
   return (
     <p className="text-sm text-muted-foreground">
-      {name ?? "The account"} is connected. Next, check its daily limit; lower limits are safer. Then import leads to start a campaign.
+      {name ?? "The account"} is connected and stopped: its daily limit is 0 until you set one. Choose a limit on the account (it then ramps up from 5 a day), then import leads to start a campaign.
     </p>
   );
 }
