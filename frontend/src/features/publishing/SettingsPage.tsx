@@ -16,6 +16,7 @@ export function SettingsPage() {
   const [name, setName] = useState(user?.fullName ?? ""),
     [company, setCompany] = useState(user?.company ?? ""),
     [zone, setZone] = useState("UTC"),
+    [zoneEdited, setZoneEdited] = useState(false),
     [busy, setBusy] = useState(false),
     [oldPassword, setOldPassword] = useState(""),
     [password, setPassword] = useState("");
@@ -75,8 +76,9 @@ export function SettingsPage() {
     refetchInterval: 30000,
   });
   useEffect(() => {
-    if (prefs.data) setZone(prefs.data.timezone);
-  }, [prefs.data]);
+    // The saved value fills the box once it arrives, but never over something the person has already typed.
+    if (prefs.data && !zoneEdited) setZone(prefs.data.timezone);
+  }, [prefs.data, zoneEdited]);
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -87,6 +89,7 @@ export function SettingsPage() {
       });
       await api.put("/publishing/preferences", { timezone: zone });
       if (u) updateUser(u);
+      setZoneEdited(false);
       await refresh();
       toast.success("Preferences saved");
     } catch (e) {
@@ -151,7 +154,10 @@ export function SettingsPage() {
               required
               list="timezones"
               value={zone}
-              onChange={(e) => setZone(e.target.value)}
+              onChange={(e) => {
+                setZone(e.target.value);
+                setZoneEdited(true);
+              }}
             />
           </label>
           <ZoneList />
