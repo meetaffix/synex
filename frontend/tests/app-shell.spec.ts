@@ -410,8 +410,10 @@ test.describe("campaigns", () => {
     await expect(row).toContainText("40%");
     await expect(row).toContainText("17%");
 
-    await expect(page.getByRole("button", { name: "New campaign" })).toBeDisabled();
-    await page.getByRole("button", { name: "New campaign" }).locator("xpath=..").hover();
-    await expect(page.getByRole("tooltip").first()).toContainText("Building campaigns comes next");
+    // The builder exists now: New campaign opens it, with no sender or leads needed.
+    const create = page.getByRole("link", { name: "New campaign" });
+    await expect(create).toHaveAttribute("href", "/campaigns/new");
+    await create.click();
+    await expect(page).toHaveURL(/\/campaigns\/new$/);
   });
 });

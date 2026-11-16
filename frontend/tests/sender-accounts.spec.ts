@@ -175,7 +175,7 @@ test.describe("sender accounts", () => {
     await submit(page);
     await expect(page.getByRole("heading", { name: "Signing in to LinkedIn" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account connected" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Ada Lovelace is connected.")).toBeVisible();
+    await expect(page.getByText("Ada Lovelace is connected and stopped")).toBeVisible();
 
     const start = callsTo(api, "POST", /^\/linkedin-accounts\/connect$/)[0];
     expect(start.body).toMatchObject({ identifier: "ada@example.com", password: "Sup3r-Secret-Pw", syncMode: "synex_only" });
@@ -186,7 +186,7 @@ test.describe("sender accounts", () => {
     await page.getByRole("button", { name: "Done" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
-    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Connected accounts").getByText("Connected", { exact: true })).toBeVisible();
   });
 
   test("accepts a phone number and rejects text that is neither email nor phone", async ({ page }) => {
@@ -347,7 +347,7 @@ test.describe("sender accounts", () => {
 
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
     await page.getByRole("menuitem", { name: "Pause sending" }).click();
-    await expect(page.getByText("Paused", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Connected accounts").getByText("Paused", { exact: true })).toBeVisible();
     expect(callsTo(api, "PATCH", /acc1$/)[0].body).toEqual({ paused: true });
 
     await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -423,7 +423,7 @@ test.describe("sender accounts", () => {
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
     await page.getByRole("menuitem", { name: "Disconnect" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Disconnect" }).click();
-    await expect(page.getByText("Disconnected", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Connected accounts").getByText("Disconnected", { exact: true })).toBeVisible();
     expect(callsTo(api, "DELETE", /acc1$/)).toHaveLength(1);
   });
 

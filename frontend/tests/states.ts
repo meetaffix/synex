@@ -226,7 +226,7 @@ export const states: State[] = [
     path: "/leads",
     api: withAccount({ leads: [lead("l1")] }),
     prepare: async (page) => {
-      await page.getByRole("button", { name: /Add lead/ }).click();
+      await page.getByRole("button", { name: "Add lead", exact: true }).first().click();
       await expect(page.getByRole("dialog").getByLabel("Time zone")).toBeVisible();
     },
   },
