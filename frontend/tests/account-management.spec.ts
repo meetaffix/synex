@@ -15,8 +15,9 @@ test("the account page opens from the list and offers its four sections as tabs"
   await open(page);
   await expect(page).toHaveURL(/\/linkedin-accounts\/a1$/);
   await expect(page.getByRole("heading", { name: "Ada Lovelace", level: 1 })).toBeVisible();
+  await expect(page.getByText(/Connected since/)).toBeVisible();
   const tabs = page.getByRole("tablist", { name: "Account sections" }).getByRole("tab");
-  await expect(tabs).toHaveText(["Sender limits", "Inbox privacy", "Health", "Manage connections", "Account"]);
+  await expect(tabs).toHaveText(["Sender limits", "Inbox privacy", "Health", "Manage connections", "AI configuration", "Account"]);
   await expect(page.getByRole("tab", { name: "Sender limits" })).toHaveAttribute("aria-selected", "true");
   // Keyboard: arrows move between tabs, and the chosen tab is in the address so a refresh keeps it.
   await page.getByRole("tab", { name: "Sender limits" }).focus();
@@ -104,6 +105,9 @@ test("health: auto-withdraw can be switched on and saved, and the page is honest
   await expect(page.getByText("Health settings saved.")).toBeVisible();
   expect((callsTo(api, "PUT", /\/policy$/)[0].body as { autoWithdraw: boolean }).autoWithdraw).toBe(true);
   await expect(page.getByText(/No verified LinkedIn SSI data/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Health summary" })).toBeVisible();
+  await expect(page.getByText(/No warning or restriction has been recorded/)).toBeVisible();
+  await expect(page.getByText("No activity has been recorded for this account yet.")).toBeVisible();
 });
 
 test("account: deactivating asks first, then frees the seat and keeps the history", async ({ page }) => {
@@ -201,4 +205,26 @@ test("inbox privacy: someone without access can send the owner a link", async ({
   await page.getByRole("button", { name: "Share with account owner" }).click();
   await expect(page.getByRole("dialog").getByText(/Reconnect link for Ada Lovelace/)).toBeVisible();
   expect(callsTo(api, "POST", /\/reconnect-link$/)).toHaveLength(1);
+});
+
+test("AI configuration: a preset voice is assigned with its licence shown; cloning is disabled with the reason", async ({ page }) => {
+  const api = await open(page);
+  await page.getByRole("tab", { name: "AI configuration" }).click();
+  await expect(page.getByTestId("assigned-voice")).toContainText("No voice assigned");
+  await expect(page.getByRole("button", { name: "Clone my voice (coming soon)" })).toBeDisabled();
+  await expect(page.getByText(/commercial licence/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Assign voice" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Licence: CC BY 4.0")).toBeVisible();
+  await expect(dialog.getByText(/Piper\) is not installed/)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Play a sample of Cori" })).toBeDisabled();
+  await expect(dialog.getByText(/English \(India\) \(unavailable/)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Select voice" })).toBeDisabled();
+  await dialog.getByRole("radio", { name: "Cori" }).check();
+  await dialog.getByRole("button", { name: "Select voice" }).click();
+  await expect(page.getByText("Voice assigned.")).toBeVisible();
+  expect((callsTo(api, "PUT", /\/voice$/)[0].body as { voiceId: string }).voiceId).toBe("cori");
+  await expect(page.getByTestId("assigned-voice")).toContainText("Cori (English (UK), Female)");
+  await page.getByRole("button", { name: "Remove voice" }).click();
+  await expect(page.getByTestId("assigned-voice")).toContainText("No voice assigned");
 });

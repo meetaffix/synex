@@ -3,15 +3,17 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/services/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { UserAvatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabPanel, Tabs, type TabItem } from "@/components/ui/tabs";
-import { formatRelative } from "@/utils/format";
+import { formatDate, formatRelative } from "@/utils/format";
 import { requestFailureMessage } from "./copy";
 import { useAccountActions, useSenderAccounts } from "./hooks";
 import { useAccountDetails } from "./management";
 import { ConnectionsTab } from "./tabs/ConnectionsTab";
+import { AiConfigTab } from "./tabs/AiConfigTab";
 import { SenderLimitsTab } from "./tabs/SenderLimitsTab";
 import { AccountTab, HealthTab, PrivacyTab } from "./tabs/SettingsTabs";
 
@@ -20,6 +22,7 @@ const TABS: TabItem[] = [
   { id: "privacy", label: "Inbox privacy" },
   { id: "health", label: "Health" },
   { id: "connections", label: "Manage connections" },
+  { id: "ai", label: "AI configuration" },
   { id: "account", label: "Account" },
 ];
 
@@ -88,6 +91,14 @@ export function AccountDetailPage() {
           </>
         }
       />
+      <div className="flex items-center gap-3">
+        <UserAvatar name={account.name} src={account.avatarUrl} className="size-14" />
+        <p className="min-w-0 text-sm text-muted-foreground">
+          {account.profileUrl && <a className="underline-offset-2 hover:underline" href={account.profileUrl} target="_blank" rel="noreferrer noopener">View LinkedIn profile</a>}
+          {account.profileUrl && " · "}
+          {account.connectedAt ? `Connected since ${formatDate(account.connectedAt, "PP")}` : "Not connected yet"}
+        </p>
+      </div>
       <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
         <div><dt className="text-muted-foreground">Active campaigns</dt><dd className="font-medium">{data.activeCampaigns}</dd></div>
         <div><dt className="text-muted-foreground">Last check</dt><dd className="font-medium">{account.lastCheckedAt ? formatRelative(account.lastCheckedAt) : "Never"}</dd></div>
@@ -97,8 +108,9 @@ export function AccountDetailPage() {
         <Tabs label="Account sections" tabs={TABS} value={tab} idPrefix="acct" onChange={(next) => setParams({ tab: next }, { replace: true })} />
         <TabPanel id="limits" active={tab === "limits"} idPrefix="acct"><SenderLimitsTab accountId={account.id} details={data} /></TabPanel>
         <TabPanel id="privacy" active={tab === "privacy"} idPrefix="acct"><PrivacyTab account={account} details={data} /></TabPanel>
-        <TabPanel id="health" active={tab === "health"} idPrefix="acct"><HealthTab accountId={account.id} details={data} /></TabPanel>
+        <TabPanel id="health" active={tab === "health"} idPrefix="acct"><HealthTab account={account} details={data} /></TabPanel>
         <TabPanel id="connections" active={tab === "connections"} idPrefix="acct"><ConnectionsTab accountId={account.id} disabled={account.status === "disconnected" || data.lifecycle === "deactivated"} /></TabPanel>
+        <TabPanel id="ai" active={tab === "ai"} idPrefix="acct"><AiConfigTab accountId={account.id} details={data} /></TabPanel>
         <TabPanel id="account" active={tab === "account"} idPrefix="acct"><AccountTab account={account} details={data} /></TabPanel>
       </div>
     </div>

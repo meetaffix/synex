@@ -34,6 +34,7 @@ const usageRowSchema = z.object({
 
 export const detailsSchema = z.object({
   accountId: z.string(),
+  voiceId: z.string().nullable().default(null),
   lifecycle: z.string(),
   activeCampaigns: z.number(),
   canChangePrivacy: z.boolean(),

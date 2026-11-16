@@ -42,7 +42,7 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
-  management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean }>;
+  management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean; voiceId?: string | null }>;
   policyStatus: number;
   calls: Call[];
 }
@@ -308,6 +308,17 @@ export async function mockApi(page: Page, api: Api) {
         const offset = Number(query.get("offset") ?? 0);
         return json(200, { items: rows.slice(offset, offset + Number(query.get("limit") ?? 50)), total: rows.length, sync, note });
       }
+      if (path === "/linkedin-accounts/voices/catalogue")
+        return json(200, { voices: [{ id: "kristin", label: "Kristin", gender: "Female", accent: "English (US)", model: "en_US-kristin-medium", licence: "Public domain" }, { id: "cori", label: "Cori", gender: "Female", accent: "English (UK)", model: "en_GB-cori-medium", licence: "CC BY 4.0" }],
+          engine: { name: "Piper", available: false, reason: "The local voice engine (Piper) is not installed, so samples cannot be played yet." },
+          clone: { available: false, reason: "Cloning needs an open voice-cloning model with a commercial licence." },
+          accents: [{ label: "English (US)", available: true }, { label: "English (India)", available: false, reason: "No Indian English voice with a commercial licence exists in Piper." }] });
+      const voice = path.match(/^\/linkedin-accounts\/([^/]+)\/voice$/);
+      if (voice && method === "PUT") {
+        const st = (api.management[voice[1]] ??= { policy: emptyPolicy(), lifecycle: "active", canChangePrivacy: true });
+        st.voiceId = (body as { voiceId: string | null }).voiceId;
+        return json(200, { voiceId: st.voiceId });
+      }
       const manage = path.match(/^\/linkedin-accounts\/([^/]+)\/(details|policy|deactivate|delete)$/);
       if (manage && api.accounts.some((a) => a.id === manage[1])) {
         const state = (api.management[manage[1]] ??= { policy: emptyPolicy(), lifecycle: "active", canChangePrivacy: true });
@@ -317,7 +328,7 @@ export async function mockApi(page: Page, api: Api) {
             const limit = actions[action]?.dailyLimit ?? ceiling;
             return { action, label, used: 3, low: Math.max(0, limit - 1), high: Math.min(ceiling, limit + 1), budget: limit, ceiling };
           });
-          return json(200, { accountId: manage[1], lifecycle: state.lifecycle, activeCampaigns: 1, canChangePrivacy: state.canChangePrivacy, policy: state.policy, usage,
+          return json(200, { accountId: manage[1], voiceId: state.voiceId ?? null, lifecycle: state.lifecycle, activeCampaigns: 1, canChangePrivacy: state.canChangePrivacy, policy: state.policy, usage,
             ssi: null, ssiReason: "No verified LinkedIn SSI data has been collected.", activity: [] });
         }
         if (manage[2] === "policy" && method === "PUT") {

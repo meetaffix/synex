@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { requestFailureMessage } from "../copy";
 import { useAccountActions } from "../hooks";
 import { useManagementActions, type AccountDetails, type SenderPolicy } from "../management";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatRelative } from "@/utils/format";
 import type { SenderAccount, SyncMode } from "../schemas";
 import { SyncModeFields } from "../SyncModeFields";
 
@@ -65,7 +67,8 @@ export function PrivacyTab({ account, details }: { account: SenderAccount; detai
   );
 }
 
-export function HealthTab({ accountId, details }: { accountId: string; details: AccountDetails }) {
+export function HealthTab({ account, details }: { account: SenderAccount; details: AccountDetails }) {
+  const accountId = account.id;
   const id = useId();
   const { savePolicy } = useManagementActions(accountId);
   const [days, setDays] = useState(details.policy.staleInviteDays);
@@ -74,6 +77,14 @@ export function HealthTab({ accountId, details }: { accountId: string; details: 
     savePolicy.mutate({ ...details.policy, ...change }, { onSuccess: () => toast.success("Health settings saved."), onError: (error) => toast.error(requestFailureMessage(error)) });
   return (
     <div className="grid max-w-2xl gap-8">
+      <section aria-labelledby={`${id}-summary`} className="grid gap-3">
+        <h2 id={`${id}-summary`} className="text-base font-semibold">Health summary</h2>
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge kind="account" status={account.status} /></dd></div>
+          <div><dt className="text-muted-foreground">Last check</dt><dd className="font-medium">{account.lastCheckedAt ? formatRelative(account.lastCheckedAt) : "Never"}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-muted-foreground">Paused or restricted because</dt><dd className="font-medium">{account.pausedReason ?? "Nothing. No warning or restriction has been recorded."}</dd></div>
+        </dl>
+      </section>
       <section className="grid gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="grid gap-1">
@@ -94,6 +105,22 @@ export function HealthTab({ accountId, details }: { accountId: string; details: 
         <p role="note" className="rounded-lg border border-border bg-surface-muted p-3 text-xs text-muted-foreground">
           The setting is saved, but withdrawing is not active yet: Synex does not withdraw any invitation until that part is built and verified. Nothing is withdrawn today.
         </p>
+      </section>
+      <section aria-labelledby={`${id}-activity`} className="grid gap-2">
+        <h2 id={`${id}-activity`} className="text-base font-semibold">Recent activity</h2>
+        {details.activity.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No activity has been recorded for this account yet.</p>
+        ) : (
+          <ul className="grid gap-1 text-sm">
+            {details.activity.slice(0, 20).map((item) => (
+              <li key={item.id} className="flex flex-wrap gap-x-2">
+                <span className="font-medium">{item.step.replaceAll("_", " ")}</span>
+                <span className="text-muted-foreground">{item.status}{item.message ? `: ${item.message}` : ""}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{formatRelative(item.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       <section className="grid gap-2">
         <h2 className="text-base font-semibold">LinkedIn social selling score</h2>

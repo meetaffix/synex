@@ -136,6 +136,7 @@ export const states: State[] = [
   { name: "account-privacy-locked", path: "/linkedin-accounts/a1?tab=privacy", api: () => newApi({ accounts: [account("a1", "Ada Lovelace", { canChangeSyncMode: false })], management: { a1: { policy: { preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 }, lifecycle: "active", canChangePrivacy: false } } }) },
   { name: "account-health", path: "/linkedin-accounts/a1?tab=health", api: accounts_ },
   { name: "account-connections", path: "/linkedin-accounts/a1?tab=connections", api: accounts_ },
+  { name: "account-ai", path: "/linkedin-accounts/a1?tab=ai", api: accounts_ },
   { name: "account-lifecycle", path: "/linkedin-accounts/a1?tab=account", api: accounts_ },
   { name: "connect-form", path: "/linkedin-accounts", api: () => newApi(), prepare: openConnect },
   {

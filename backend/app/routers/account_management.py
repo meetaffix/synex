@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import account_policy, connections_runner, engine, models
+from .. import account_policy, connections_runner, engine, models, voices
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
@@ -78,7 +78,7 @@ def details(account_id: str, db: Session = Depends(get_db), workspace: models.Us
     return {"accountId": account.id, "lifecycle": account.status, "activeCampaigns": active,
             "canChangePrivacy": service.store.can_change_sync_mode(account, actor.id),
             "policy": policy.model_dump(by_alias=True), "usage": account_policy.usage_rows(db, account, now),
-            "ssi": None, "ssiReason": "No verified LinkedIn SSI data has been collected.",
+            "voiceId": config.get("voiceId"), "ssi": None, "ssiReason": "No verified LinkedIn SSI data has been collected.",
             "activity": [{"id": a.id, "step": a.step, "status": a.status, "message": a.message,
                           "createdAt": a.created_at.isoformat()} for a in activities]}
 
@@ -99,6 +99,27 @@ def save_policy(account_id: str, body: account_policy.SenderPolicy, db: Session 
     account.management_config = config
     db.commit()
     return proposed
+
+
+@router.get("/voices/catalogue")
+def voice_catalogue(workspace: models.User = Depends(get_data_user)):
+    return voices.catalogue()
+
+
+class VoiceIn(BaseModel):
+    voice_id: str | None = Field(None, alias="voiceId")
+
+
+@router.put("/{account_id}/voice")
+def assign_voice(account_id: str, body: VoiceIn, db: Session = Depends(get_db), workspace: models.User = Depends(get_admin_user)):
+    account = service.owned_account(db, workspace.id, account_id)
+    if body.voice_id is not None and body.voice_id not in voices.VOICE_IDS:
+        raise HTTPException(422, "That voice is not available.")
+    config = dict(account.management_config or {})
+    config["voiceId"] = body.voice_id
+    account.management_config = config
+    db.commit()
+    return {"voiceId": body.voice_id}
 
 
 @router.post("/{account_id}/deactivate", status_code=204)
