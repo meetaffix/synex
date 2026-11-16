@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +26,16 @@ import { toast } from "@/components/ui/sonner";
 import type { Lead, LeadStatus } from "@/types";
 
 const TIME_ZONES = Intl.supportedValuesOf("timeZone");
+/** Names Synex already fills in; a custom variable may not reuse them. */
+const RESERVED = ["first_name", "last_name", "name", "full_name", "company", "job_title", "designation", "location", "headline", "industry"];
+const variableProblem = (name: string, names: string[]) =>
+  !/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(name)
+    ? "Use letters, digits and underscores, starting with a letter."
+    : RESERVED.includes(name.toLowerCase()) || /^(linkedin|sender)_/i.test(name)
+      ? "Synex already fills this one in. Choose another name."
+      : names.filter((n) => n === name).length > 1
+        ? "Each variable needs its own name."
+        : null;
 
 const schema = z.object({
   firstName: z.string().min(1, "Required"),
@@ -69,6 +79,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const { create, update } = useLeadMutations();
   const { data: lists } = useLeadLists();
   const isEdit = !!lead;
+  const [vars, setVars] = useState<{ name: string; value: string }[]>([]);
 
   const {
     register,
@@ -97,10 +108,14 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         listId: lead?.listIds?.[0] ?? "none",
         notes: lead?.notes ?? "",
       });
+      setVars(Object.entries(lead?.variables ?? {}).map(([name, value]) => ({ name, value })));
     }
   }, [open, lead, reset]);
 
+  const names = vars.map((v) => v.name);
+  const problems = vars.map((v) => variableProblem(v.name, names));
   const onSubmit = async (values: FormValues) => {
+    if (problems.some(Boolean)) return;
     const payload: Partial<Lead> = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -112,6 +127,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       timezone: values.timezone || null,
       status: values.status as LeadStatus,
       notes: values.notes || null,
+      variables: Object.fromEntries(vars.filter((v) => v.name).map((v) => [v.name, v.value])),
       listIds:
         values.listId && values.listId !== "none" ? [values.listId] : [],
     };
@@ -264,6 +280,26 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
               </Select>
             </div>
           </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Campaign variables</legend>
+            <p className="text-xs text-muted-foreground">
+              Extra facts for this person, such as an event you both attended. Use one in a message as {"{{name}}"}, for example {"{{eventName}}"}.
+            </p>
+            {vars.map((v, index) => (
+              <div key={index} className="grid gap-1">
+                <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+                  <Input aria-label={`Variable ${index + 1} name`} placeholder="eventName" value={v.name} aria-invalid={!!problems[index]}
+                    onChange={(e) => setVars(vars.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} />
+                  <Input aria-label={`Variable ${index + 1} value`} placeholder="SaaStr 2026" value={v.value}
+                    onChange={(e) => setVars(vars.map((x, i) => (i === index ? { ...x, value: e.target.value } : x)))} />
+                  <Button type="button" variant="ghost" size="sm" aria-label={`Remove variable ${index + 1}`} onClick={() => setVars(vars.filter((_, i) => i !== index))}>Remove</Button>
+                </div>
+                {problems[index] && <p className="text-xs text-danger">{problems[index]}</p>}
+              </div>
+            ))}
+            {vars.length < 20 && <Button type="button" variant="outline" size="sm" onClick={() => setVars([...vars, { name: "", value: "" }])}>New variable</Button>}
+          </fieldset>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>

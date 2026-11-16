@@ -52,3 +52,17 @@ test("a pasted-links source needs no sender and says nothing is read from Linked
   await expect(page.getByLabel("Sender account (reads LinkedIn)")).toHaveCount(0);
   await expect(page.getByTestId("estimate")).toHaveCount(0);
 });
+
+test("the estimate says how many page reads the chosen account has left today", async ({ page }) => {
+  await open(page);
+  await source(page, /LinkedIn event attendees/).click();
+  await expect(page.getByTestId("estimate")).toContainText("This account can read 12 more pages today.");
+});
+
+test("a CSV source offers a sample file and refuses a file over 5 MB with the fix", async ({ page }) => {
+  await open(page);
+  await source(page, /CSV or Google Sheets/).click();
+  await expect(page.getByRole("link", { name: "Download a sample CSV" })).toHaveAttribute("download", "synex-sample-leads.csv");
+  await page.getByLabel("CSV file").setInputFiles({ name: "big.csv", mimeType: "text/csv", buffer: Buffer.alloc(5_100_000, "a") });
+  await expect(page.getByRole("alert")).toHaveText("That file is larger than 5 MB. Split it into smaller files.");
+});

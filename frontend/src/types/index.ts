@@ -57,6 +57,8 @@ export interface Lead {
   connectedAt?: string | null;
   mutualConnections?: number | null;
   tags: string[];
+  /** Custom campaign variables for this person, used as {{name}} in messages. */
+  variables?: Record<string, string>;
   source?: string | null;
   status: LeadStatus;
   notes?: string | null;

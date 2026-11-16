@@ -42,6 +42,7 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
+  companyLists: { id: string; name: string; count: number; createdAt: string }[];
   dnc: Record<string, { id: string; kind: string; name: string; profileUrl: string | null; source: string; addedAt: string }[]>;
   management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean; voiceId?: string | null }>;
   policyStatus: number;
@@ -206,6 +207,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    companyLists: [],
     dnc: { person: [], company: [] },
     policyStatus: 200,
     calls: [],
@@ -258,6 +260,7 @@ export async function mockApi(page: Page, api: Api) {
       if (path === "/campaigns") return json(200, api.campaigns);
       if (path === "/conversations") return json(200, url.searchParams.has("conversationId") ? api.messages : api.conversations);
       if (path === "/leads" && method === "GET") return json(200, api.leads);
+      if (path === "/leads" && method === "POST") return json(200, { id: "new1", tags: [], listIds: [], status: "new", createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
       if (path === "/lead-lists" && method === "GET") return json(200, api.lists);
       if (path === "/dashboard/summary" && api.feeds.summary) return json(200, api.feeds.summary);
       if (path === "/dashboard/timeseries" && api.feeds.series) return json(200, api.feeds.series);
@@ -287,7 +290,7 @@ export async function mockApi(page: Page, api: Api) {
             performance: i === 0 ? { invited: 20, accepted: 8, replied: 2, acceptedPercent: 40, replyPercent: 25 } : { invited: 0, accepted: 0, replied: 0, acceptedPercent: null, replyPercent: null } }])) });
       if (path === "/lead-collections/sources") return json(200, [{ id: "urls", label: "Paste profile links", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "csv", label: "CSV or Google Sheets", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "lists", label: "From my existing lists", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "search", label: "LinkedIn basic search", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "post", label: "LinkedIn post reactions or comments", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "event", label: "LinkedIn event attendees", readsLinkedin: true, available: true, note: "The sender account must be marked as attending the event.", maxLeads: 500, produces: "people" }, { id: "sales_navigator", label: "Sales Navigator leads", readsLinkedin: true, available: true, note: "Needs a Sales Navigator subscription on the sender account.", maxLeads: 500, produces: "people" }, { id: "companies", label: "LinkedIn companies", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "companies" }, { id: "group", label: "LinkedIn group members", readsLinkedin: true, available: false, note: "Coming soon: LinkedIn only shows a group's member list to its members.", maxLeads: 500, produces: "people" }]);
       if (path === "/lead-collections/estimate")
-        return json(200, { people: Math.min(Number(url.searchParams.get("limit")), 375), pages: 15, minutes: 5, reads_linkedin: true, maxPagesPerRun: 15 });
+        return json(200, { people: Math.min(Number(url.searchParams.get("limit")), 375), pages: 15, minutes: 5, reads_linkedin: true, maxPagesPerRun: 15, pagesLeftToday: url.searchParams.has("accountId") ? 12 : null });
       const coll = path.match(/^\/lead-collections(?:\/(c1)(\/preview|\/run|\/stop)?)?$/);
       if (coll) {
         const base = { id: "c1", label: "Source", listName: "List", limit: 50, options: {}, fetched: 0, created: 0, skipped: {}, detail: null, listId: null, accountId: "a1",
@@ -307,6 +310,20 @@ export async function mockApi(page: Page, api: Api) {
           return json(200, { ...base, status: "completed", created: 1, listName: "Event list", preview: previewData });
         }
         return json(200, { ...base, status: api.syncStatus === "previewing" ? "preview_ready" : api.syncStatus, preview: api.syncStatus === "previewing" ? previewData : null });
+      }
+      const company = path.match(/^\/company-lists(?:\/([^/]+)(\/do-not-contact)?)?$/);
+      if (company) {
+        const id = company[1];
+        if (!id) return json(200, api.companyLists);
+        if (method === "DELETE") {
+          api.companyLists = api.companyLists.filter((l) => l.id !== id);
+          return empty();
+        }
+        if (company[2]) return json(200, { added: 2, alreadyListed: 0, invalid: 0 });
+        const found = api.companyLists.find((l) => l.id === id);
+        return json(200, { id, name: found?.name ?? "", total: 2, items: [
+          { id: "e1", name: "Acme Inc", url: "https://www.linkedin.com/company/acme-inc/", industry: "Software Development", location: "London" },
+          { id: "e2", name: "Globex", url: "https://www.linkedin.com/company/12345/", industry: "Manufacturing", location: "Boston" }] });
       }
       const dncPath = path.match(/^\/do-not-contact(\/export|\/import|\/([^/]+))?$/);
       if (dncPath) {

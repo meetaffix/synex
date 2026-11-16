@@ -113,8 +113,8 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const connected = (accounts.data ?? []).filter((a) => a.status === "connected");
   const estimate = useQuery({
-    queryKey: ["lead-estimate", source?.id, limit],
-    queryFn: () => api.get<{ people: number; pages: number; minutes: number; reads_linkedin: boolean; maxPagesPerRun: number }>(`/lead-collections/estimate?source=${source?.id}&limit=${limit}`),
+    queryKey: ["lead-estimate", source?.id, limit, accountId],
+    queryFn: () => api.get<{ people: number; pages: number; minutes: number; reads_linkedin: boolean; maxPagesPerRun: number; pagesLeftToday: number | null }>(`/lead-collections/estimate?source=${source?.id}&limit=${limit}${accountId ? `&accountId=${accountId}` : ""}`),
     enabled: open && !!source?.readsLinkedin,
   });
   const companies = source?.produces === "companies";
@@ -278,9 +278,20 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 aria-label="CSV file"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
-                  if (file && file.size < 5_000_000) setText(await file.text());
+                  if (!file) return;
+                  if (file.size >= 5_000_000) setError("That file is larger than 5 MB. Split it into smaller files.");
+                  else {
+                    setError(undefined);
+                    setText(await file.text());
+                  }
                 }}
               />
+            )}
+            {source.id === "csv" && (
+              <a className="w-fit text-sm underline underline-offset-2" download="synex-sample-leads.csv"
+                href={`data:text/csv;charset=utf-8,${encodeURIComponent("linkedin_url,first_name,last_name,company,headline,location,email\nhttps://www.linkedin.com/in/example,Ada,Lovelace,Analytical Engines,Engineer,London,ada@example.com\n")}`}>
+                Download a sample CSV
+              </a>
             )}
             {source.id === "post" && (
               <fieldset className="grid gap-2 text-sm">
@@ -342,7 +353,7 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             {source.readsLinkedin && (
               <p className="text-sm text-muted-foreground" data-testid="estimate">
                 {estimate.data
-                  ? `Estimate: up to ${estimate.data.people} ${companies ? "companies" : "people"}, about ${estimate.data.pages} page loads, around ${estimate.data.minutes} minutes. One run reads at most ${estimate.data.maxPagesPerRun} pages; run it again for more. `
+                  ? `Estimate: up to ${estimate.data.people} ${companies ? "companies" : "people"}, about ${estimate.data.pages} page loads, around ${estimate.data.minutes} minutes. One run reads at most ${estimate.data.maxPagesPerRun} pages; run it again for more. ${estimate.data.pagesLeftToday === null ? "" : estimate.data.pagesLeftToday === 0 ? "This account has no page reads left today, so the run waits until tomorrow. " : `This account can read ${estimate.data.pagesLeftToday} more pages today. `}`
                   : "Estimating. "}
                 Paced with random pauses and counted against this account&apos;s daily reading limit.
               </p>

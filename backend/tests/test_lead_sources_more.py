@@ -190,6 +190,10 @@ class SourceApiTest(unittest.TestCase):
         local = self.client.get("/lead-collections/estimate", params={"source": "urls", "limit": 40}).json()
         self.assertEqual((local["reads_linkedin"], local["pages"], local["minutes"]), (False, 0, 0))
         self.assertEqual(self.client.get("/lead-collections/estimate", params={"source": "nope"}).status_code, 422)
+        self.assertIsNone(data["pagesLeftToday"])
+        with_account = self.client.get("/lead-collections/estimate", params={"source": "event", "limit": 50, "accountId": self.account_id}).json()
+        self.assertGreater(with_account["pagesLeftToday"], 0)  # reading is allowed even at an outreach limit of 0
+        self.assertLessEqual(with_account["pagesLeftToday"], 20)  # never above the collect_leads ceiling
 
     def test_company_lists_can_be_read_added_to_do_not_contact_and_deleted(self):
         with SessionLocal() as db:

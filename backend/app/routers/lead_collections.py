@@ -3,7 +3,7 @@ worker (``collect_leads`` tasks, counted against their own daily ceiling); the o
 import urllib.request
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from sqlalchemy.orm import Session
@@ -56,12 +56,18 @@ def sources(user: models.User = Depends(get_data_user)):
 
 
 @router.get("/estimate")
-def estimate(source: str, limit: int = 50, user: models.User = Depends(get_data_user)):
+def estimate(source: str, limit: int = 50, account_id: str | None = Query(None, alias="accountId"), db: Session = Depends(get_db),
+             user: models.User = Depends(get_data_user)):
     """What a run would cost before anything is created: people, page loads, minutes, and whether it reads LinkedIn."""
     if source not in ls.SOURCES:
         raise HTTPException(422, "Unknown source.")
+    left = None
+    account = db.get(models.LinkedInAccount, account_id) if account_id else None
+    if account is not None and account.user_id == user.id and ls.SOURCES[source]["linkedin"]:
+        from ..account_policy import action_room
+        left = max(0, action_room(db, account, "collect_leads", datetime.now(timezone.utc)))  # pages this account may still read today
     return {**ls.estimate(source, max(1, min(limit, ls.MAX_LEADS.get(source, limit)))), "maxPagesPerRun": ls.MAX_PAGES_PER_RUN,
-            "secondsBetweenPages": list(ls.SECONDS_PER_PAGE)}
+            "secondsBetweenPages": list(ls.SECONDS_PER_PAGE), "pagesLeftToday": left}
 
 
 @router.get("")
