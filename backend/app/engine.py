@@ -269,7 +269,7 @@ def pick_account(accounts: list[models.LinkedInAccount], now: datetime) -> model
 def within_hours(campaign: models.Campaign, now: datetime, lead: models.Lead | None = None) -> bool:
     """Is now inside the working days/hours, in the lead's timezone when it has one?"""
     local = _local(now, lead_tz(campaign, lead))
-    if campaign.week_schedule:
+    if getattr(campaign, "week_schedule", None):
         window = campaign_settings.day_window(campaign, local)
         return window is not None and window[0] <= local.hour * 60 + local.minute < window[1]
     days = campaign.working_days or []
@@ -291,7 +291,7 @@ def pacing_base(campaign: models.Campaign, now: datetime, lead: models.Lead | No
         return None
     local = _local(now, lead_tz(campaign, lead))
     end_hour = campaign.end_hour if campaign.end_hour is not None else 18
-    if campaign.week_schedule:
+    if getattr(campaign, "week_schedule", None):
         window = campaign_settings.day_window(campaign, local)
         if window is not None:
             end_hour = -(-window[1] // 60)  # round the day's end up to a whole hour
@@ -386,7 +386,7 @@ def type_room(db: Session, campaign: models.Campaign, account: models.LinkedInAc
     limit = campaign_type_limit(campaign, ttype)
     if limit is not None:
         rooms.append(limit - _count_today(db, account, ttype, now, campaign) - planned_today)
-    reserved = ((campaign.allocation or {}).get(account.id) or {}).get(ttype)
+    reserved = ((getattr(campaign, "allocation", None) or {}).get(account.id) or {}).get(ttype)
     if reserved is not None:  # this campaign's own daily slice of the sender's day
         rooms.append(min(reserved, DAILY_TYPE_CEILINGS.get(ttype, reserved)) - _count_today(db, account, ttype, now, campaign) - planned_today)
     return min(rooms) if rooms else None

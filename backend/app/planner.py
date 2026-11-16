@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from . import engine, models
+from . import campaign_settings, dnc, engine, models
 
 MAX_ACTIONS = 50
 PAUSE_LABELS = {"send_invite": "connection request", "send_message": "message"}
@@ -160,6 +160,13 @@ def plan_campaign(db: Session, campaign: models.Campaign, now: datetime, limit: 
             continue
         if not (lead.linkedin_url or "").strip():
             planned.append(skipped("Lead has no LinkedIn URL."))
+            continue
+        if dnc.blocked(db, campaign.user_id, lead):
+            planned.append(skipped("On the do-not-contact list."))
+            continue
+        left_out = campaign_settings.exclusion_reason(db, campaign, lead)
+        if left_out:
+            planned.append(skipped("Left out by this campaign's settings: " + campaign_settings.EXCLUSION_TEXT.get(left_out, left_out) + "."))
             continue
         first = _first_action(campaign, steps, lead)
         if first is None:

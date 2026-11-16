@@ -41,43 +41,70 @@ def _owned(db: Session, user: models.User, campaign_id: str) -> models.Campaign:
     return c
 
 
-def _validate_launch(db: Session, campaign: models.Campaign) -> None:
-    """Refuse to launch into a state where nothing can execute. Every missing item is
-    reported at once, each with its own error type, as a 422."""
+def launch_problems(db: Session, campaign: models.Campaign) -> list[dict]:
+    """Everything that stops a launch, each with its own kind, a message that says how to fix it, and the wizard step to go to."""
+    from .. import ai_prompt
     problems: list[dict] = []
 
-    def missing(kind: str, field: str, message: str) -> None:
-        problems.append({"loc": ["body", field], "msg": message, "type": f"launch.{kind}"})
+    def missing(kind: str, field: str, message: str, step: str) -> None:
+        problems.append({"kind": kind, "field": field, "message": message, "step": step})
 
     now = datetime.now(timezone.utc)
     if not any(engine.account_is_live(a, now) for a in engine.campaign_accounts(db, campaign)):
         missing("no_connected_account", "accountId",
-                "Select a connected sender account for this campaign. Connect one under Sender accounts if you have none.")
+                "Select a connected sender account for this campaign. Connect one under Sender accounts if you have none.", "senders")
     if not (campaign.lead_list_id and campaign.lead_list and campaign.lead_list.leads):
-        missing("empty_lead_list", "leadListId", "Add at least one lead to the campaign's list before launching.")
+        missing("empty_lead_list", "leadListId", "Add at least one lead to the campaign's list before launching.", "leads")
     if not campaign.steps:
-        missing("no_steps", "steps", "Add at least one step to the sequence before launching.")
+        missing("no_steps", "steps", "Add at least one step to the sequence before launching.", "sequence")
     else:
         actionable = [s for s in campaign.steps if s.type not in ("wait", "end")]
         if not actionable:
-            missing("no_actionable_step", "steps", "The sequence has no action. Add a connection request or a message.")
-        if any(s.type in ("message", "follow_up") and not (s.message or "").strip() for s in actionable):
-            missing("empty_message", "steps", "One or more message steps are empty. Write the message copy before launching.")
+            missing("no_actionable_step", "steps", "The sequence has no action. Add a connection request or a message.", "sequence")
+        writes = [s for s in actionable if s.type in ("message", "follow_up")]
+        if any(not (s.message or "").strip() and not (s.ai_config or {}).get("mode") == "ai" for s in writes):
+            missing("empty_message", "steps", "One or more message steps are empty. Write the message copy before launching.", "sequence")
+        ai_steps = [s for s in actionable if (s.ai_config or {}).get("mode") == "ai"]
+        if ai_steps and campaign.lead_list:
+            lead_ids = [l.id for l in campaign.lead_list.leads if (l.linkedin_url or "").strip()]
+            drafts_by = {}
+            for d in db.query(models.LeadDraft).filter_by(campaign_id=campaign.id).all():
+                drafts_by[(d.step_id, d.lead_id)] = d.status
+            absent = sum(1 for s in ai_steps for lid in lead_ids if (s.id, lid) not in drafts_by)
+            waiting = sum(1 for s in ai_steps for lid in lead_ids if drafts_by.get((s.id, lid)) == "proposed")
+            if absent:
+                missing("ai_drafts_missing", "steps", f"{absent} AI message{'s' if absent != 1 else ''} not written yet. Generate them in the Review step, or switch the step to a plain message.", "review")
+            if waiting:
+                missing("ai_drafts_unreviewed", "steps", f"{waiting} AI message{'s are' if waiting != 1 else ' is'} waiting for your review. Approve them in the Review step before launching.", "review")
     days, start, end = campaign.working_days or [], campaign.start_hour, campaign.end_hour
     if campaign.week_schedule:
         hours_ok = engine._zone(campaign.timezone) is not None and any(e.get("on") for e in campaign.week_schedule.values())
     else:
-        hours_ok = None
-    hours_ok = hours_ok if hours_ok is not None else (
-        bool(days) and all(isinstance(d, int) and 0 <= d <= 6 for d in days)
-        and isinstance(start, int) and isinstance(end, int) and 0 <= start < end <= 24
-        and engine._zone(campaign.timezone) is not None
-    )
+        hours_ok = (
+            bool(days) and all(isinstance(d, int) and 0 <= d <= 6 for d in days)
+            and isinstance(start, int) and isinstance(end, int) and 0 <= start < end <= 24
+            and engine._zone(campaign.timezone) is not None
+        )
     if not hours_ok:
         missing("invalid_working_hours", "startHour",
-                "Set valid working hours: at least one working day, a start hour before the end hour, and a known timezone.")
+                "Set valid working hours: at least one working day, a start hour before the end hour, and a known timezone.", "review")
+    return problems
+
+
+def _validate_launch(db: Session, campaign: models.Campaign) -> None:
+    """Refuse to launch into a state where nothing can execute. Every missing item is
+    reported at once, each with its own error type, as a 422."""
+    problems = [{"loc": ["body", p["field"]], "msg": p["message"], "type": f"launch.{p['kind']}"} for p in launch_problems(db, campaign)]
     if problems:
         raise HTTPException(status_code=422, detail=problems)
+
+
+@router.get("/{campaign_id}/launch-check")
+def launch_check(campaign_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """What would stop this campaign launching right now, so the builder can show it before the owner tries."""
+    campaign = _owned(db, user, campaign_id)
+    problems = launch_problems(db, campaign)
+    return {"ready": not problems, "problems": problems}
 
 
 def _apply_steps(campaign: models.Campaign, steps) -> None:
