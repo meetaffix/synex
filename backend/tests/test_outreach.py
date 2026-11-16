@@ -1339,6 +1339,13 @@ class ZeroAndCeilingTest(OutreachCase):
             db.commit()
             return convo.id
 
+    def test_a_connected_account_reads_its_inbox_even_at_limit_zero_and_synex_only(self):
+        account_id = self.make_account(daily_limit=0, sync_mode="synex_only")
+        with SessionLocal() as db:
+            self.assertEqual(engine.emit_inbox_syncs(db, datetime.now(timezone.utc)), 1)
+            db.commit()
+        self.assertEqual([t.account_id for t in self.tasks("sync_inbox")], [account_id])
+
     def test_an_account_limit_of_zero_sends_nothing(self):
         account_id = self.make_account(daily_limit=0)
         self.make_campaign(["a1", "a2"], INVITE_ONLY, [account_id])

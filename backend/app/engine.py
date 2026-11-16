@@ -580,18 +580,9 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
 # --------------------------------------------------------------------------
 # Inbox sync scheduling
 # --------------------------------------------------------------------------
-def _inbox_sync_wanted(db: Session, account: models.LinkedInAccount) -> bool:
-    if account.sync_mode == "all":
-        return True
-    return db.query(models.AgentTask.id).filter(
-        models.AgentTask.account_id == account.id,
-        models.AgentTask.type.in_(["send_invite", "send_message"]),
-        models.AgentTask.status == "done",
-    ).first() is not None
-
-
 def emit_inbox_syncs(db: Session, now: datetime) -> int:
-    """Queue one inbox read per live account when its interval has elapsed."""
+    """Queue one inbox read per live account when its interval has elapsed (and one right after connecting).
+    sync_mode decides what is STORED (outreach_results.apply_inbox), not whether the inbox is read."""
     interval = timedelta(minutes=settings.outreach_inbox_sync_interval_minutes)
     queued = 0
     for account in db.query(models.LinkedInAccount).filter(models.LinkedInAccount.session_status == "connected").all():
@@ -604,7 +595,7 @@ def emit_inbox_syncs(db: Session, now: datetime) -> int:
             models.AgentTask.account_id == account.id, models.AgentTask.type == "sync_inbox",
             models.AgentTask.status.in_(["pending", "running"]),
         ).first()
-        if open_sync or not _inbox_sync_wanted(db, account):
+        if open_sync:  # reading the inbox is not outreach: it never depends on the outreach daily limit or on sync_mode
             continue
         if emit_task(db, account, "sync_inbox", {}, f"inbox:{account.id}:{now.isoformat()}"):
             queued += 1
