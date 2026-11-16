@@ -469,6 +469,8 @@ def emit_task(
 
 
 def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now) -> None:
+    from .providers import render_sender_variables
+    message = render_sender_variables(message, account)  # the sender is known only now, when an account is picked
     payload = {"leadId": lead.id, "linkedinUrl": lead.linkedin_url or "", "message": message or "",
                "stepId": step.id, "campaignId": campaign.id}
     task = emit_task(db, account, ttype, payload, f"{run.id}:{step.id}", run)

@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from . import campaign_settings, dnc, engine, models
+from .providers import render_sender_variables
 
 MAX_ACTIONS = 50
 PAUSE_LABELS = {"send_invite": "connection request", "send_message": "message"}
@@ -194,6 +195,7 @@ def plan_campaign(db: Session, campaign: models.Campaign, now: datetime, limit: 
             message, prepared = "", False
         else:
             message, prepared = engine.message_for(db, campaign, step, lead)  # exactly what the engine will send
+            message = render_sender_variables(message, plan.account)  # the sender is known now, as in the engine
         planned.append(PlannedAction(lead.id, _name(lead), plan.account.id, plan.account.name, step.id, step.order, step.type,
                                      task_type, message, prepared, at, None))
     return planned

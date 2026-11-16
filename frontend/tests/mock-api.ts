@@ -42,6 +42,11 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
+  builder: Record<string, unknown> | null;
+  launchProblems: { kind: string; field: string; message: string; step: string }[];
+  draftCount: number;
+  draftsMade: boolean;
+  draftsApproved: boolean;
   companyLists: { id: string; name: string; count: number; createdAt: string }[];
   dnc: Record<string, { id: string; kind: string; name: string; profileUrl: string | null; source: string; addedAt: string }[]>;
   management: Record<string, { policy: Record<string, unknown>; lifecycle: string; canChangePrivacy: boolean; voiceId?: string | null }>;
@@ -207,6 +212,11 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    builder: null,
+    launchProblems: [],
+    draftCount: 2,
+    draftsMade: false,
+    draftsApproved: false,
     companyLists: [],
     dnc: { person: [], company: [] },
     policyStatus: 200,
@@ -257,6 +267,43 @@ export async function mockApi(page: Page, api: Api) {
         if (api.hold.proxyTest) await api.hold.proxyTest;
         return json(200, api.proxyTest(body ?? {})).catch(() => undefined);
       }
+      if (path === "/campaigns" && (method === "POST" || url.searchParams.has("id"))) {
+        const make = () => ({
+          id: "cb1", name: "Untitled campaign", status: "draft", accountId: null, accountIds: [], leadListId: null, leadListName: "", dailyConnectionLimit: 20, dailyMessageLimit: 40,
+          schedule: { timezone: "UTC" }, weekSchedule: null, exclusions: { other_campaigns: false, reached_other_campaigns: false, reached_same_sender: false, messaged_other_senders: false, existing_connections: false },
+          allocation: {}, aiContext: {}, launchSummary: null,
+          steps: [
+            { id: "s1", type: "connection_request", order: 0, message: "", delayHours: null, aiConfig: null },
+            { id: "s2", type: "wait", order: 1, message: null, delayHours: 48, aiConfig: null },
+            { id: "s3", type: "message", order: 2, message: "", delayHours: null, aiConfig: null },
+            { id: "s4", type: "end", order: 3, message: null, delayHours: null, aiConfig: null }],
+        });
+        api.builder ??= make();
+        const current = api.builder as Record<string, unknown>;
+        if (method === "GET") return json(200, current);
+        if (body?.action === "create") {
+          api.builder = make();
+          return json(200, api.builder);
+        }
+        if (body?.action === "update") {
+          const { action: _a, id: _i, steps, ...rest } = body as Record<string, unknown> & { steps?: { id?: string; type: string; message: string | null; delayHours: number | null; aiConfig: unknown }[] };
+          if (rest.status === "active" && api.launchProblems.length) return json(422, { detail: api.launchProblems.map((p) => ({ loc: ["body", p.field], msg: p.message, type: `launch.${p.kind}` })) });
+          Object.assign(current, rest);
+          if (steps) current.steps = steps.map((s, i) => ({ ...s, id: s.id ?? `n${i}`, order: i }));
+          return json(200, current);
+        }
+      }
+      const cbSub = path.match(/^\/campaigns\/cb1\/(launch-check|drafts(?:\/(estimate|generate|approve|preview|render))?)$/);
+      if (cbSub) {
+        if (cbSub[1] === "launch-check") return json(200, { ready: api.launchProblems.length === 0, problems: api.launchProblems });
+        if (cbSub[2] === "estimate") return json(200, { count: api.draftCount, available: api.draftCount, existing: 0, cap: 200, capped: false, provider: "template", estimatedSeconds: api.draftCount * 10, estimatedUsd: 0, note: "No AI service is set up, so drafts come from the built-in templates and cost nothing." });
+        if (cbSub[2] === "generate") { api.draftsMade = true; return json(202, { job: { state: "done" } }); }
+        if (cbSub[2] === "approve") { api.draftsApproved = true; api.launchProblems = api.launchProblems.filter((p) => !p.kind.startsWith("ai_drafts")); return json(200, { approved: 1 }); }
+        if (cbSub[2] === "preview") return json(200, { text: "Hi Ada, loved your work at Engines. Open to a chat?", source: "ai", provider: "template", leadName: "Ada Lovelace", estimatedUsd: 0 });
+        if (cbSub[2] === "render") return json(200, { text: String((body as { text?: string })?.text ?? "").replace("{{first_name}}", "Ada").replace("{{missing}}", "{{missing}}"), leadName: "Ada Lovelace", unresolved: String((body as { text?: string })?.text ?? "").includes("{{missing}}") ? ["missing"] : [] });
+        if (!cbSub[2]) return json(200, { counts: { proposed: api.draftsMade && !api.draftsApproved ? 1 : 0, approved: api.draftsApproved ? 1 : 0 }, drafts: api.draftsMade ? [{ id: "d1", leadId: "l1", leadName: "Ada Lovelace", stepId: "s3", stepOrder: 2, stepType: "message", body: "Hi Ada, a prepared note.", status: api.draftsApproved ? "approved" : "proposed", source: "template" }] : [], job: null });
+      }
+      if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
       if (path === "/conversations") return json(200, url.searchParams.has("conversationId") ? api.messages : api.conversations);
       if (path === "/leads" && method === "GET") return json(200, api.leads);

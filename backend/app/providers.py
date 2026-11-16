@@ -53,12 +53,47 @@ def render_variables(text: str | None, lead) -> str:
         "{{location}}": getattr(lead, "location", None) or "",
         "{{headline}}": getattr(lead, "headline", None) or "",
         "{{industry}}": getattr(lead, "industry", None) or "",
+        # The same facts under the names LinkedIn-sourced leads use in other tools.
+        "{{linkedin_firstName}}": lead.first_name or "",
+        "{{linkedin_lastName}}": lead.last_name or "",
+        "{{linkedin_company}}": lead.company or "",
+        "{{linkedin_jobTitle}}": lead.job_title or "",
+        "{{linkedin_headline}}": getattr(lead, "headline", None) or "",
+        "{{linkedin_location}}": getattr(lead, "location", None) or "",
     }
     for token, value in replacements.items():
         text = text.replace(token, value)
     for name, value in (getattr(lead, "variables", None) or {}).items():  # per-lead custom variables, e.g. {{eventName}}
         text = text.replace("{{" + str(name) + "}}", str(value))
     return spin(text, str(getattr(lead, "id", "") or full_name))
+
+
+def sender_values(account) -> dict:
+    """The sending account's own details: first and last name, company and title, as far as its LinkedIn profile gave them."""
+    name = (getattr(account, "name", "") or "").strip()
+    first, _, last = name.partition(" ")
+    headline = (getattr(account, "headline", "") or "").strip()
+    company = headline.split(" at ", 1)[1].strip() if " at " in headline else ""
+    title = headline.split(" at ", 1)[0].strip() if headline else ""
+    return {"sender_firstName": first, "sender_lastName": last, "sender_company": company, "sender_title": title}
+
+
+def render_sender_variables(text: str | None, account) -> str:
+    """Fill {{sender_*}} once the sending account is known (the engine knows it only when it picks one)."""
+    out = text or ""
+    if account is None:
+        return out
+    for key, value in sender_values(account).items():
+        out = out.replace("{{" + key + "}}", value)
+    return out
+
+
+_TOKEN = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+
+
+def unresolved_variables(text: str | None) -> list[str]:
+    """Variables still in the text after filling: the lead has no value for them, so they would be sent as written."""
+    return sorted({m.group(1) for m in _TOKEN.finditer(text or "")})
 
 
 # --------------------------------------------------------------------------

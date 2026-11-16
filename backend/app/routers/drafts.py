@@ -152,3 +152,42 @@ def preview(campaign_id: str, body: PreviewIn, owner: models.User = Depends(get_
     text, source = drafts._make_text(body.step_type, fields, {"config": config, "context": context})
     per = round(drafts.DRAFT_SECONDS_ESTIMATE / 60 * drafts.DEEPGRAM_USD_PER_MINUTE, 4) if providers.provider_name() == "deepgram" else 0.0
     return {"text": text, "source": source, "provider": providers.provider_name(), "leadName": f"{fields['first_name']} {fields['last_name']}".strip(), "estimatedUsd": per}
+
+
+class RenderIn(BaseModel):
+    text: str = Field(max_length=5000)
+    lead_id: str | None = Field(default=None, alias="leadId")
+    account_id: str | None = Field(default=None, alias="accountId")
+    shuffle: int = 0
+    model_config = {"populate_by_name": True}
+
+
+@router.post("/render")
+def render(campaign_id: str, body: RenderIn, owner: models.User = Depends(get_data_user), db: Session = Depends(get_db)):
+    """A plain message as it would be sent to one lead from one sender: variables filled, spintax chosen (shuffle picks another choice).
+    Names any variable the lead has no value for. Calls no AI service."""
+    from .. import providers
+    campaign = _campaign(db, owner, campaign_id)
+    leads = campaign.lead_list.leads if campaign.lead_list else []
+    lead = next((l for l in leads if l.id == body.lead_id), None) if body.lead_id else (leads[0] if leads else None)
+    if lead is None:
+        raise HTTPException(status_code=409, detail="No data available. Add a lead to this campaign's list to preview a message.")
+    account = db.get(models.LinkedInAccount, body.account_id) if body.account_id else None
+    if account is not None and account.user_id != owner.id:
+        account = None
+    text = providers.render_variables(body.text, lead)
+    text = providers.render_sender_variables(text, account)
+    if body.shuffle:
+        text = providers.render_variables(body.text, _Shuffled(lead, body.shuffle))
+        text = providers.render_sender_variables(text, account)
+    return {"text": text, "leadName": f"{lead.first_name} {lead.last_name}".strip(), "unresolved": providers.unresolved_variables(text)}
+
+
+class _Shuffled:
+    """The lead with a different spintax seed, so the preview can show another choice."""
+
+    def __init__(self, lead, shuffle: int):
+        self._lead, self.id = lead, f"{lead.id}:{shuffle}"
+
+    def __getattr__(self, name):
+        return getattr(self._lead, name)
