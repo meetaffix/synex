@@ -352,12 +352,61 @@ def _check(ctx: TaskContext, result: str) -> str | None:
 
 def _withdraw(ctx: TaskContext, result: str) -> str | None:
     """A stale invitation taken back. The person stays a lead; the history says what happened."""
+    if ctx.run is not None:
+        _advance(ctx)  # a Withdraw invite step inside a campaign moves the run on
     if ctx.lead is not None and result in ("withdrawn", "not_pending"):
         engine.record_event(ctx.db, ctx.lead, "invite_withdrawn" if result == "withdrawn" else "invite_not_pending", "Stale invitation", campaign=ctx.lead.campaign, account=ctx.account)
     return "withdrawn" if result == "withdrawn" else None
 
 
-HANDLERS = {"withdraw_invite": _withdraw, "send_invite": _invite, "send_message": _message, "visit_profile": _visit,
+def _like(ctx: TaskContext, result: str) -> str | None:
+    if result in ("liked", "already_liked", "no_posts"):
+        _advance(ctx)  # nothing to like is not a failure: the sequence goes on
+        return "post_liked" if result == "liked" else None
+    _stop(ctx, result)
+    return None
+
+
+def _inmail(ctx: TaskContext, result: str) -> str | None:
+    payload, lead = ctx.task.payload or {}, ctx.lead
+    if result == "sent":
+        if lead is not None:
+            engine.record_outbound(ctx.db, ctx.campaign, lead, ctx.account, ("Subject: " + payload["subject"] + chr(10) if payload.get("subject") else "") + payload.get("message", ""),
+                                   ctx.now, ctx.task.id)
+        _count(ctx.account, ctx.now, "messages_today")
+        _advance(ctx)
+        return "inmail_sent"
+    engine.refund_daily(ctx.account)
+    if result == "already_connected":
+        if lead and lead.status in ("new", "contacted"):
+            lead.status = "connected"
+        _advance(ctx)  # connected now: no InMail is needed, the rest of the sequence goes on
+        return "connected"
+    _stop(ctx, {"no_credits": "no_inmail_credits", "not_free": "not_open_profile"}.get(result, result))
+    return None
+
+
+def _voice(ctx: TaskContext, result: str) -> str | None:
+    lead = ctx.lead
+    if result == "sent":
+        if lead is not None:
+            engine.record_outbound(ctx.db, ctx.campaign, lead, ctx.account, "[Voice note]", ctx.now, ctx.task.id)
+        _count(ctx.account, ctx.now, "messages_today")
+        _advance(ctx)
+        return "voice_note_sent"
+    engine.refund_daily(ctx.account)
+    if result == "not_connected":
+        if lead and lead.status == "connected":
+            lead.status = "contacted"
+        _retry_step(ctx, timedelta(0))
+        if ctx.run is not None:
+            ctx.run.status = "waiting_connection"
+        return None
+    _stop(ctx, result)
+    return None
+
+
+HANDLERS = {"like_post": _like, "send_inmail": _inmail, "send_voice_note": _voice, "withdraw_invite": _withdraw, "send_invite": _invite, "send_message": _message, "visit_profile": _visit,
             "follow_profile": _follow, "check_connection": _check,
             "collect_leads": lambda ctx, result: None, "sync_connections": lambda ctx, result: None}
 

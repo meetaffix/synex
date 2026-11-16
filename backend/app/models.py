@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     JSON,
+    LargeBinary,
     String,
     Index,
     Table,
@@ -530,6 +531,24 @@ class TeamMember(Base):
 
     owner = relationship("User", foreign_keys=[owner_id])
     member = relationship("User", foreign_keys=[member_id])
+
+
+class VoiceAudio(Base):
+    """A voice note's audio, prepared before launch: recorded or uploaded by the owner, or made once from a script by a local text-to-speech engine.
+    Kept in the database so the worker can fetch it on any host. Never made while a campaign is sending."""
+    __tablename__ = "voice_audio"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String, default="upload")  # upload | tts
+    language = Column(String, default="en-US")
+    script = Column(Text, nullable=True)
+    filename = Column(String, default="voice-note.wav")
+    content_type = Column(String, default="audio/wav")
+    size = Column(Integer, default=0)
+    duration_seconds = Column(Float, nullable=True)
+    data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
 
 
 class AgentTask(Base):

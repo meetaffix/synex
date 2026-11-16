@@ -16,6 +16,7 @@ import os
 import random
 import signal
 import threading
+import shutil
 import uuid
 from concurrent.futures import Future
 from dataclasses import dataclass
@@ -236,6 +237,20 @@ class OutreachWorker:
             return await actions.follow_profile(session, task.profile_url)
         if task.type == "withdraw_invite":
             return await actions.withdraw_invite(session, task.profile_url)
+        if task.type == "like_post":
+            return await actions.like_post(session, task.profile_url)
+        if task.type == "send_inmail":
+            payload = task.payload or {}
+            return await actions.send_inmail(session, task.profile_url, str(payload.get("subject") or ""), task.message, bool(payload.get("free")))
+        if task.type == "send_voice_note":
+            from . import voice
+            path = voice.audio_file((task.payload or {}).get("audioId"))
+            if path is None:
+                raise RuntimeError("the prepared voice note is missing")
+            try:
+                return await actions.send_voice_note(session, task.profile_url, str(path))
+            finally:
+                shutil.rmtree(path.parent, ignore_errors=True)
         if task.type == "check_connection":
             return await actions.get_connection_status(session, task.profile_url)
         if task.type == "sync_inbox":

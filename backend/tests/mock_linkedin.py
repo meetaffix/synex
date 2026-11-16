@@ -36,7 +36,9 @@ MOCK_PROFILE_SELECTORS = ProfileSelectors(
     note_toggle="#add-note", note_input="textarea#note", send_invite_button="button#send-invite",
     invite_limit_marker="#invite-limit", note_error="#note-error", composer_input="textarea#composer",
     composer_send="button#composer-send", conversation_item="li.conv", conversation_profile_link="a.conv-link",
-    thread_message=".msg")
+    thread_message=".msg", like_button="button#like", liked_marker="#liked", no_posts_marker="#no-posts",
+    inmail_button="#inmail", inmail_subject="input#subject", inmail_body="textarea#inmail-body", inmail_send="button#inmail-send",
+    inmail_free_marker="#inmail-free", inmail_no_credits_marker="#no-credits", attach_input="input#attach", attach_send="button#attach-send")
 
 _REAL_FIELDS = """<div data-copy="{n}"><label for="{n}a"><div>Email or phone</div></label><div><input type="email" id="{n}a" autocomplete="username" value=""/></div>
 <label for="{n}b"><div>Password</div></label><div><input type="password" id="{n}b" autocomplete="current-password" value=""/><button type="button" aria-label="Show password"><span>eye</span></button></div>
@@ -76,6 +78,10 @@ class MockLinkedIn:
         self.invites: list[tuple[str, str]] = []
         self.follows: list[str] = []
         self.withdrawals: list[str] = []
+        self.likes: list[str] = []
+        self.inmails: list[tuple[str, str, str]] = []
+        self.voice_notes: list[tuple[str, str, int]] = []
+        self.inmail_credits = 5
         self.sent_messages: list[tuple[str, str]] = []
         self._event = 0
         self._lock = threading.Lock()
@@ -100,6 +106,10 @@ class MockLinkedIn:
         self.invites.clear()
         self.follows.clear()
         self.withdrawals.clear()
+        self.likes.clear()
+        self.inmails.clear()
+        self.voice_notes.clear()
+        self.inmail_credits = 5
         self.sent_messages.clear()
 
     # ---- simulation helpers ------------------------------------------------------------
@@ -108,7 +118,7 @@ class MockLinkedIn:
         return f"{self.base_url}/in/{user}/"
 
     def profile(self, user: str) -> dict:
-        return self.profiles.setdefault(user, {"state": "not_connected", "following": False, "available": user != "gone"})
+        return self.profiles.setdefault(user, {"state": "not_connected", "following": False, "available": user != "gone", "posts": 1, "liked": False, "inmail": "none"})
 
     def accept(self, user: str) -> None:
         self.profile(user)["state"] = "connected"
@@ -195,6 +205,8 @@ class MockLinkedIn:
                 connect = {"connected": f'<a id="message" href="/messaging/compose/{user}/">Message</a>',
                            "pending": f'<a id="pending" href="/in/{user}/withdraw/">Pending</a>',  # opens the withdraw confirmation
                            "not_connected": f'<a id="connect" href="/in/{user}/connect/">Connect</a>'}[state]
+                if state == "not_connected" and profile["inmail"] != "none":
+                    connect += f'<a id="inmail" href="/messaging/inmail/{user}/">InMail</a>'
                 follow = ('<span id="following">Following</span>' if profile["following"] else
                           f'<form method="post" action="/in/{user}/follow/"><button id="follow">Follow</button></form>')
                 mock.seen += 1  # a cookie that changes on every visit proves the browser's state was saved back
@@ -243,9 +255,28 @@ class MockLinkedIn:
                                            '<button id="send-invite">Send</button></form>')
                 if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "withdraw":
                     return self._send(body=f'<form method="post" action="/in/{parts[1]}/withdraw/"><button id="confirm-withdraw">Withdraw</button></form>')
+                if parts[:1] == ["in"] and len(parts) == 4 and parts[2:] == ["recent-activity", "all"]:
+                    profile = mock.profile(parts[1])
+                    if profile["posts"] <= 0:
+                        return self._send(body='<div id="no-posts">No recent activity</div>')
+                    if profile["liked"]:
+                        return self._send(body='<button id="liked" aria-pressed="true" aria-label="Like">Liked</button>')
+                    return self._send(body=f'<form method="post" action="/in/{parts[1]}/like/"><button id="like" aria-label="React Like">Like</button></form>')
+                if parts[:2] == ["messaging", "inmail"] and len(parts) == 3:
+                    profile = mock.profile(parts[2])
+                    free = '<div id="inmail-free">Free message</div>' if profile["inmail"] == "free" else ""
+                    if profile["inmail"] == "credit" and mock.inmail_credits <= 0:
+                        return self._send(body='<div id="no-credits">You are out of InMail credits</div>')
+                    return self._send(body=f'{free}<form method="post" action="/messaging/inmail/{parts[2]}/"><input id="subject" name="subject">'
+                                           '<textarea id="inmail-body" name="text"></textarea><button id="inmail-send">Send</button></form>')
                 if parts[:2] == ["messaging", "compose"] and len(parts) == 3:
                     return self._send(body=f'{self._messages_html(parts[2])}<form method="post" action="/messaging/compose/{parts[2]}/">'
-                                           '<textarea id="composer" name="text"></textarea><button id="composer-send">Send</button></form>')
+                                           '<textarea id="composer" name="text"></textarea><button id="composer-send">Send</button></form>'
+                                           f'<form method="post" action="/messaging/voice/{parts[2]}/"><input type="file" id="attach" accept="audio/*">'
+                                           '<input type="hidden" id="aname" name="name"><input type="hidden" id="asize" name="size">'
+                                           '<button id="attach-send">Send voice note</button></form>'
+                                           "<script>document.getElementById('attach').onchange=function(e){var f=e.target.files[0];"
+                                           "document.getElementById('aname').value=f.name;document.getElementById('asize').value=f.size;};</script>")
                 if parts[:2] == ["messaging", "thread"] and len(parts) == 3:
                     return self._send(body=self._messages_html(parts[2]))
                 if parts == ["messaging"]:
@@ -296,6 +327,26 @@ class MockLinkedIn:
                     mock.withdrawals.append(parts[1])
                     mock.profile(parts[1])["state"] = "not_connected"
                     return self._redirect(f"/in/{parts[1]}/")
+                if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "like":
+                    if self._consume_fault():
+                        return
+                    mock.likes.append(parts[1])
+                    mock.profile(parts[1])["liked"] = True
+                    return self._redirect(f"/in/{parts[1]}/recent-activity/all/")
+                if parts[:2] == ["messaging", "inmail"] and len(parts) == 3:
+                    if self._consume_fault():
+                        return
+                    if mock.profile(parts[2])["inmail"] == "credit":
+                        mock.inmail_credits -= 1
+                    mock.inmails.append((parts[2], field("subject"), field("text")))
+                    mock._add_message(parts[2], "out", field("text"))
+                    return self._redirect(f"/in/{parts[2]}/")
+                if parts[:2] == ["messaging", "voice"] and len(parts) == 3:
+                    if self._consume_fault():
+                        return
+                    mock.voice_notes.append((parts[2], field("name"), int(field("size") or 0)))
+                    mock._add_message(parts[2], "out", "[Voice note]")
+                    return self._redirect(f"/messaging/compose/{parts[2]}/")
                 if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "follow":
                     if self._consume_fault():
                         return

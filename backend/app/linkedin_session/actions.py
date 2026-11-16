@@ -49,6 +49,28 @@ class VisitResult(str, Enum):
     PROFILE_UNAVAILABLE = "profile_unavailable"
 
 
+class LikeResult(str, Enum):
+    LIKED = "liked"
+    ALREADY_LIKED = "already_liked"
+    NO_POSTS = "no_posts"
+    PROFILE_UNAVAILABLE = "profile_unavailable"
+
+
+class InMailResult(str, Enum):
+    SENT = "sent"
+    ALREADY_CONNECTED = "already_connected"  # a normal message is possible, so no InMail is spent
+    NO_CREDITS = "no_credits"
+    NOT_FREE = "not_free"  # a free InMail was asked for but this profile does not offer one
+    NOT_AVAILABLE = "not_available"
+    PROFILE_UNAVAILABLE = "profile_unavailable"
+
+
+class VoiceResult(str, Enum):
+    SENT = "sent"
+    NOT_CONNECTED = "not_connected"
+    PROFILE_UNAVAILABLE = "profile_unavailable"
+
+
 class FollowResult(str, Enum):
     FOLLOWED = "followed"
     ALREADY_FOLLOWING = "already_following"
@@ -163,6 +185,59 @@ async def withdraw_invite(session: ActionSession, profile_url: str) -> WithdrawR
     await session.pages.withdraw_invite(session.page)
     await _guard(session)
     return WithdrawResult.WITHDRAWN if await session.pages.connection_state(session.page) != "pending" else WithdrawResult.PROFILE_UNAVAILABLE
+
+
+async def like_post(session: ActionSession, profile_url: str) -> LikeResult:
+    """Like the person's most recent post. UNVERIFIED on the real site (selectors are guesses)."""
+    if not await _open(session, profile_url):
+        return LikeResult.PROFILE_UNAVAILABLE
+    await session.pages.open_activity(session.page, profile_url)
+    await _guard(session)
+    if not await session.pages.has_posts(session.page):
+        return LikeResult.NO_POSTS
+    if await session.pages.first_post_liked(session.page):
+        return LikeResult.ALREADY_LIKED
+    if not await session.pages.can_like(session.page):
+        return LikeResult.NO_POSTS
+    await session.before_commit()
+    await session.pages.like_first_post(session.page)
+    await _guard(session)
+    return LikeResult.LIKED if await session.pages.first_post_liked(session.page) else LikeResult.NO_POSTS
+
+
+async def send_inmail(session: ActionSession, profile_url: str, subject: str, text: str, free: bool) -> InMailResult:
+    """An InMail (uses a credit) or a free InMail (an open profile) to someone who is not a connection. UNVERIFIED on the real site."""
+    if not await _open(session, profile_url):
+        return InMailResult.PROFILE_UNAVAILABLE
+    if await session.pages.connection_state(session.page) == "connected":
+        return InMailResult.ALREADY_CONNECTED
+    if not await session.pages.can_open_inmail(session.page):
+        return InMailResult.NOT_AVAILABLE
+    await session.pages.start_inmail(session.page)
+    await _guard(session)
+    if await session.pages.inmail_out_of_credits(session.page) and not await session.pages.inmail_is_free(session.page):
+        return InMailResult.NO_CREDITS
+    if free and not await session.pages.inmail_is_free(session.page):
+        return InMailResult.NOT_FREE
+    await session.before_commit()
+    await session.pages.submit_inmail(session.page, subject, text)
+    await _guard(session)
+    return InMailResult.SENT
+
+
+async def send_voice_note(session: ActionSession, profile_url: str, audio_path: str) -> VoiceResult:
+    """Attach a prepared audio file to a conversation and send it. UNVERIFIED on the real site, and LinkedIn may not accept audio files from a
+    computer at all; the real test decides whether this path stays."""
+    if not await _open(session, profile_url):
+        return VoiceResult.PROFILE_UNAVAILABLE
+    if await session.pages.connection_state(session.page) != "connected":
+        return VoiceResult.NOT_CONNECTED
+    await session.pages.start_message(session.page)
+    await _guard(session)
+    await session.before_commit()
+    await session.pages.attach_and_send_audio(session.page, audio_path)
+    await _guard(session)
+    return VoiceResult.SENT
 
 
 async def follow_profile(session: ActionSession, profile_url: str) -> FollowResult:

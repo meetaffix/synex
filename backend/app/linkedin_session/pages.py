@@ -252,6 +252,17 @@ class ProfileSelectors:
     conversation_item: str  # carries data-thread-id and data-updated-at
     conversation_profile_link: str
     thread_message: str  # carries data-event-id, data-direction (in|out), data-sent-at
+    like_button: str = ""  # the Like control of a post on the person's activity page
+    liked_marker: str = ""  # shown once a post is liked
+    no_posts_marker: str = ""
+    inmail_button: str = ""  # opens the InMail composer for someone not connected
+    inmail_subject: str = ""
+    inmail_body: str = ""
+    inmail_send: str = ""
+    inmail_free_marker: str = ""  # shown when the message is free (an open profile)
+    inmail_no_credits_marker: str = ""
+    attach_input: str = ""  # the file input of the conversation composer
+    attach_send: str = ""
 
 
 # UNVERIFIED against the live site.
@@ -272,6 +283,17 @@ REAL_PROFILE_SELECTORS = ProfileSelectors(
     conversation_item="li.msg-conversation-listitem",
     conversation_profile_link="a[href*='/in/']",
     thread_message="li.msg-s-message-list__event",
+    like_button="button[aria-label^='React Like'], button[aria-label='Like']:not([aria-pressed='true'])",
+    liked_marker="button[aria-pressed='true'][aria-label*='Like']",
+    no_posts_marker=":text('hasn\\'t posted yet'), :text('No recent activity')",
+    inmail_button="button:has-text('InMail'), a:has-text('InMail')",
+    inmail_subject="input[name='subject'], input[placeholder*='Subject']",
+    inmail_body="div.msg-form__contenteditable, textarea[name='message']",
+    inmail_send="button.msg-form__send-button",
+    inmail_free_marker=":text('Free message'), :text('Free InMail')",
+    inmail_no_credits_marker=":text('out of InMail credits'), :text('no InMail credits')",
+    attach_input="input[type='file']",
+    attach_send="button.msg-form__send-button",
 )
 
 NOTE_LIMIT = 300
@@ -354,6 +376,43 @@ class ProfilePages:
 
     async def follow(self, page: Page) -> None:
         await self._click_and_settle(page, self.sel.follow_button)
+
+    async def open_activity(self, page: Page, profile_url: str) -> None:
+        await self.goto(page, profile_url.rstrip("/") + "/recent-activity/all/")
+
+    async def has_posts(self, page: Page) -> bool:
+        return not await _visible(page, self.sel.no_posts_marker) if self.sel.no_posts_marker else True
+
+    async def first_post_liked(self, page: Page) -> bool:
+        return await _visible(page, self.sel.liked_marker)
+
+    async def can_like(self, page: Page) -> bool:
+        return await _visible(page, self.sel.like_button)
+
+    async def like_first_post(self, page: Page) -> None:
+        await self._click_and_settle(page, self.sel.like_button)
+
+    async def can_open_inmail(self, page: Page) -> bool:
+        return await _visible(page, self.sel.inmail_button)
+
+    async def start_inmail(self, page: Page) -> None:
+        await self._click_and_settle(page, self.sel.inmail_button)
+
+    async def inmail_is_free(self, page: Page) -> bool:
+        return await _visible(page, self.sel.inmail_free_marker)
+
+    async def inmail_out_of_credits(self, page: Page) -> bool:
+        return await _visible(page, self.sel.inmail_no_credits_marker)
+
+    async def submit_inmail(self, page: Page, subject: str, body: str) -> None:
+        if subject:
+            await page.fill(self.sel.inmail_subject, subject)
+        await page.fill(self.sel.inmail_body, body)
+        await self._click_and_settle(page, self.sel.inmail_send)
+
+    async def attach_and_send_audio(self, page: Page, path: str) -> None:
+        await page.set_input_files(self.sel.attach_input, path)
+        await self._click_and_settle(page, self.sel.attach_send)
 
     async def withdraw_invite(self, page: Page) -> None:
         """Open the pending invitation and confirm the withdrawal. UNVERIFIED on the real site: the Pending button is clicked, then the last
