@@ -57,6 +57,28 @@ class ProfileUpdateIn(CamelIn):
 
 
 # --------------------------------- Leads ---------------------------------
+RESERVED_VARIABLES = {"first_name", "last_name", "name", "full_name", "company", "job_title", "designation", "location", "headline", "industry"}
+
+
+def check_variables(value: dict | None) -> dict | None:
+    """Custom variables: a short name of letters, digits and underscores, never one Synex already fills, and a short value."""
+    if value is None:
+        return None
+    import re
+    if len(value) > 20:
+        raise ValueError("A lead can have at most 20 custom variables.")
+    out = {}
+    for name, text in value.items():
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", str(name)):
+            raise ValueError(f"'{name}' is not a valid variable name. Use letters, digits and underscores, starting with a letter.")
+        if str(name).lower() in RESERVED_VARIABLES or str(name).lower().startswith(("linkedin_", "sender_")):
+            raise ValueError(f"'{name}' is already filled in by Synex. Choose another name.")
+        if not isinstance(text, str) or len(text) > 500:
+            raise ValueError(f"The value of '{name}' must be text of at most 500 characters.")
+        out[str(name)] = text
+    return out
+
+
 class LeadIn(CamelIn):
     first_name: str | None = ""
     last_name: str | None = ""
@@ -73,6 +95,12 @@ class LeadIn(CamelIn):
     status: str | None = "new"
     notes: str | None = None
     list_ids: list[str] | None = None
+    variables: dict | None = None
+
+    @field_validator("variables")
+    @classmethod
+    def _variables(cls, value):
+        return check_variables(value)
 
     @field_validator("timezone")
     @classmethod
@@ -96,6 +124,12 @@ class LeadUpdateIn(CamelIn):
     status: str | None = None
     notes: str | None = None
     list_ids: list[str] | None = None
+    variables: dict | None = None
+
+    @field_validator("variables")
+    @classmethod
+    def _variables(cls, value):
+        return check_variables(value)
 
     @field_validator("timezone")
     @classmethod

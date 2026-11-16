@@ -21,22 +21,51 @@ SOURCES: dict[str, dict] = {
     "post": {"label": "LinkedIn post reactions or comments", "linkedin": True, "per_page": 20, "built": True},
     "search": {"label": "LinkedIn basic search", "linkedin": True, "per_page": 10, "built": True},
     "connections": {"label": "My connections", "linkedin": True, "per_page": 40, "built": True},
-    "own_posts": {"label": "People who engaged with my recent posts", "linkedin": True, "per_page": 20, "built": False,
-                  "note": "Not built yet: needs the real activity page captured first."},
+    "own_posts": {"label": "People who engaged with my recent posts", "linkedin": True, "per_page": 20, "built": True},
     "urls": {"label": "Paste profile links", "linkedin": False, "built": True},
     "csv": {"label": "CSV or Google Sheets", "linkedin": False, "built": True},
     "lists": {"label": "From my existing lists", "linkedin": False, "built": True},
     "inbox": {"label": "Inbox contacts", "linkedin": False, "built": True},
-    "sales_navigator": {"label": "Sales Navigator leads", "linkedin": True, "per_page": 25, "built": False,
-                        "note": "Needs a Sales Navigator subscription on the sender account, and the page captured to build it."},
-    "recruiter": {"label": "Recruiter search", "linkedin": True, "per_page": 25, "built": False,
-                  "note": "Needs a LinkedIn Recruiter licence on the sender account, and the page captured to build it."},
-    "event": {"label": "LinkedIn event attendees", "linkedin": True, "per_page": 25, "built": False,
-              "note": "Not built yet: needs a real event page captured."},
-    "companies": {"label": "LinkedIn companies or Sales Navigator accounts", "linkedin": True, "per_page": 25, "built": False,
-                  "note": "Not built yet: company lists produce companies, not people, and need their own capture."},
+    "sales_navigator": {"label": "Sales Navigator leads", "linkedin": True, "per_page": 25, "built": True,
+                        "note": "Needs a Sales Navigator subscription on the sender account. Unverified on real LinkedIn: no account with access."},
+    "recruiter": {"label": "Recruiter search", "linkedin": True, "per_page": 25, "built": True,
+                  "note": "Needs a LinkedIn Recruiter licence on the sender account. Unverified on real LinkedIn: no account with access."},
+    "event": {"label": "LinkedIn event attendees", "linkedin": True, "per_page": 25, "built": True,
+              "note": "The sender account must be marked as attending the event."},
+    "companies": {"label": "LinkedIn companies", "linkedin": True, "per_page": 10, "built": True, "produces": "companies"},
+    "sales_nav_accounts": {"label": "Sales Navigator accounts", "linkedin": True, "per_page": 25, "built": True, "produces": "companies"},
+    "group": {"label": "LinkedIn group members", "linkedin": True, "per_page": 20, "built": False,
+              "note": "Coming soon: LinkedIn only shows a group's member list to its members, and the page has not been captured yet."},
 }
-MAX_LEADS = {"post": 200, "search": 100, "connections": 500, "urls": 1000, "csv": 5000, "lists": 5000, "inbox": 5000}
+COMPANY_SOURCES = {k for k, v in SOURCES.items() if v.get("produces") == "companies"}
+MAX_LEADS = {"post": 200, "search": 100, "connections": 500, "urls": 1000, "csv": 5000, "lists": 5000, "inbox": 5000,
+             "event": 500, "own_posts": 200, "sales_navigator": 2500, "recruiter": 2500, "companies": 500, "sales_nav_accounts": 500}
+
+_POST_RE = re.compile(r"linkedin\.com/(feed/update/urn:li:(activity|ugcPost|share):\d+|posts/[^\s?]+)", re.I)
+_URL_PATTERNS = {
+    "search": ("linkedin.com/search/results/people", "Paste a LinkedIn people-search results address (it contains /search/results/people)."),
+    "sales_navigator": ("linkedin.com/sales/", "Paste a Sales Navigator people search or list address (it starts with linkedin.com/sales/)."),
+    "recruiter": ("linkedin.com/talent/", "Paste a LinkedIn Recruiter search address (it contains linkedin.com/talent/)."),
+    "event": ("linkedin.com/events/", "Paste a LinkedIn event address (it contains linkedin.com/events/)."),
+    "companies": ("linkedin.com/search/results/companies", "Paste a LinkedIn company-search results address (it contains /search/results/companies)."),
+    "sales_nav_accounts": ("linkedin.com/sales/search/company", "Paste a Sales Navigator account search address (it contains /sales/search/company)."),
+}
+
+
+def validate_params(source: str, params: dict) -> str | None:
+    """The reason a source's pasted address is wrong, in words the person can act on; None when it is acceptable."""
+    if source == "post":
+        urls = [u for u in params.get("urls", []) if "linkedin.com" in u]
+        if not urls:
+            return "Paste at least one LinkedIn post link."
+        bad = [u for u in urls if not _POST_RE.search(u)]
+        if bad:
+            return "That is not a post link. Open the post, use its three-dot menu, choose Copy link to post, and paste it here."
+        return None
+    if source in _URL_PATTERNS:
+        needle, message = _URL_PATTERNS[source]
+        return None if needle in (params.get("url") or "").lower() else message
+    return None
 SECONDS_PER_PAGE = (6, 14)  # random pause between page loads; the estimate uses the upper end plus load time
 MAX_PAGES_PER_RUN = 15      # one collect_leads task never loads more pages than this
 PREVIEW_PEOPLE = 10
@@ -146,13 +175,21 @@ def stage(db: Session, collection: models.LeadCollection, people: list[dict]) ->
     """Add people to the collection, one row per profile (duplicates inside the collection are dropped). Returns rows added."""
     have = {k for (k,) in db.query(models.LeadCollectionItem.url_key).filter_by(collection_id=collection.id)}
     added = 0
+    companies = collection.source in COMPANY_SOURCES
     for person in people:
-        key = normalize_linkedin_url(person.get("profile_url"))
-        if not key.startswith("linkedin.com/in/") or key in have:
+        if companies:
+            url = person.get("company_url") or ""
+            key = re.sub(r"^https?://(www\.)?", "", url.lower()).rstrip("/")
+            ok = key.startswith("linkedin.com/company/")
+        else:
+            url = person.get("profile_url")
+            key = normalize_linkedin_url(url)
+            ok = key.startswith("linkedin.com/in/")
+        if not ok or key in have:
             continue
         have.add(key)
         db.add(models.LeadCollectionItem(
-            collection_id=collection.id, url_key=key, profile_url=person["profile_url"], name=person.get("name") or "",
+            collection_id=collection.id, url_key=key, profile_url=url, name=person.get("name") or "",
             headline=person.get("headline"), company=person.get("company"), location=person.get("location"),
             degree=person.get("degree"), extra=person.get("extra") or {}))
         added += 1
@@ -213,8 +250,22 @@ def importable_items(db: Session, collection: models.LeadCollection) -> tuple[li
     return keep, skipped
 
 
+def _import_companies(db: Session, collection: models.LeadCollection) -> int:
+    """Company sources fill a company list, not the leads: companies are not people and are never messaged."""
+    items = db.query(models.LeadCollectionItem).filter_by(collection_id=collection.id).order_by(models.LeadCollectionItem.id).limit(collection.max_leads).all()
+    company_list = models.CompanyList(user_id=collection.user_id, name=collection.list_name or default_list_name("Companies"))
+    db.add(company_list)
+    db.flush()
+    for item in items:
+        db.add(models.CompanyEntry(list_id=company_list.id, key=item.url_key, name=item.name, url=item.profile_url, industry=item.headline, location=item.location))
+    collection.list_id, collection.created_count, collection.skipped = company_list.id, len(items), {}
+    return len(items)
+
+
 def import_collection(db: Session, collection: models.LeadCollection) -> int:
     """Create the list and the leads (people already in Synex are put on the list, not duplicated). Returns people added."""
+    if collection.source in COMPANY_SOURCES:
+        return _import_companies(db, collection)
     keep, skipped = importable_items(db, collection)
     lead_list = models.LeadList(user_id=collection.user_id, name=collection.list_name or default_list_name("Leads"))
     db.add(lead_list)

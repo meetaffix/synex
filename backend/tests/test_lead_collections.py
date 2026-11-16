@@ -124,9 +124,9 @@ class CollectionApiTest(unittest.TestCase):
             self.assertEqual(db.query(models.AgentTask).filter_by(type="collect_leads").count(), 1)
 
     def test_unbuilt_sources_say_why_and_limits_are_enforced(self):
-        refused = self.make(source="sales_navigator", limit=10)
+        refused = self.make(source="group", limit=10)
         self.assertEqual(refused.status_code, 409)
-        self.assertIn("Sales Navigator", refused.json()["detail"])
+        self.assertIn("Coming soon", refused.json()["detail"])
         self.assertEqual(self.make(source="urls", limit=5000, params={"text": ""}).status_code, 422)
 
 

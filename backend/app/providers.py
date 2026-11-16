@@ -56,6 +56,8 @@ def render_variables(text: str | None, lead) -> str:
     }
     for token, value in replacements.items():
         text = text.replace(token, value)
+    for name, value in (getattr(lead, "variables", None) or {}).items():  # per-lead custom variables, e.g. {{eventName}}
+        text = text.replace("{{" + str(name) + "}}", str(value))
     return spin(text, str(getattr(lead, "id", "") or full_name))
 
 

@@ -154,6 +154,7 @@ def _create(payload: LeadIn, db: Session, user: models.User):
         industry=payload.industry,
         timezone=payload.timezone,
         tags=payload.tags or [],
+        variables=payload.variables or {},
         source="manual",
         status=payload.status or "new",
         notes=payload.notes,
@@ -561,7 +562,7 @@ def _update(lead_id: str, payload: LeadUpdateIn, db: Session, user: models.User)
     for field in (
         "first_name", "last_name", "company", "job_title", "headline",
         "linkedin_url", "email", "phone", "location", "industry", "timezone",
-        "tags", "status", "notes",
+        "tags", "status", "notes", "variables",
     ):
         if field in data:
             setattr(lead, field, data[field])

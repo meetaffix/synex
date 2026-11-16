@@ -116,6 +116,7 @@ def lead_out(lead: models.Lead) -> dict:
         "connectedAt": _iso(lead.connected_at),
         "mutualConnections": lead.mutual_connections,
         "tags": lead.tags or [],
+        "variables": lead.variables or {},
         "source": lead.source,
         "status": lead.status,
         "notes": lead.notes,

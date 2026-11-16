@@ -229,3 +229,126 @@ async def collect_invitations(page: Page, limit: int, progress: Progress, should
         if len(await page.evaluate(CARD_JS)) == before:
             break
     return list(found.values())[:limit]
+
+
+# ---------------------------------------------------------------- more sources
+# Everything below is UNVERIFIED on real LinkedIn: it reads pages by the same shape-based rules as above and is exercised only
+# against the local mock pages. Sales Navigator, Recruiter and event pages need an account with access (or attendance).
+
+SEAT_CARD_JS = r"""
+() => {
+  const out = [];
+  const seen = new Set();
+  for (const a of document.querySelectorAll('a[href*="/sales/lead/"], a[href*="/talent/profile/"]')) {
+    const m = a.href.match(/\/(?:sales\/lead|talent\/profile)\/([^,/?#]+)/);
+    if (!m || seen.has(m[1])) continue;
+    let card = a.closest('li, [role="listitem"], article, tr') || a.parentElement;
+    const text = (card.innerText || '').trim();
+    if (!text) continue;
+    seen.add(m[1]);
+    out.push({id: m[1], text});
+  }
+  return out;
+}
+"""
+
+COMPANY_CARD_JS = r"""
+() => {
+  const out = [];
+  const seen = new Set();
+  for (const a of document.querySelectorAll('a[href*="/company/"], a[href*="/sales/company/"]')) {
+    const m = a.href.match(/\/(?:sales\/)?company\/([^/?#]+)/);
+    if (!m || seen.has(m[1])) continue;
+    let card = a.closest('li, [role="listitem"], article, tr') || a.parentElement;
+    const text = (card.innerText || '').trim();
+    if (!text) continue;
+    seen.add(m[1]);
+    out.push({id: m[1], text});
+  }
+  return out;
+}
+"""
+
+
+async def read_seat_people(page: Page) -> list[dict]:
+    """People on a Sales Navigator or Recruiter results page. The member id in the card link opens the public profile at /in/<id>."""
+    people = []
+    for item in await page.evaluate(SEAT_CARD_JS):
+        person = parse_card(f"https://www.linkedin.com/in/{item['id']}", item["text"])
+        if person:
+            people.append(person)
+    return people
+
+
+async def read_companies(page: Page) -> list[dict]:
+    """Companies on a company results page: name, the industry or place line, and the company page (a numeric id also opens it)."""
+    companies = []
+    for item in await page.evaluate(COMPANY_CARD_JS):
+        lines = [l.strip() for l in item["text"].replace("\r", "").split("\n") if l.strip() and not _NOISE.match(l.strip())]
+        if not lines:
+            continue
+        companies.append({"company_url": f"https://www.linkedin.com/company/{item['id']}/", "name": lines[0],
+                          "headline": lines[1] if len(lines) > 1 else "", "location": lines[2] if len(lines) > 2 else "", "degree": None})
+    return companies
+
+
+async def collect_paged(page: Page, url: str, limit: int, max_pages: int, progress: Progress, should_stop: ShouldStop, reader,
+                        wait_selector: str, pause=_pause) -> list[dict]:
+    """Walk a results address page by page with ``reader``; used for Sales Navigator, Recruiter and company results."""
+    found: dict[str, dict] = {}
+    for number in range(1, max_pages + 1):
+        if await should_stop():
+            break
+        await page.goto(_with_page(url, number), wait_until="domcontentloaded", timeout=45_000)
+        try:
+            await page.wait_for_selector(wait_selector, timeout=25_000)
+        except Exception:  # noqa: BLE001 - an empty or blocked page is a normal end; the caller reports zero people
+            pass
+        await page.mouse.wheel(0, 4000)
+        await asyncio.sleep(1.5)
+        fresh = []
+        for person in await reader(page):
+            key = normalize_linkedin_url(person.get("profile_url")) or person.get("company_url", "").lower()
+            if key and key not in found:
+                found[key] = person
+                fresh.append(person)
+        if not fresh:
+            break
+        await progress(fresh)
+        if len(found) >= limit:
+            break
+        await pause()
+    return list(found.values())[:limit]
+
+
+async def collect_event(page: Page, event_url: str, limit: int, progress: Progress, should_stop: ShouldStop) -> list[dict]:
+    """People attending a LinkedIn event. The sender must be marked as attending, or LinkedIn shows no attendee list."""
+    found: dict[str, dict] = {}
+    await page.goto(event_url, wait_until="domcontentloaded", timeout=45_000)
+    await asyncio.sleep(3)
+    opener = page.locator("a:has-text('attendees'), button:has-text('attendees'), a:has-text('Attendees'), button:has-text('Attendees')").first
+    scope = page.locator("body")
+    if await opener.count():
+        await opener.click()
+        await asyncio.sleep(2)
+        dialog = page.locator("div[role='dialog']").first
+        if await dialog.count():
+            scope = dialog
+    await _scroll_collect(page, scope, found, limit, progress, should_stop)
+    return list(found.values())[:limit]
+
+
+async def collect_own_post_engagers(page: Page, limit: int, progress: Progress, should_stop: ShouldStop, base: str = LINKEDIN_BASE,
+                                    max_posts: int = 5) -> list[dict]:
+    """People who reacted to or commented on the sender's own most recent posts."""
+    await page.goto(f"{base}/in/me/recent-activity/all/", wait_until="domcontentloaded", timeout=45_000)
+    await asyncio.sleep(3)
+    hrefs = await page.evaluate("""() => [...new Set([...document.querySelectorAll('a[href*="/feed/update/"]')].map(a => a.href.split('?')[0]))]""")
+    found: dict[str, dict] = {}
+    for post in hrefs[:max_posts]:
+        if await should_stop() or len(found) >= limit:
+            break
+        for person in await collect_post(page, post, None, True, limit - len(found), progress, should_stop):
+            found.setdefault(normalize_linkedin_url(person["profile_url"]), person)
+        await _pause(3.0, 7.0)
+    return list(found.values())[:limit]

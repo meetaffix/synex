@@ -203,6 +203,8 @@ class Lead(Base):
     # 1, 2 or 3 (3 = 3rd or beyond) as LinkedIn showed it when the lead was collected; None when unknown.
     connection_degree = Column(Integer, nullable=True)
     tags = Column(JSON, default=list)
+    # Custom campaign variables for this person, e.g. {"eventName": "SaaStr"}. Used as {{eventName}} in messages.
+    variables = Column(JSON, default=dict)
     # Where the lead came from: csv | connections | search_url | inbox_sync | manual
     source = Column(String, nullable=True)
     # new | contacted | connected | replied | interested | not_interested | bounced
@@ -628,6 +630,29 @@ class LeadCollectionItem(Base):
     location = Column(String, nullable=True)
     degree = Column(Integer, nullable=True)
     extra = Column(JSON, default=dict)           # CSV columns, email, ... carried to the lead
+
+
+class CompanyList(Base):
+    """A list of companies (not people) collected from company searches or Sales Navigator accounts."""
+    __tablename__ = "company_lists"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class CompanyEntry(Base):
+    __tablename__ = "company_entries"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    list_id = Column(String, ForeignKey("company_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    key = Column(String, nullable=False)  # linkedin.com/company/<slug or id>
+    name = Column(String, default="")
+    url = Column(String, nullable=False)
+    industry = Column(Text, nullable=True)
+    location = Column(String, nullable=True)
+    __table_args__ = (Index("ux_company_entries", "list_id", "key", unique=True),)
 
 
 class DoNotContact(Base):

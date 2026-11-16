@@ -86,6 +86,16 @@ async def run(session: ActionSession, collection_id: str, mode: str) -> str:
                     break
                 await collect.collect_post(page, url, params.get("reactions"), bool(params.get("comments")), per_post if not preview else wanted,
                                            progress, should_stop)
+        elif source in ("sales_navigator", "recruiter"):
+            wait = 'a[href*="/sales/lead/"], a[href*="/talent/profile/"]'
+            await collect.collect_paged(page, params["url"], wanted, pages, progress, should_stop, collect.read_seat_people, wait)
+        elif source in ("companies", "sales_nav_accounts"):
+            await collect.collect_paged(page, params["url"], wanted, pages, progress, should_stop, collect.read_companies,
+                                        'a[href*="/company/"], a[href*="/sales/company/"]')
+        elif source == "event":
+            await collect.collect_event(page, params["url"], wanted, progress, should_stop)
+        elif source == "own_posts":
+            await collect.collect_own_post_engagers(page, wanted, progress, should_stop)
         elif source == "connections":
             await collect.collect_connections(page, params.get("filters") or {}, wanted, progress, should_stop)
         else:

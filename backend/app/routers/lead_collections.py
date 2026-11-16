@@ -138,11 +138,9 @@ def create(body: CollectionIn, db: Session = Depends(get_db), user: models.User 
             raise HTTPException(422, "Choose the sender account that reads LinkedIn.")
         if not engine.account_is_live(account):
             raise HTTPException(409, "That sender account is not connected. Reconnect it under Sender accounts.")
-        p = body.params
-        if body.source == "search" and "linkedin.com/search/results/people" not in (p.get("url") or ""):
-            raise HTTPException(422, "Paste a LinkedIn people-search results address (it contains /search/results/people).")
-        if body.source == "post" and not [u for u in p.get("urls", []) if "linkedin.com" in u]:
-            raise HTTPException(422, "Paste at least one LinkedIn post link.")
+        problem = ls.validate_params(body.source, body.params)
+        if problem:
+            raise HTTPException(422, problem)
     c = models.LeadCollection(
         user_id=user.id, account_id=account.id if account else None, source=body.source, params=body.params,
         options={"degrees": [1, 2, 3], **body.options}, list_name=(body.list_name or "").strip() or ls.default_list_name(meta["label"]),
