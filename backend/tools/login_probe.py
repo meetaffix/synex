@@ -125,6 +125,9 @@ def main() -> int:
             print("workspace check FAILED: no Synex user with that email in the hosted database. Nothing was asked or sent.")
             return 2
         print("workspace check: ok (the session will be saved there, stopped, only if the login succeeds)")
+        if input("This will WRITE to the hosted database if the login succeeds. Type YES to allow it, anything else to stop: ").strip() != "YES":
+            print("Stopped. Nothing was asked, nothing was sent, nothing was written.")
+            return 2
 
     from app.linkedin_session.identity import parse_proxy, validate_proxy_url, validate_timezone
     from app.linkedin_session.pages import LINKEDIN
