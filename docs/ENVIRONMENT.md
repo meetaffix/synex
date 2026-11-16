@@ -69,3 +69,24 @@ variable name and the file, never the value. CI runs it after the build.
 
 The values are set in the host's environment settings, not by uploading the file. Where each one lives (Vercel,
 GitHub, the backend host) is in `docs/DEPLOY.md`.
+
+## The browser (Playwright Chromium)
+
+LinkedIn sign-in and every worker action run a real Chromium. The Python `playwright` package is pinned in
+`backend/requirements.txt`, and it only drives the Chromium **build that belongs to that version** (version 1.65.2 drives
+build 1255). Installing the package does not install the browser.
+
+- **A development PC (once, and again after changing the `playwright` pin):**
+  `python -m playwright install chromium`. It downloads Chromium and its headless shell (about 330 MB) into
+  `%LOCALAPPDATA%\ms-playwright\`, outside the project. Check it with
+  `set SYNEX_CHECK_BROWSER=1` then `python -m app.check_env`: a missing browser shows as `ERROR BROWSER`.
+- **Which folder:** Playwright reads `PLAYWRIGHT_BROWSERS_PATH`; unset, it uses the per-user default above. Two shells on the
+  same PC share that folder only if neither sets the variable. A shell that sees a different copy of the folder (a sandboxed
+  command shell, another Windows user, a remote session) fails with `Executable doesn't exist at ...`. On 16 Nov 2026 the
+  probe's first two runs failed this way in the owner's terminal. `login_probe.py` now starts the browser against
+  `about:blank` **before** asking for the password and stops with a clear message if it cannot.
+- **Containers:** both `backend/Dockerfile` (API) and `backend/Dockerfile.worker` use the Playwright image
+  `mcr.microsoft.com/playwright/python:v1.65.2-noble`, whose tag must equal the `playwright` pin. The image build launches the
+  browser once and fails if it cannot, and the image sets `SYNEX_CHECK_BROWSER=1`, so a server or worker with a missing or
+  mismatched browser stops at start with `ERROR BROWSER` instead of failing on the first sign-in.
+

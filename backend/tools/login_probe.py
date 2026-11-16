@@ -38,6 +38,25 @@ class ProbeManager(SessionManager):
         self._set_state(attempt, "succeeded")
 
 
+def preflight(headless: bool) -> None:
+    """Start the browser against about:blank BEFORE anything is typed. If it cannot start, say why and stop."""
+    from playwright.sync_api import sync_playwright
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=headless)
+            try:
+                browser.new_page().goto("about:blank")
+                print(f"browser check: ok (Chromium {browser.version}, {'headless' if headless else 'headed'})")
+            finally:
+                browser.close()
+    except Exception as exc:  # noqa: BLE001
+        lines = str(exc).strip().splitlines()
+        print("browser check FAILED. Nothing was asked, nothing was sent, LinkedIn was not contacted.")
+        print("  " + (lines[0][:200] if lines else type(exc).__name__))
+        print("  If the browser is not installed, run:  python -m playwright install chromium")
+        raise SystemExit(2)
+
+
 def ip_facts(proxy: str | None) -> dict:
     """Country and network name of the address LinkedIn will see (never the address itself)."""
     try:
@@ -61,6 +80,7 @@ def main() -> int:
     if proxy:
         parse_proxy(proxy)
     timezone = validate_timezone(args.timezone)
+    preflight(headless=not args.headed)
     password = getpass.getpass("LinkedIn password (hidden, typed by you): ")
 
     facts = ip_facts(proxy)

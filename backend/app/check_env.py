@@ -176,7 +176,29 @@ def validate(s: Settings = default_settings, a: AssistantConfig = assistant_conf
             add(WARN, str(old.relative_to(ENV_FILE.parent)), "an old per-folder env file: it is ignored, move anything needed to the root .env")
     if not ENV_FILE.exists():
         add(WARN, ".env", "the root .env file does not exist (environment variables may still come from the host)")
+    if os.environ.get("SYNEX_CHECK_BROWSER") == "1":  # set in the server images: a server without its browser must not start
+        finding = browser_finding()
+        if finding:
+            out.append(finding)
     return out
+
+
+def browser_finding() -> Finding | None:
+    """Start the Chromium that this Playwright version drives, against about:blank. None when it works. Needed because
+    LinkedIn sign-in and every worker action run a real browser, and the browser build must match the pinned Playwright."""
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                browser.new_page().goto("about:blank")
+            finally:
+                browser.close()
+        return None
+    except Exception as exc:  # noqa: BLE001 - the first line only: it names the missing file, never a value
+        lines = str(exc).strip().splitlines()
+        reason = lines[0][:160] if lines else type(exc).__name__
+        return Finding(ERROR, "BROWSER", f"the browser cannot start ({reason}). Run: python -m playwright install chromium")
 
 
 def _path_exists(path: str) -> bool:

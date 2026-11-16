@@ -301,5 +301,25 @@ class BundleCheckTest(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
 
 
+class BrowserCheckTest(unittest.TestCase):
+    """A server without its Chromium must say so at start, by name, instead of failing on the first LinkedIn sign-in."""
+
+    def test_a_missing_browser_is_an_error_named_BROWSER_with_the_fix_and_a_working_one_is_not(self):
+        self.assertIsNone(check_env.browser_finding())
+        empty = tempfile.mkdtemp(prefix="no-browsers-")
+        with patch.dict(os.environ, {"PLAYWRIGHT_BROWSERS_PATH": empty}):
+            finding = check_env.browser_finding()
+        self.assertEqual((finding.level, finding.name), (check_env.ERROR, "BROWSER"))
+        self.assertIn("python -m playwright install chromium", finding.message)
+        self.assertNotIn(SENTINEL, finding.message)
+
+    def test_the_check_runs_only_where_the_images_ask_for_it(self):
+        empty = tempfile.mkdtemp(prefix="no-browsers-")
+        with patch.dict(os.environ, {"PLAYWRIGHT_BROWSERS_PATH": empty}):
+            self.assertNotIn("BROWSER", {f.name for f in findings(base())})
+            with patch.dict(os.environ, {"SYNEX_CHECK_BROWSER": "1"}):
+                self.assertEqual(errors(findings(base())), {"BROWSER"})
+
+
 if __name__ == "__main__":
     unittest.main()
