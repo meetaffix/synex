@@ -42,6 +42,8 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
+  inbox: Record<string, unknown>[];
+  scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
   builder: Record<string, unknown> | null;
   launchProblems: { kind: string; field: string; message: string; step: string }[];
   draftCount: number;
@@ -213,6 +215,8 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    inbox: [],
+    scheduledList: [],
     builder: null,
     launchProblems: [],
     draftCount: 2,
@@ -318,6 +322,54 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
+      if (path.startsWith("/inbox/")) {
+        const q = url.searchParams;
+        const inboxItems = api.inbox as Record<string, unknown>[];
+        if (path === "/inbox/conversations") {
+          const wantsArchived = q.get("archived") === "true";
+          const rows = inboxItems.filter((c) => (wantsArchived ? c.status === "archived" : c.status !== "archived"))
+            .filter((c) => q.get("unread") !== "true" || c.unread)
+            .filter((c) => q.get("starred") !== "true" || c.starred)
+            .filter((c) => q.get("needs_reply") !== "true" || c.needsReply)
+            .filter((c) => q.get("i_messaged_last") !== "true" || c.lastDirection === "outbound")
+            .filter((c) => !q.get("tag") || (c.tags as string[]).includes(q.get("tag")!))
+            .filter((c) => !q.get("interest") || c.interest === q.get("interest"))
+            .filter((c) => !q.get("accounts") || q.get("accounts")!.split(",").includes(String(c.accountId)))
+            .filter((c) => !q.get("q") || String(c.leadName).toLowerCase().includes(q.get("q")!.toLowerCase()));
+          return json(200, { items: rows, total: rows.length });
+        }
+        if (path === "/inbox/meta")
+          return json(200, { accounts: api.accounts.map((a) => ({ id: a.id, name: a.name, lastSyncedAt: "2026-11-16T09:00:00Z", live: true })), campaigns: [{ id: "c1", name: "Autumn outreach" }], tags: ["warm"], interests: [] });
+        if (path === "/inbox/bulk") {
+          const { ids, action, value } = body as { ids: string[]; action: string; value?: string };
+          for (const c of inboxItems.filter((x) => ids.includes(String(x.id)))) {
+            if (action === "star") c.starred = true;
+            if (action === "unstar") c.starred = false;
+            if (action === "read") c.unread = false;
+            if (action === "unread") c.unread = true;
+            if (action === "archive") c.status = "archived";
+            if (action === "unarchive") c.status = "active";
+            if (action === "answered") { c.answered = true; c.needsReply = false; }
+            if (action === "interest") c.interest = value || null;
+            if (action === "tag_add") c.tags = [...(c.tags as string[]), String(value)];
+            if (action === "tag_remove") c.tags = (c.tags as string[]).filter((t) => t !== value);
+          }
+          return json(200, { changed: ids.length });
+        }
+        if (path === "/inbox/export") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "name,company\n" + inboxItems.map((c) => `${c.leadName},${c.leadCompany}`).join("\n") });
+        if (path === "/inbox/refresh") return json(202, { queued: 1, skipped: [] });
+        if (path === "/inbox/suggest-cost") return json(200, { provider: "template", estimatedUsd: 0 });
+        const one = path.match(/^\/inbox\/([^/]+)\/(draft|schedule|scheduled|suggest-reply)$/);
+        if (one) {
+          if (one[2] === "draft") return json(200, { draft: (body as { body: string }).body });
+          if (one[2] === "schedule") { api.scheduledList.push({ id: "s1", body: String((body as { body: string }).body), sendAt: String((body as { sendAt: string }).sendAt), status: "pending", error: null }); return json(201, api.scheduledList[0]); }
+          if (one[2] === "scheduled") return json(200, api.scheduledList);
+          return json(200, { text: "Thanks for getting back to me, Ada. Happy to share more. Does Thursday work?", source: "template", provider: "template" });
+        }
+        const cancel = path.match(/^\/inbox\/scheduled\/([^/]+)$/);
+        if (cancel) { api.scheduledList = []; return empty(); }
+      }
+      if (path === "/conversations" && method === "POST" && body?.action === "reply") return json(200, { id: "m9", direction: "outbound", body: body.body, sentAt: "2026-11-16T10:00:00Z", deliveryStatus: "queued" });
       if (path === "/conversations") return json(200, url.searchParams.has("conversationId") ? api.messages : api.conversations);
       if (path === "/leads" && method === "GET") return json(200, api.leads);
       const overview = path.match(/^\/leads\/([^/]+)\/(overview|add-to-campaign)$/);
@@ -500,3 +552,9 @@ export async function mockApi(page: Page, api: Api) {
 }
 
 export const callsTo = (api: Api, method: string, pattern: RegExp) => api.calls.filter((c) => c.method === method && pattern.test(c.path));
+
+export const inboxItem = (id: string, name: string, over: Record<string, unknown> = {}) => ({
+  id, leadId: `lead-${id}`, leadName: name, leadTitle: "Head of Sales", leadCompany: "Acme", linkedinUrl: `https://www.linkedin.com/in/${id}/`, accountId: "a1", accountName: "Ada Lovelace",
+  campaignId: "c1", campaignName: "Autumn outreach", lastMessagePreview: "Sounds interesting, tell me more", lastMessageAt: "2026-11-16T08:00:00Z", unread: false, status: "active",
+  starred: false, answered: false, tags: [] as string[], interest: null as string | null, hasDraft: false, draftBody: "", scheduledCount: 0, lastDirection: "inbound", needsReply: true, ...over,
+});

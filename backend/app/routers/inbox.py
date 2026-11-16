@@ -109,7 +109,7 @@ def _out(c: models.Conversation, direction: str | None, scheduled: int, accounts
         "accountId": c.account_id, "accountName": accounts.get(c.account_id), "campaignId": c.campaign_id,
         "campaignName": c.campaign.name if c.campaign else None, "lastMessagePreview": c.last_message_preview, "lastMessageAt": c.last_message_at.isoformat() if c.last_message_at else None,
         "unread": bool(c.unread), "status": c.status, "starred": bool(c.starred), "answered": bool(c.answered), "tags": c.tags or [], "interest": c.interest,
-        "hasDraft": bool((c.draft_body or "").strip()), "scheduledCount": scheduled, "lastDirection": direction,
+        "hasDraft": bool((c.draft_body or "").strip()), "draftBody": c.draft_body or "", "scheduledCount": scheduled, "lastDirection": direction,
         "needsReply": direction == "inbound" and not c.answered,
     }
 

@@ -323,60 +323,7 @@ test.describe("inbox", () => {
     await expect(page.getByRole("link", { name: "Connect LinkedIn account" })).toHaveAttribute("href", "/linkedin-accounts?connect=1");
   });
 
-  test("with an account but no conversations it explains the inbox", async ({ page }) => {
-    await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
-    await page.goto("/inbox");
-    await expect(page.getByText("No conversations yet")).toBeVisible();
-    await expect(page.getByText("Conversations appear here once a lead replies to a campaign message.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "View campaigns" })).toBeVisible();
-    await expect(page.getByText("Select a conversation to read it.")).toBeVisible();
-  });
-
-  test("lists conversations, filters them, opens a thread, and keeps replying switched off", async ({ page }) => {
-    const api = newApi({
-      accounts: [account("a1", "Ada Lovelace")],
-      conversations: [conversation("k1", "Jane Doe"), conversation("k2", "Sam Lee", { unread: false, lastMessagePreview: "Not now" })],
-      messages: [
-        { id: "m1", direction: "outbound", body: "Hi Jane, thanks for connecting", sentAt: "2026-11-13T09:00:00Z", deliveryStatus: "sent" },
-        { id: "m2", direction: "inbound", body: "Thanks, tell me more", sentAt: "2026-11-14T09:00:00Z", deliveryStatus: "sent" },
-      ],
-    });
-    await mockApi(page, api);
-    await page.goto("/inbox");
-    const list = page.getByRole("list", { name: "Conversations" });
-    await expect(list.getByRole("button")).toHaveCount(2);
-    await expect(list.getByRole("button", { name: /Jane Doe/ })).toContainText("Unread");
-
-    await page.getByLabel("Show").selectOption("interested");
-    await expect.poll(() => calls(api, "/conversations").some((c) => c.query.includes("status=interested"))).toBe(true);
-    await page.getByLabel("Show").selectOption("all");
-    await page.getByLabel("Search conversations").fill("jane");
-    await expect.poll(() => calls(api, "/conversations").some((c) => c.query.includes("search=jane"))).toBe(true);
-    await page.getByLabel("Search conversations").fill("");
-
-    await list.getByRole("button", { name: /Jane Doe/ }).click();
-    await expect(list.getByRole("button", { name: /Jane Doe/ })).toHaveAttribute("aria-current", "true");
-    const thread = page.getByRole("region", { name: "Conversation", exact: true });
-    await expect(thread.getByRole("heading", { name: "Jane Doe" })).toBeVisible();
-    await expect(thread.getByText("Hi Jane, thanks for connecting")).toBeVisible();
-    await expect(thread.getByText("You ·")).toBeVisible();
-    await expect(thread.getByText("Jane Doe ·")).toBeVisible();
-
-    await expect(thread.getByLabel("Reply")).toBeDisabled();
-    await expect(thread.getByRole("button", { name: /Send reply/ })).toBeDisabled();
-    await thread.getByRole("button", { name: /Send reply/ }).locator("xpath=..").hover();
-    await expect(page.getByRole("tooltip").first()).toContainText("Sending replies from the inbox comes next");
-  });
-
-  test("filters that match nothing offer a way back", async ({ page }) => {
-    const api = newApi({ accounts: [account("a1", "Ada Lovelace")] });
-    await mockApi(page, api);
-    await page.goto("/inbox");
-    await page.getByLabel("Search conversations").fill("nobody");
-    await expect(page.getByText("No conversations match")).toBeVisible();
-    await page.getByRole("button", { name: "Clear filters" }).click();
-    await expect(page.getByLabel("Search conversations")).toHaveValue("");
-  });
+  // The inbox list, filters, thread, reply and profile panel are covered in inbox.spec.ts.
 });
 
 test.describe("campaigns", () => {

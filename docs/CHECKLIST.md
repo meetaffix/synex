@@ -289,35 +289,35 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [ ] 5.L04 Keyboard path through the builder
 
 ## Area 6: Inbox [3, G8]
-- [~] 6.01 Three-pane layout: list, thread, profile panel (existing; audit)
-- [ ] 6.02 "Select a conversation" empty state
-- [ ] 6.03 Header menu: Export CSV with current filters
-- [ ] 6.04 Account chips and account switcher
-- [ ] 6.05 Search all conversations
-- [ ] 6.06 Date presets: Today, Yesterday, Last week, Last month, Last quarter, Custom range with Apply
-- [ ] 6.07 Filter: Needs my reply
-- [ ] 6.08 Filter: I messaged last
-- [ ] 6.09 Status: Starred, Drafts, Scheduled, Unread
-- [ ] 6.10 Tags (custom) and system tags
-- [ ] 6.11 Archived filter
-- [ ] 6.12 Sender accounts filter
-- [ ] 6.13 Campaigns filter: include or exclude, all campaigns
-- [ ] 6.14 "Include conversations where": messages sent or responses
-- [ ] 6.15 Conversation card: avatar, name, unread badge, snippet, received-by chip, time
-- [ ] 6.16 Hover star and selection checkbox
-- [ ] 6.17 Bulk actions: mark read, archive, tag, star
-- [ ] 6.18 Thread: header, date separators, bubbles
-- [ ] 6.19 Reply box: emoji, attachment, voice message, schedule, AI button, Send, sending-from account
-- [ ] 6.20 Schedule message
-- [ ] 6.21 Read-only conversation message when sending is not allowed
-- [ ] 6.22 Sending checked against outreach limits; reading uses its own ceiling
-- [ ] 6.23 AI suggested reply using campaign context, shown with cost, editable [beat OutFlo]
-- [ ] 6.24 Interest labels (interested, not interested, meeting, wrong person) [beat OutFlo]
-- [ ] 6.25 Profile panel: photo, Fetch profile, followers, connections, location, local time, about, experience
-- [ ] 6.26 Profile panel buttons: Mark as starred, Mark as answered, Select tags, Archive
-- [ ] 6.27 Lead overview with Add to campaign
-- [ ] 6.28 Refresh and live sync indicator
-- [ ] 6.29 Axe, 360/768/1280, both themes, keyboard path
+- [x] 6.01 Three-pane layout: list, thread, profile panel (existing; audit) (inbox.spec 'the list shows...'; screenshot docs/reports/screens/area-6/inbox-thread-light-1280.png)
+- [x] 6.02 "Select a conversation" empty state (inbox.spec 'the list shows... nothing is selected at first')
+- [x] 6.03 Header menu: Export CSV with current filters (inbox.spec 'Refresh ... Export CSV'; test_inbox ExportRefreshTest)
+- [x] 6.04 Account chips and account switcher (inbox.spec 'account chips'; test_inbox FilterTest)
+- [x] 6.05 Search all conversations (inbox.spec 'account chips ... search'; test_inbox 'search covers name, company and message text')
+- [~] 6.06 Date presets: Today, Yesterday, Last week, Last month, Last quarter, Custom range with Apply (inbox.spec custom range fields and the seven presets are listed; test_inbox date filter; the preset-to-date arithmetic has no unit test)
+- [x] 6.07 Filter: Needs my reply (inbox.spec 'filters'; test_inbox 'needs my reply')
+- [x] 6.08 Filter: I messaged last (inbox.spec 'filters'; test_inbox 'i messaged last')
+- [x] 6.09 Status: Starred, Drafts, Scheduled, Unread (inbox.spec 'filters'; test_inbox 'status filters')
+- [x] 6.10 Tags (custom) and system tags (inbox.spec bulk tag and profile panel; test_inbox BulkTest; system tags are the five interest labels)
+- [x] 6.11 Archived filter (inbox.spec 'filters' (Archived); test_inbox FilterTest)
+- [x] 6.12 Sender accounts filter (inbox.spec 'account chips'; test_inbox FilterTest)
+- [~] 6.13 Campaigns filter: include or exclude, all campaigns (test_inbox 'campaigns with include and exclude'; the control is built, no browser test)
+- [~] 6.14 "Include conversations where": messages sent or responses (test_inbox 'include where'; the control is built, no browser test)
+- [x] 6.15 Conversation card: avatar, name, unread badge, snippet, received-by chip, time (inbox.spec 'the list shows...')
+- [x] 6.16 Hover star and selection checkbox (inbox.spec 'star from the row' (star and checkbox are always visible, not hover-only))
+- [x] 6.17 Bulk actions: mark read, archive, tag, star (inbox.spec 'star ... bulk bar'; test_inbox BulkTest)
+- [x] 6.18 Thread: header, date separators, bubbles (inbox.spec 'opening a thread ... date separators')
+- [~] 6.19 Reply box: emoji, attachment, voice message, schedule, AI button, Send, sending-from account (inbox.spec reply, emoji, schedule, suggested reply, sending-from; attachment and voice message are disabled 'coming soon')
+- [x] 6.20 Schedule message (inbox.spec 'scheduling'; test_inbox DraftScheduleTest (due messages go through the normal send path))
+- [x] 6.21 Read-only conversation message when sending is not allowed (inbox.spec 'a conversation with no sender account is read-only')
+- [x] 6.22 Sending checked against outreach limits; reading uses its own ceiling (test_inbox DraftScheduleTest (limits checked when due); refresh uses the sync_inbox ceiling, not outreach limits (ExportRefreshTest))
+- [x] 6.23 AI suggested reply using campaign context, shown with cost, editable [beat OutFlo] (inbox.spec 'a suggested reply shows its cost'; test_inbox SuggestTest)
+- [x] 6.24 Interest labels (interested, not interested, meeting, wrong person) [beat OutFlo] (inbox.spec 'opening a thread' (interest); test_inbox BulkTest)
+- [~] 6.25 Profile panel: photo, Fetch profile, followers, connections, location, local time, about, experience (stored fields shown; Fetch profile is disabled 'coming soon' (needs the paced profile reader))
+- [x] 6.26 Profile panel buttons: Mark as starred, Mark as answered, Select tags, Archive (inbox.spec 'opening a thread ... profile panel')
+- [x] 6.27 Lead overview with Add to campaign (inbox.spec 'opening a thread' (Lead overview); area 4 test_lead_overview)
+- [~] 6.28 Refresh and live sync indicator (inbox.spec 'Refresh'; the list polls every 30 s (no test of the polling))
+- [~] 6.29 Axe, 360/768/1280, both themes, keyboard path (axe and 360 px pass for inbox-no-account, inbox-empty, inbox-thread, inbox-filters-and-bulk; keyboard path not a dedicated test)
 
 ## Area 7: Dashboard and analytics
 - [~] 7.01 Dashboard exists (audit)

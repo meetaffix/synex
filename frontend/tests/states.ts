@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { account, attempt, campaign, conversation, lead, leadList, newApi, post, publishingAccount, type Api } from "./mock-api";
+import { account, attempt, campaign, conversation, inboxItem, lead, leadList, newApi, post, publishingAccount, type Api } from "./mock-api";
 
 /** Every page and dialog state built in Prompts 2, 2B and 3, described once and used by the review screenshots
     and the accessibility checks. */
@@ -104,15 +104,25 @@ export const states: State[] = [
     name: "inbox-thread",
     path: "/inbox",
     api: withAccount({
-      conversations: [conversation("k1", "Jane Doe"), conversation("k2", "Sam Lee with a long name here", { unread: false, lastMessagePreview: "Not now, thanks for asking though" })],
+      inbox: [inboxItem("k1", "Jane Doe", { unread: true, tags: ["warm"] }), inboxItem("k2", "Sam Lee with a long name here", { unread: false, needsReply: false, lastMessagePreview: "Not now, thanks for asking though", starred: true })],
       messages: [
         { id: "m1", direction: "outbound", body: "Hi Jane, thanks for connecting.", sentAt: "2026-11-13T09:00:00Z", deliveryStatus: "sent" },
         { id: "m2", direction: "inbound", body: "Thanks, tell me more about what you do.", sentAt: "2026-11-14T09:00:00Z", deliveryStatus: "sent" },
       ],
     }),
     prepare: async (page) => {
-      await page.getByRole("list", { name: "Conversations" }).getByRole("button", { name: /Jane Doe/ }).click();
-      await expect(page.getByText("Thanks, tell me more about what you do.")).toBeVisible();
+      await page.getByRole("list", { name: "Conversations" }).getByRole("button", { name: /Jane Doe/ }).first().click();
+      await expect(page.getByText("Thanks, tell me more about what you do.").first()).toBeVisible();
+    },
+  },
+  {
+    name: "inbox-filters-and-bulk",
+    path: "/inbox",
+    api: withAccount({ inbox: [inboxItem("k1", "Jane Doe", { unread: true }), inboxItem("k2", "Sam Lee", { unread: false })] }),
+    prepare: async (page) => {
+      await page.getByRole("button", { name: "Filters" }).click();
+      await page.getByLabel("Select Jane Doe").check();
+      await expect(page.getByRole("toolbar", { name: "Bulk actions" })).toBeVisible();
     },
   },
   { name: "campaigns-no-account", path: "/campaigns", api: () => newApi() },
