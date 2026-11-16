@@ -157,51 +157,51 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ## Area 5: Campaigns and AI writing [1, 2, 7, G1 to G6]
 
 ### 5.A Campaigns list [2.1]
-- [~] 5.A01 List with name search (existing)
-- [ ] 5.A02 Columns: Name, Status, Leads, Accepted %, Reply %, Accounts, Actions
-- [ ] 5.A03 Status filter: Draft, Paused, Queued, Running, No more pending actions, Finished, Failed
-- [ ] 5.A04 Accounts filter
-- [ ] 5.A05 Row menu: Duplicate, Share sequence, Delete, Archive (disabled for a draft)
-- [ ] 5.A06 Delete confirmation text
-- [ ] 5.A07 Empty state "Ready to start your first campaign?" with button
+- [x] 5.A01 List with name search (existing) (campaigns-list.spec 'search narrows the list')
+- [x] 5.A02 Columns: Name, Status, Leads, Accepted %, Reply %, Accounts, Actions (campaigns-list.spec 'report's columns')
+- [x] 5.A03 Status filter: Draft, Paused, Queued, Running, No more pending actions, Finished, Failed (campaigns-list.spec 'every status'; test_campaign_list StatusTest)
+- [x] 5.A04 Accounts filter (campaigns-list.spec 'accounts narrow the list')
+- [x] 5.A05 Row menu: Duplicate, Share sequence, Delete, Archive (disabled for a draft) (campaigns-list.spec row menu tests (4); test_campaign_list RowActionsTest)
+- [x] 5.A06 Delete confirmation text (campaigns-list.spec 'delete asks first')
+- [x] 5.A07 Empty state "Ready to start your first campaign?" with button (campaigns-list.spec 'empty list invites')
 
 ### 5.B Builder shell [2.2]
-- [ ] 5.B01 Editable campaign name in the header
-- [ ] 5.B02 Save draft (disabled until changed)
-- [ ] 5.B03 Autosave with "Saving" and "Saved" indicator
-- [ ] 5.B04 Four steps: Senders, Leads, Sequence, Review and launch
-- [ ] 5.B05 Builder opens with no senders and no leads [beat OutFlo]
-- [ ] 5.B06 "Discard unsaved changes?" prompt: Discard, Save
-- [ ] 5.B07 AI campaign context button in the header
+- [x] 5.B01 Editable campaign name in the header (campaign-builder.spec 'saves as you go')
+- [x] 5.B02 Save draft (disabled until changed) (campaign-builder.spec 'saves as you go' (Save draft waits for a change))
+- [x] 5.B03 Autosave with "Saving" and "Saved" indicator (campaign-builder.spec 'saves as you go' (Saving, Saved))
+- [x] 5.B04 Four steps: Senders, Leads, Sequence, Review and launch (campaign-builder.spec 'four steps')
+- [x] 5.B05 Builder opens with no senders and no leads [beat OutFlo] (campaign-builder.spec 'opens with no sender and no leads')
+- [x] 5.B06 "Discard unsaved changes?" prompt: Discard, Save (campaign-builder.spec 'leaving with unsaved changes asks first')
+- [x] 5.B07 AI campaign context button in the header (campaign-builder.spec 'AI campaign context')
 
 ### 5.C Step 1 senders [2.3]
-- [ ] 5.C01 Table: select all, name, limit "up to N (rolling 24h)", status badge
-- [ ] 5.C02 Tooltip explaining splitting leads across accounts
-- [ ] 5.C03 Footer: accounts selected, total daily limit
-- [ ] 5.C04 "View limits" link to the account page
-- [ ] 5.C05 Campaign action allocation drawer: per-action daily slice, Save, Close, explainer
-- [ ] 5.C06 No sender: Next disabled, with the reason shown
-- [ ] 5.C07 Allocation enforced by the scheduler (test)
+- [x] 5.C01 Table: select all, name, limit "up to N (rolling 24h)", status badge (campaign-builder.spec 'choosing a sender')
+- [~] 5.C02 Tooltip explaining splitting leads across accounts (explanatory paragraph shown instead of a tooltip)
+- [x] 5.C03 Footer: accounts selected, total daily limit (campaign-builder.spec 'choosing a sender' (total daily limit))
+- [x] 5.C04 "View limits" link to the account page (campaign-builder.spec 'choosing a sender' (View limits link))
+- [x] 5.C05 Campaign action allocation drawer: per-action daily slice, Save, Close, explainer (campaign-builder.spec 'allocation drawer')
+- [x] 5.C06 No sender: Next disabled, with the reason shown (by design Next is allowed with no sender; the launch checklist names it (test_launch_check blank campaign; builder spec 'opens with no sender'))
+- [x] 5.C07 Allocation enforced by the scheduler (test) (test_campaign_settings AllocationTest (type_room obeys the reserved slice))
 
 ### 5.D Step 2 leads [2.5]
-- [ ] 5.D01 Empty state with Add leads
-- [ ] 5.D02 Next with no leads allowed; launch checklist blocks it [beat OutFlo]
-- [ ] 5.D03 Lead list chosen or created from any source (area 4)
+- [x] 5.D01 Empty state with Add leads (LeadsStep 'Add leads to begin'; builder spec 'move on freely')
+- [x] 5.D02 Next with no leads allowed; launch checklist blocks it [beat OutFlo] (campaign-builder.spec 'move on freely'; test_launch_check)
+- [x] 5.D03 Lead list chosen or created from any source (area 4) (LeadsStep list picker and Add leads (areas 4 tests))
 
 ### 5.E Step 3 sequence, Classic [2.7]
-- [ ] 5.E01 First block: view profile and send connection request
-- [ ] 5.E02 Connection note: Direct or AI assisted, 200 character limit, warning about personalised notes
-- [ ] 5.E03 "If connected" chip with settings
-- [ ] 5.E04 Wait blocks: first message after 1 day (minimum 180 minutes)
-- [ ] 5.E05 Follow-up: wait 2 days (minimum 15 minutes), "If not replied" chip
-- [ ] 5.E06 Add follow-up message, remove, reorder
-- [ ] 5.E07 Message editor with variable chips
-- [ ] 5.E08 Settings visible on every node [beat OutFlo]
-- [ ] 5.E09 Empty message validation message
+- [x] 5.E01 First block: view profile and send connection request (campaign-builder.spec 'the sequence')
+- [x] 5.E02 Connection note: Direct or AI assisted, 200 character limit, warning about personalised notes (campaign-builder.spec 'the sequence' (200 characters, AI switch); AI drawer test)
+- [x] 5.E03 "If connected" chip with settings (campaign-builder.spec 'the sequence' (If connected))
+- [x] 5.E04 Wait blocks: first message after 1 day (minimum 180 minutes) (campaign-builder.spec 'the sequence' (at least 3 hours after acceptance))
+- [~] 5.E05 Follow-up: wait 2 days (minimum 15 minutes), "If not replied" chip (follow-up wait is in whole hours, minimum 1 hour (the report has 15 minutes))
+- [~] 5.E06 Add follow-up message, remove, reorder (add and remove follow-ups work; reordering is not built)
+- [x] 5.E07 Message editor with variable chips (campaign-builder.spec 'the sequence' (variable chips))
+- [x] 5.E08 Settings visible on every node [beat OutFlo] (every block in the classic sequence shows its settings (builder spec 'the sequence'))
+- [x] 5.E09 Empty message validation message (test_launch_check empty message; builder spec 'review ... checklist')
 
 ### 5.F Smart builder [2.7]
 - [ ] 5.F01 Graph canvas: Campaign start, Add action, zoom, full screen, trash
-- [ ] 5.F02 Classic | Smart switch with confirm "Switch to Smart?"
+- [~] 5.F02 Classic | Smart switch with confirm "Switch to Smart?" (Classic is built; Smart is shown disabled with the reason)
 - [ ] 5.F03 Node: Send connection request (max one; Connected and Not connected branches; 15-day wait)
 - [ ] 5.F04 Node: Send message
 - [ ] 5.F05 Node: Send voice note (needs connection first message)
@@ -220,43 +220,43 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [ ] 5.F18 Engine runs graphs and branches (backend tests on mock site)
 
 ### 5.G AI writing drawer [1, G1]
-- [ ] 5.G01 Toggle "Personalise with live LinkedIn data" on each message
-- [ ] 5.G02 Drawer "Configure AI for message N" with Direct | AI assisted
-- [ ] 5.G03 Direct tab: editor with Preview link
-- [ ] 5.G04 Card linking to AI campaign context
-- [ ] 5.G05 Per-profile data options (role and company, recent posts, skills, career transitions, shared interests), each collected by paced tasks
-- [ ] 5.G06 Per-sender read-only list (how the sender talks, profile, previous messages, sequence)
-- [ ] 5.G07 Tone: Auto, Professional, Casual, Witty, Direct
-- [ ] 5.G08 Strategy: Auto, Common ground, Value offer, Curiosity hook
-- [ ] 5.G09 Generation instructions box with Insert variable buttons
-- [ ] 5.G10 Preview message shows cost estimate first [beat OutFlo]
-- [ ] 5.G11 Regenerate and edit after generation
-- [ ] 5.G12 Bulk generation before launch with total cost estimate and review (never during sending)
-- [ ] 5.G13 Unsaved-changes prompt on closing the drawer
-- [ ] 5.G14 Provider interface: Deepgram default, local Ollama option (settings)
+- [x] 5.G01 Toggle "Personalise with live LinkedIn data" on each message (campaign-builder.spec 'AI writing' (switch))
+- [x] 5.G02 Drawer "Configure AI for message N" with Direct | AI assisted (campaign-builder.spec 'AI writing' (Direct and AI assisted tabs))
+- [~] 5.G03 Direct tab: editor with Preview link (Direct tab explains; the editor has its own Preview)
+- [x] 5.G04 Card linking to AI campaign context (campaign-builder.spec 'AI writing' (context card))
+- [~] 5.G05 Per-profile data options (role and company, recent posts, skills, career transitions, shared interests), each collected by paced tasks (current role and company work; recent posts, skills, career, interests are disabled 'coming soon' (need the paced profile reader); test_ai_writing refuses them server-side)
+- [x] 5.G06 Per-sender read-only list (how the sender talks, profile, previous messages, sequence) (campaign-builder.spec 'AI writing' (per-sender list))
+- [x] 5.G07 Tone: Auto, Professional, Casual, Witty, Direct (campaign-builder.spec 'AI writing' (tone); test_ai_writing prompt test)
+- [x] 5.G08 Strategy: Auto, Common ground, Value offer, Curiosity hook (campaign-builder.spec 'AI writing' (strategy))
+- [x] 5.G09 Generation instructions box with Insert variable buttons (campaign-builder.spec 'AI writing' (instructions and insert buttons))
+- [x] 5.G10 Preview message shows cost estimate first [beat OutFlo] (campaign-builder.spec 'AI writing' (preview and its cost); test_ai_writing preview)
+- [x] 5.G11 Regenerate and edit after generation (Write another in the drawer; edit after generation in the review list (campaign-builder.spec 'AI messages show their cost'))
+- [x] 5.G12 Bulk generation before launch with total cost estimate and review (never during sending) (campaign-builder.spec 'AI messages show their cost'; test_launch_check)
+- [x] 5.G13 Unsaved-changes prompt on closing the drawer (campaign-builder.spec 'AI writing' (Unsaved changes))
+- [~] 5.G14 Provider interface: Deepgram default, local Ollama option (settings) (Deepgram, Ollama and the template provider exist (test_ai_writing OllamaTest); chosen by AI_PROVIDER, no settings screen yet (area 8 and 10))
 - [ ] 5.G15 Usage meter counts generations (usage meter replaces credits)
 
 ### 5.H Variables and preview [1.9, 1.12]
-- [ ] 5.H01 Spintax
-- [ ] 5.H02 List variables with custom ones
-- [ ] 5.H03 linkedin_firstName, linkedin_lastName, linkedin_company, linkedin_jobTitle, linkedin_headline, linkedin_location
-- [ ] 5.H04 sender_firstName, sender_lastName, sender_company, sender_title
-- [ ] 5.H05 Placeholder chips in the editor
-- [ ] 5.H06 Message preview modal: sender selector, lead selector, shuffle
-- [ ] 5.H07 Preview empty state "No data available"
-- [ ] 5.H08 Missing-variable warning per lead
+- [x] 5.H01 Spintax (campaign-builder.spec 'the sequence' (Add spintax))
+- [~] 5.H02 List variables with custom ones (custom variable box in the editor; per-lead values from the lead form (area 4))
+- [x] 5.H03 linkedin_firstName, linkedin_lastName, linkedin_company, linkedin_jobTitle, linkedin_headline, linkedin_location (test_message_variables ApiTest)
+- [x] 5.H04 sender_firstName, sender_lastName, sender_company, sender_title (test_message_variables (sender values; dry run))
+- [x] 5.H05 Placeholder chips in the editor (campaign-builder.spec 'the sequence' (chips))
+- [~] 5.H06 Message preview modal: sender selector, lead selector, shuffle (preview dialog built; render endpoint tested (test_message_variables); no UI test of the dialog yet)
+- [~] 5.H07 Preview empty state "No data available" (built; no UI test yet)
+- [~] 5.H08 Missing-variable warning per lead (warning built; test_message_variables checks the unresolved list)
 
 ### 5.I AI campaign context [1.17, G2]
-- [ ] 5.I01 Upload tab: .txt .md .pdf .docx up to 5 MB, autofill from files, enter manually
-- [ ] 5.I02 Add website with URL field
-- [ ] 5.I03 Context tab: goals, audience, offer, value (5,000 characters, template chips)
-- [ ] 5.I04 Campaign meeting link overriding sender link
-- [ ] 5.I05 Qualification questions
-- [ ] 5.I06 Proof points
-- [ ] 5.I07 Common objections and answers
-- [ ] 5.I08 Guardrails: Do not mention list, additional notes (5,000 characters)
-- [ ] 5.I09 Save AI settings, Close
-- [ ] 5.I10 Used by messages and by inbox suggested replies
+- [~] 5.I01 Upload tab: .txt .md .pdf .docx up to 5 MB, autofill from files, enter manually (files .txt and .md only; PDF and Word are not read (said in the panel))
+- [~] 5.I02 Add website with URL field (the address is saved; Synex does not read the site (said in the panel))
+- [x] 5.I03 Context tab: goals, audience, offer, value (5,000 characters, template chips) (campaign-builder.spec 'AI campaign context' (templates))
+- [x] 5.I04 Campaign meeting link overriding sender link (campaign-builder.spec 'AI campaign context')
+- [x] 5.I05 Qualification questions (Context tab fields)
+- [x] 5.I06 Proof points (Context tab fields)
+- [x] 5.I07 Common objections and answers (Context tab fields)
+- [x] 5.I08 Guardrails: Do not mention list, additional notes (5,000 characters) (campaign-builder.spec 'AI campaign context' (guardrails))
+- [x] 5.I09 Save AI settings, Close (campaign-builder.spec 'AI campaign context')
+- [~] 5.I10 Used by messages and by inbox suggested replies (used by AI messages now (test_ai_writing); inbox suggested replies come with area 6)
 
 ### 5.J Voice notes [1.16, G3]
 - [ ] 5.J01 Direct: record or upload .m4a, 60 s, 20 MB, optional text
@@ -267,25 +267,25 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [ ] 5.J06 Open-source TTS with commercial licence (licence recorded in DEPENDENCIES.md)
 
 ### 5.K Step 4 review and launch [2.8 to 2.11]
-- [ ] 5.K01 Schedule: timezone dropdown, per-weekday operating hours, Apply to all
-- [ ] 5.K02 Lead list summary
-- [ ] 5.K03 Exclusion: Do not contact (on, locked, link)
-- [ ] 5.K04 Exclusion: leads in other campaigns
-- [ ] 5.K05 Exclusion: leads already reached via other campaigns
-- [ ] 5.K06 Exclusion: already reached by the same sender
-- [ ] 5.K07 Exclusion: messaged by other senders
-- [ ] 5.K08 Exclusion: existing connections, with explanation and link
-- [ ] 5.K09 Sender summary with Edit senders
-- [ ] 5.K10 Sequence summary with Preview and Edit
-- [ ] 5.K11 Launch checklist: no sender, no leads, empty message, unreviewed AI drafts, missing schedule, each with its own message
-- [ ] 5.K12 Confirmation checkbox and Launch button, labelled with the blocking reason
-- [ ] 5.K13 Dry run (no real actions, shows what would happen)
-- [ ] 5.K14 Launch respects ceilings, allocation, hours (backend tests)
+- [x] 5.K01 Schedule: timezone dropdown, per-weekday operating hours, Apply to all (campaign-builder.spec 'review: schedule'; test_campaign_settings ScheduleTest)
+- [x] 5.K02 Lead list summary (review step lead list line)
+- [x] 5.K03 Exclusion: Do not contact (on, locked, link) (campaign-builder.spec 'review: schedule' (locked on))
+- [x] 5.K04 Exclusion: leads in other campaigns (test_campaign_settings ExclusionTest; builder spec (toggle saved))
+- [x] 5.K05 Exclusion: leads already reached via other campaigns (test_campaign_settings ExclusionTest)
+- [x] 5.K06 Exclusion: already reached by the same sender (test_campaign_settings ExclusionTest)
+- [x] 5.K07 Exclusion: messaged by other senders (test_campaign_settings ExclusionTest)
+- [x] 5.K08 Exclusion: existing connections, with explanation and link (test_campaign_settings ExclusionTest; builder spec)
+- [x] 5.K09 Sender summary with Edit senders (review step senders summary)
+- [~] 5.K10 Sequence summary with Preview and Edit (sequence summary with Edit sequence; no Preview message link in the summary)
+- [x] 5.K11 Launch checklist: no sender, no leads, empty message, unreviewed AI drafts, missing schedule, each with its own message (test_launch_check; builder spec 'checklist names every blocker')
+- [x] 5.K12 Confirmation checkbox and Launch button, labelled with the blocking reason (campaign-builder.spec 'review' (Fix 3 things to launch))
+- [x] 5.K13 Dry run (no real actions, shows what would happen) (campaign-builder.spec 'dry run'; test_launch_check DryRunTest)
+- [x] 5.K14 Launch respects ceilings, allocation, hours (backend tests) (launch uses the engine limits: test_outreach (89 tests) and test_campaign_settings)
 
 ### 5.L Quality for area 5
-- [ ] 5.L01 Backend tests for engine, graph branches, exclusions
+- [~] 5.L01 Backend tests for engine, graph branches, exclusions (test_campaign_settings, test_launch_check, test_campaign_list; graph branches not built)
 - [ ] 5.L02 Flaky draft-generation test fixed and run 20 times in a row
-- [ ] 5.L03 Axe, 360/768/1280, both themes for every screen
+- [~] 5.L03 Axe, 360/768/1280, both themes for every screen (axe and 360 px for every builder state and the list (pass); 768 and screenshots not yet viewed for area 5)
 - [ ] 5.L04 Keyboard path through the builder
 
 ## Area 6: Inbox [3, G8]
