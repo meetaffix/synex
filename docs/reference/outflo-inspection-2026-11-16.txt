@@ -1,0 +1,185 @@
+I'll start by looking at the open tab.Let me open the AI Campaign Context panel first, then step 1.Cancel, close the modal, and go to step 1 (senders).Now each other tab (Inbox Privacy, Health, Account, Manage Connections, AI Configuration), reading text only.Now Manage Connections and AI Configuration tabs.Now the Invitations subtab and AI Configuration tab.Check "Clone My Voice" then close.Cancel, then look at the Health tab toggles and the Accounts list page.Valuable: credit costs. Reading the full Billing credits page, then the other Settings sections.New items: Lead List Management and LinkedIn Social Engagement. Opening both.Now the Add profiles dialog (view only) and then Create Lead List.Cancel, check Companies tab, then go to Create Lead List.Now LinkedIn Social Engagement, then What's new and Rewards.Progress: Accounts, Settings, Billing/credits, Others (Lead Lists, Do Not Contact, Social Engagement) are covered. Opening the post composer auto-created an empty draft post, so I'll delete it. Next: Unibox, then the campaign steps (leads, sequence, AI writing, review/launch).Now Unibox.Status options: Starred, Drafts, Scheduled, Unread. Now Tags, System Tag.Progress: Unibox thread view and reply box captured (note: opening one thread marked a promo message as read). Now checking the reply-box AI button, bulk select, search and date filter, then moving on to the campaign wizard.Date presets: Today, Yesterday, Last week/month/quarter, Custom range + Apply. Now the Add button and the account chip.It opened directly on the extension path. Check "Back to options" to see other connection methods.Progress: Unibox, Accounts, Settings, Billing credit costs, Lead Lists, Do Not Contact and Social Engagement are done. I'm now in the campaign wizard: step 1 has a per-sender "Campaign Action Allocation" drawer I'm reading. After that come the lead sources, sequence and AI writing, and the launch validations.Now test the no-sender state: untick the sender, and see what Next does.Now toggling the AI agent on this draft message (draft campaign only) to see its configuration.Jackpot: the AI configuration drawer. Reading its full text, then expanding the two "what AI reads" sections.Progress: found the AI message-writing drawer (Direct / AI assisted, tone, strategy, instructions, what-AI-reads, 0.5-credit preview). I'm not clicking Preview because it spends credits and fetches live LinkedIn data. Next: the variables list, the follow-up and other step types, Smart sequence mode, then lead-source screens and the launch validations.Variables dropdown has Spintax, list variables, and LinkedIn-fetched variables. Reading the full list.Unsaved-changes prompt noted; discarding via Close.Nothing opens in the empty state. Closing and scrolling the sequence builder further down.Sender restored. Now Next → step 2 (leads), then Add Leads.Custom campaign variables noted. Cancel and see whether it returns to the source list.Next: Basic LinkedIn Search.Now LinkedIn Post and LinkedIn Event.Now Companies and Sales Navigator Accounts (need scroll in the source list).Progress: 9 of 12 lead-source screens captured (LinkedIn Companies redirects to Lead Management). Opening Sales Navigator Accounts, then the step-2 "Next with no leads" validation, the Smart sequence mode, and the Review & Launch validations.Now click Next on step 2 with no leads.Progress: launch-review step captured (schedule + the "Missing required information" message). A safety check hiccuped, so I'm retrying. Still to do: expand the review accordions, Smart sequence mode, the sequence step types, then restore the draft and write the report.Exclusion settings found. Reading full text of this and the other accordions.Progress: switching the throwaway TEST draft to Smart (graph) sequence mode to inspect it; I'll switch back or delete the draft afterwards.Smart mode is a graph canvas. Opening "Add Action" and "Templates".Connection request config drawer with AI assisted tab. Reading text, then the AI tab.Progress: Smart mode, node menu and connection-note AI captured. Last items: Templates, Send Message/Voice Note nodes and the conditionals, then I delete the throwaway draft and write the report.Progress: voice-note node found (m4a, 60s, 20 MB; record/upload/AI voice) and it shows a validation toast about needing a connection first. One more tab to read, then I clean up the draft.Progress: inspection is done. I'm now deleting the throwaway "TEST - do not launch" draft campaign and then I'll send the full report.Discarding changes (it's the throwaway).I covered all six areas except the items listed under "Not covered" below. Everything is read-only apart from the side effects listed at the end.
+
+## 1. Message writing with AI
+
+1. In the campaign sequence (Classic mode), every message has an "OutFlo AI Outreach Agent" toggle under the text box, labelled "Personalize with live LinkedIn data. Toggle to configure."
+2. Switching it on opens a right-hand drawer, "Configure AI for Message N". At the top is a **Direct | AI assisted** switch. Direct is the plain editor with a Preview link. AI assisted is the AI setup.
+3. The AI assisted tab has a card reading "OutFlo Agent also uses campaign context added by you", which links to the AI Campaign Context panel (see item 9).
+4. Two collapsible sections show what the AI reads.
+   - **Per profile** is "Live LinkedIn Fetch", with five ticked checkboxes: current role and company, recent posts, skills and endorsements, career transitions, shared interests.
+   - **Per sender** is a read-only list: how the sender talks, complete profile information, previous messages in the chat, and the complete campaign sequence.
+5. **Tone** is a single-select row: Auto (default), Professional, Casual, Witty, Direct.
+6. **Strategy** is a single-select row: Auto (default), Common ground, Value offer, Curiosity hook.
+7. "AI Generation Instructions" is an optional free-text box. Below it are "Insert variable" buttons for First Name, Last Name and Company, plus a Variables dropdown.
+8. A notice reads "You can still review every message in Preview before it sends." A "Using credits: 100" chip shows the balance. The preview button reads "Preview Message · 0.5 credits".
+9. Message variables in the Variables dropdown:
+   - **Spintax** ("Add Spintax").
+   - **Variables from List**, with an Add option for custom ones.
+   - **Fetched from LinkedIn:** linkedin_firstName, linkedin_lastName, linkedin_company, linkedin_jobTitle, linkedin_headline, linkedin_location.
+   - **Sender variables:** sender_firstName, sender_lastName, sender_company, sender_title.
+   - Placeholders show as green `{variable}` chips in the text.
+10. Closing the drawer with changes shows "Unsaved Changes — save them before closing?" with Close and Save buttons.
+11. Follow-ups use the same drawer. "Add Follow-up Message" adds a block with a Wait of 2 days (minimum 15 minutes), an "If not replied" chip, an empty message, and the same AI toggle. The first message waits 1 day after the connection is accepted (minimum 180 minutes).
+12. The manual Preview link opens a "Message Preview" modal with a Sender selector, a Lead selector, a gear and a shuffle icon. With no leads it shows "No data available. No accounts or leads found."
+13. I did not click the AI preview, so I did not see a generated message, a regenerate button, or whether AI text can be edited afterwards. Preview spends credits and fetches live LinkedIn data. The page says reusing a saved generation costs nothing.
+14. **Credit rate card** (Billing, Credits tab):
+    - AI message or InMail: 0.5 per new generation.
+    - AI connection note: 0.5.
+    - AI voice note: 2 (2.5 if text and audio are both newly generated).
+    - "Is Active on LinkedIn" with credits: 1. Without credits: 0, but the daily limits apply.
+    - Previews use the same rates. Manual messages cost nothing.
+    - Packs: 500 credits for $10 (they never expire and stack). The trial grants 100 credits, expiring 22 Nov 2026.
+15. **Connection note AI** (Smart mode, "Configure Connection Requests") has Direct and AI assisted tabs.
+    - A "View profile before sending connection request" toggle.
+    - A standard note of up to 200 characters.
+    - A warning: "LinkedIn limits personalized notes… requests will be sent without a message."
+    - The AI tab has the same profile and sender sections, tone and strategy, an "Additional instructions" box, and "Preview Connection Note · 0.5 credits".
+16. **Voice note** node (Smart mode, marked NEW):
+    - Direct tab: guidelines of .m4a only, 60 seconds maximum, 20 MB maximum. Record or Upload. Optional companion text.
+    - AI assisted tab: a voice script of up to 1,000 characters and a "Sender Voice Readiness" panel ("1 Sender Missing Voice", Configure Sender Voices). Target language and accent: English (US), English (UK), English (India). "Preview Voice Note · 2 credits".
+    - Adding it with no preceding connection step shows a toast: "Send Voice Note needs a connection first. Add a Send Connection Request or If Connection step before this."
+17. **AI Campaign Context** (button in the campaign header, shared knowledge for messages and AI replies) has three tabs.
+    - **Upload:** .txt, .md, .pdf or .docx up to 5 MB, with "Autofill from files" or "Enter manually". Also an "Add website" link that opens a URL field with Continue and Cancel. The panel says "No organization website configured."
+    - **Context:** Goals/Audience/Offer/Value (5,000 characters, template chips Book a Demo, Webinar Promo, Free Audit, Agency Pitch). A campaign meeting link that overrides the sender's calendar link. Qualification questions. Proof points. Common objections and answers.
+    - **Guardrails:** a "Do Not Mention" list and an Additional Notes box (5,000 characters).
+    - The panel has Close and "Save AI Settings" buttons.
+18. **Inbox reply box:** the reply box has a purple "Supercharge your message with AI" sparkle button, plus emoji, attachment, voice message, "Schedule message" and Send. On the threads I opened, all of these were disabled. The box read "Replies are disabled for this read-only conversation…". So I could not see AI suggested replies. The profile side panel also has a "Fetch profile" button. Account settings has an "AI Configuration" tab for the sender's voice (item 4.6).
+
+## 2. Campaign creation
+
+1. **Campaigns list:** columns are Name (with search), Status (filter), Leads, Accepted %, Reply %, Accounts (filter), Actions. The status filter options are Draft, Paused, Queued, Running, No More Pending Actions, Finished, Failed. Each row has a trash icon and a kebab menu with Duplicate Campaign, Share Sequence, Delete Campaign, Archive Campaign (disabled for a draft). With no campaigns it shows "Ready to start your first campaign?" and a "Create Your First Campaign" button.
+2. **Header:** an editable campaign name, Save draft (greyed until something changes), AI Campaign Context, and a "Saving…" and "Saved" autosave indicator. The wizard has four steps: LinkedIn Senders, List of Leads, Sequence, Review & Launch.
+3. **Step 1, Senders:** a table with a select-all checkbox, a row per account (name, "up to 25 (rolling 24h)" with an info icon, "Connected" badge), "View limits", and a sliders icon.
+   - The info tooltip says more accounts means more leads per day, leads are split evenly across accounts, and the maximum is about 200 leads per week.
+   - A green footer reads "1 account(s) selected, Total daily limit: 25 connections".
+   - "View limits" jumps to that account's settings page.
+   - The sliders icon opens a "Campaign Action Allocation" drawer. It reserves a daily slice per action (Send Connection Request, Send Message, Like A Post, View Profile) and has Save Allocations and Close. A notice explains that unallocated capacity goes to older campaigns first, that a locked quota on an idle campaign is wasted, and that OutFlo nudges you when a campaign runs out of leads.
+4. **No sender:** untick it and the Next button goes disabled and the daily-limit footer disappears. Clicking the stepper numbers does not move you on. On the Sequence step, the connection-request card then says "Select accounts to add message" and Message Preview says "Sender: No accounts available".
+5. **Step 2, Leads:** empty state "Add leads to begin / Import from CSV, LinkedIn search, or your saved lists" with Add Leads. Next is enabled even with zero leads and moves you to the Sequence step. The only warning I saw about no leads is on the Review page (item 11).
+6. "Add Leads" opens "How would you like to add leads?" with 12 sources (details in section 5).
+7. **Step 3, Sequence:** two modes, **Classic** (vertical list) and **Smart** (graph canvas).
+   - Classic starts with "View Profile and Send Connection Request" (subtitle "No message added" or "Select accounts to add message"), an "If Connected" chip with a gear, then a Wait block, "If not replied", Message 1, and "Add Follow-up Message". There is a gear icon beside Next.
+   - Switching to Smart shows "Switch to Smart? This campaign will use the Smart sequence." with Cancel and Confirm. The canvas has Campaign Start, an "Add Action" button, Templates, a green check, a trash icon, Collapse (full screen), zoom controls, and Classic | Smart tabs.
+   - The Add Action menu lists:
+     - Actions: Send Connection Request, Send Message, Send Voice Note, Follow Profile, Like a Post, View Profile, Send Free InMail, Send InMail, Withdraw Invite.
+     - Conditionals: If Connection, Is Active on LinkedIn.
+   - Send Connection Request is limited to one per sequence (a "1" badge, then greyed out). Adding it creates "Connected" and "Not Connected" branches, with a 15-day wait on the Not Connected branch. Each branch has Add Action and End.
+   - Next stays dimmed while a node is unconfigured.
+   - The Templates dialog has two tabs: Templates (New Connection Nurture, 5-Step Connect & Convert, Cold Connection Request, Full-Cycle Outreach Playbook, with a search box and a preview graph) and Previous Campaigns. Its buttons are Cancel and Apply Template.
+8. **Step 4, Review & Launch** contains these sections:
+   - **Campaign Schedule:** timezone dropdown (default IST; also GMT, UTC, EST, PST, CET, CEST and others) and Operational Hours per weekday. Mon–Fri are ticked at 08:00–20:00, Sat and Sun are unticked. Each row has an "Apply to all" link. The text says daily sending is paced by account safety limits.
+   - **Lead List:** "No lead list selected. Please go back and select a lead list." The lead exclusion toggles are:
+     - Do Not Contact list (on, locked, with a "Manage list" link).
+     - Exclude leads present in other campaigns.
+     - Exclude leads already reached through other campaigns.
+     - Exclude leads already reached by the same sender through other campaigns.
+     - Exclude leads messaged by other senders.
+     - Exclude existing LinkedIn connections (with "How connection matching works" and "Manage Connections" links).
+   - **Sender Accounts:** an expandable card with an Edit Senders link.
+   - **Campaign Sequence:** an expandable numbered summary ("1 Connection Request", "2 Message 1 · 1 day") with a "Preview message" link and Edit Sequence.
+9. **Launch validation I saw:** a red box "Missing required information — One or more messages in your sequence are empty. Please add text or at least one attachment to all follow-up messages." The checkbox "I confirm all details are correct and ready to launch" and the launch button are disabled, and the button is relabelled "Missing Message Payload".
+10. I could not see the validation messages for no sender, no leads, or a fully valid launch. The no-leads message did not appear as a blocker; only the empty-message one did.
+11. The campaign has a delete confirmation ("Do you really want to delete campaign…?"). Leaving with edits shows "Discard unsaved changes?" with Discard Changes and Save Changes.
+
+## 3. Inbox (Unibox)
+
+1. **Layout:** a conversation list in the middle, a thread pane on the right, and an optional profile panel (toggled with a panel icon; "Close profile details" hides it). With nothing selected, the right pane says "Select a conversation".
+2. **Header:** "The central Inbox for all LinkedIn accounts", a "…" menu with "Export CSV" (uses current filters), account chips (e.g. "Meet" with a globe), and an "Add" button that goes to the Accounts page.
+3. **Search:** a "Search all conversations…" box, plus a calendar button with presets Today, Yesterday, Last week, Last month, Last quarter, and Custom range with an Apply button.
+4. **Filter panel** ("Filter Conversations"):
+   - Quick buttons: Needs My Reply, I Messaged Last.
+   - Select Status: Starred, Drafts, Scheduled, Unread.
+   - Select Tags (custom tags).
+   - System Tag.
+   - Archived.
+   - Sender Accounts dropdown.
+   - Campaigns: Include or Exclude, and "All Campaigns (n)".
+   - "Include campaign conversations where" Messages Sent or Responses.
+5. **Conversation cards** show avatar, name, an unread badge, a snippet, "Received By" plus the account chip, and the time. Hovering shows a star and a selection checkbox. Selecting several is the bulk-action entry point. I could not confirm what bulk actions exist; see item 8.
+6. **Thread view:** header with name, title and a LinkedIn badge; date separators; message bubbles; the reply box. Reply box tools are emoji, attachment, voice message, schedule (clock), the AI sparkle button, Send, and "Sending from: [account]". The box is disabled and reads "Replies are disabled for this read-only conversation…" on the threads I opened.
+7. **Profile panel:** banner, photo, "Fetch profile", followers and connections, location and local time, company and school, contact info, About and Experiences (expandable), then the buttons "Mark as starred", "Mark as answered", "Select Tags", "Archive". Below is "Lead Overview" with an "Add" dropdown and the notice "Lead not present in any campaign".
+8. I did not find interest labels in the places I looked. The only "status" values are Starred, Drafts, Scheduled and Unread.
+9. I did not open the tag dropdown or the bulk-action bar, because my click landed on a card instead.
+
+## 4. Accounts
+
+1. **Accounts list** (LinkedIn Accounts): a Connect account button; an "Organization overview" card with Plan "Growth (Trial)", "Trial ends 22 Nov 2026", seats (1 used of 3, 2 available), credits granted and remaining (100), plus Manage plan and View credits.
+2. **Account row:** avatar, name, "n active campaigns", a globe icon, status badges (Connected, Active), a 24-hour usage panel (connections 0/23–27, messages 0/28–32, a "SMART" pill), and two performance chips (accepted %, reply %). The table has a status filter (All, Active, Needs attention), a name search, and Previous/Next.
+3. **Connect account** drawer, "Add LinkedIn Account", offers: Connect via Extension (Recommended; Install Chrome Extension, "No password needed", "Takes <1 min", "Already installed? Refresh"), Connect with Credentials (I did not open it), and Share Connection Link (a link plus Copy, with instructions to open it in another Chrome profile).
+4. **Account page header:** a banner with OutFlo SSI score (15), percentile (Top 95%) and confidence (Medium), profile name, headline, location, company, badges, a Resync button, a refresh icon, and "Connected by login credentials since [date]".
+5. **Tabs:** Sender Limits, Inbox Privacy, Health, Account, Manage Connections, AI Configuration.
+6. **Sender Limits:**
+   - A recommendation banner with Apply limits, Keep current and Show suggestions.
+   - Notes that limits are per account, with a cap of 100 profile-related actions per day, and that OutFlo varies daily activity.
+   - Smart Auto-Increase presets: Conservative (+1 per week), Balanced (+2 every 2–3 days), Aggressive (+3 daily), Custom per-limit.
+   - A "Range" selector ±1 to ±10.
+   - A per-action table with daily limit and auto-increase (increase by, stop at, interval, with a "Dynamic (recommended)" option). Actions covered: profile views, connection requests, messages, post likes, Is Active on LinkedIn, profile follows, withdraw invites, paid InMails, free InMails, connection checks. Example default ranges: 23–27 per day (max 40) for connection requests, 28–32 for messages, 13–17 for paid InMails.
+7. **Inbox Privacy:** "Full inbox sync — All LinkedIn conversations tracked", an "Account access required" warning, and a "Share with account owner" link with Copy.
+8. **Health:** an "Auto-withdraw stale invites" toggle (Recommended, off) with an explanation of invite hygiene.
+9. **Account:** "Deactivate seat" (suspends operations and frees the seat) and "Delete account" (permanent; LinkedIn profile unaffected).
+10. **Manage Connections:** Connection List and Invitations subtabs, Reload, "Your connections sync gradually" notice, Export CSV, Upload CSV, a search box, and the list of known connections (3 shown). Invitations showed "No received invitations found."
+11. **AI Configuration:** "Assigned voice: No voice assigned" with Assign voice. That opens "Select Voice" with 7 preset voices (Sarah, Slax, Adrian, Verity, Guyzo, Mark, Miku, each with a play sample and Select Voice) and a Clone My Voice dialog (profile name, record or upload .m4a/.mp3/.wav of 30–60 seconds, an ownership confirmation checkbox, Create Voice Clone).
+
+## 5. Lead import
+
+I opened each source's screen and filled nothing in.
+
+1. **Add LinkedIn profile:** profile URL, optional name, "Campaign variables" with a New variable form (name like `{eventName}`, optional value for this person, Create Variable). Footer: "Campaign exclusions apply", Cancel, "Add to campaign".
+2. **Upload CSV:** drag-and-drop or Browse files, max 5 MB, required column "LinkedIn URL", with a "Download Sample CSV" link.
+3. **Add from my List:** "Import from Saved Lists" with Refresh and "Create Empty List". Currently empty: "No saved lead lists found".
+4. **Basic LinkedIn Search:** search URL, account selector, list name (auto-filled with a date), limit (default 100, max 1,000), "Process Search".
+5. **Sales navigator (Leads):** same fields, "Select Sales Nav Account", max 2,500.
+6. **Recruiter:** same, with a recruiter account, max 2,500.
+7. **LinkedIn Post:** post URL (activity, ugcPost and share formats), Scrape Type (Reactions, Comments, Reactions and comments), account, list name, limit up to 1,000, "Scrape Post".
+8. **LinkedIn Event:** event URL, a warning that the selected account must be marked as attending, account, list name, limit up to 1,000, "Scrape Event".
+9. **LinkedIn Companies:** clicking it sent me to the Lead Management page rather than opening a form.
+10. **Sales Navigator Accounts:** company search URL, LinkedIn account ("No eligible accounts" on this trial), list name, a "Companies" limit (default 100), "Create company list".
+11. **LinkedIn Group:** shown greyed out with "COMING SOON".
+12. I saw no estimate or preview before running any import. The only context is the "Max" line and the default limit. Info icons next to fields have tooltips (one says "Enter a LinkedIn search URL to scrape leads from search results"). I did not read the others.
+13. I did not upload a file, so I did not see the CSV column-mapping or preview step.
+
+## 6. Left menu and settings not covered before
+
+1. **Others** page has two cards. **Lead List Management** has Lead Lists and Leads tabs, a Create Lead List button (a name dialog with Next), a list search, a filter icon, an export icon, and a system **Do Not Contact** list. The Do Not Contact list has Contacts and Companies tabs, Import CSV, Export, "Add profiles" (one URL per line, duplicates ignored, or a CSV with a `linkedin_url` column), a search, and a table of Profile, Source, Added, Action.
+2. **LinkedIn Social Engagement** is a posting workspace, with its own balance ("25 posts available, Lifetime balance"):
+   - **Posts** has Board and Calendar views with columns Drafts, In review, Scheduled, Published, Needs action.
+   - **New post** editor: internal title, "Publish from" account, post copy (3,000 characters), mentions, media (images, one video, or a document up to 100 MB), a first comment (1,250 characters), a Review and schedule panel (Workspace Team or External Reviewers, optional reviewer, date and time, "Reserve publish time"), a Feedback thread (internal or shared with reviewer), and a "…" menu with Duplicate, Version history, Delete draft. I did not see any AI in the post editor.
+   - **Engagement:** manual reactions (Like, Celebrate, Support, Love, Insightful, Funny) and comment drafts from a chosen identity, with an engagement history.
+   - **Reviewers:** external reviewers who get magic links to a standalone review portal.
+3. **Billing:** Seats & plan tab (Growth plan, $59 struck through to $49 per account per month, 100 credits once, unlimited campaigns, "Connect OutFlo to Claude and your own agents") and the Credits tab (item 1.14).
+4. **Integration:**
+   - MCP (connect AI clients), Slack, Webhook, OutFlo API (key).
+   - HubSpot (import contacts, sync outreach status).
+   - Smartlead and Instantly (send OutFlo leads and sequence steps to email campaigns).
+   - A HeyReach migration importer (campaigns, lists, conversation history).
+5. **Notifications:** workspace-wide notification email(s), and toggles for account connected, account disconnected, and any-message alert, plus a Campaign Related Settings group with Save Changes.
+6. **Workspaces:** an "Enable Multi-Workspace" toggle (separate campaigns, accounts and lead lists per client or team).
+7. **Users:** invite users, Add Existing Member, Invite New User, with a role per workspace (the current user is Organization Admin).
+8. **Support:** a contact form, a 30-minute founder call, and chat with the founder. Also Profile Settings (name, phone, designation, company, password setup for Google sign-ins).
+9. The sidebar also has What's new (badge "1"), Rewards, Support, Founder (WhatsApp), Slack, and a trial banner ("Your trial ends in 7 days").
+
+## Gap list for Synex
+
+1. AI writing needs per-message AI/Direct modes with tone and strategy, an instructions box, per-profile data toggles, a credit counter and per-generation costs, and a preview. I did not see regenerate or edit-after behavior.
+2. A shared "campaign AI context" (goals, offer, proof points, objections, qualification questions, guardrails, meeting link, document upload and website autofill) used by both messages and inbox replies.
+3. AI connection notes (200 characters) and AI voice notes (preset and cloned voices, accent, 60-second and .m4a limits).
+4. A Smart (branching graph) sequence builder with templates and previous-campaign reuse, in addition to the Classic linear one, plus conditionals ("If Connection", "Is Active on LinkedIn") and extra actions (Follow, Like, View Profile, InMails, Withdraw Invite).
+5. A campaign action allocation (reserve a share of an account's daily limits per campaign), and a per-account auto-increase warm-up with preset speeds and a recommended-limits banner.
+6. Campaign-level exclusion toggles, a global Do Not Contact list for people and companies, and campaign schedule with timezone and per-day hours.
+7. Twelve lead sources, including post reactions or comments, event attendees, Recruiter, Sales Navigator accounts and company lists, and custom per-lead campaign variables.
+8. Unibox: account, campaign, status and date filters, Export CSV, starred, tags, system tags, archived, and a profile panel with Lead Overview.
+9. Account health features: SSI score, auto-withdraw of stale invites, a connection list with CSV import and export, Inbox Privacy and a share link for account owners, deactivate-seat versus delete.
+10. Standalone modules: LinkedIn post scheduler with reviewers and approval, manual engagement, multi-workspace, user roles, integrations (HubSpot, Smartlead, Instantly, webhook, API, MCP) and a HeyReach migration importer.
+
+## Not covered
+
+- Generated AI text, regenerate, and AI suggested inbox replies (credits, and the threads were read-only).
+- The Dashboard page, Rewards, What's new, and the tag and bulk-action menus in Unibox.
+- The launch messages for no sender and no leads, and the preview after a CSV upload.
+
+## Changes I made
+
+- Opened two Unibox threads (the LinkedIn Welcome message and the Nisha J promo), which cleared the unread badge on the second. I accidentally starred Nisha J, then unstarred it.
+- Opening the Social Engagement "New post" screen auto-created an empty draft post, which I deleted.
+- I deleted the draft campaign "TEST - do not launch" (0 leads, never launched). I assumed it was my earlier throwaway; it looked like it, but confirm it wasn't something you needed.
+- The sender selection on that draft was changed and restored before deletion, so nothing remains.
