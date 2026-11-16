@@ -46,6 +46,7 @@ class TaskSnapshot:
     profile_url: str
     message: str
     since: datetime | None
+    payload: dict | None = None
 
 
 class OutreachWorker:
@@ -214,6 +215,8 @@ class OutreachWorker:
             return False
         if snapshot.type == "sync_inbox":
             await asyncio.to_thread(results.apply_inbox, task_id, outcome)
+        elif snapshot.type == "collect_leads":
+            await asyncio.to_thread(results.apply_result, task_id, outcome)
         else:
             await asyncio.to_thread(results.apply_result, task_id, outcome.value)
         return False
@@ -232,6 +235,9 @@ class OutreachWorker:
             return await actions.get_connection_status(session, task.profile_url)
         if task.type == "sync_inbox":
             return await actions.fetch_new_messages(session, task.since)
+        if task.type == "collect_leads":
+            from . import collection_runner
+            return await collection_runner.run(session, (task.payload or {})["collectionId"], (task.payload or {}).get("mode", "run"))
         raise ValueError(f"unknown task type {task.type}")
 
     # ---- sync helpers run through asyncio.to_thread -----------------------------------
@@ -264,7 +270,7 @@ class OutreachWorker:
             task = db.get(models.AgentTask, task_id)
             payload = task.payload or {}
             return TaskSnapshot(task.id, task.type, payload.get("linkedinUrl", ""), payload.get("message", ""),
-                                engine._aware(task.account.last_inbox_sync_at))
+                                engine._aware(task.account.last_inbox_sync_at), dict(payload))
 
 
 def load_pages() -> ProfilePages:

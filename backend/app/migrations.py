@@ -68,6 +68,10 @@ def migrate():
             db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_clerk_user_id ON users (clerk_user_id)"))
             db.add(p.Migration(version="008_clerk_user_id"))
             db.commit()
+        if not db.get(p.Migration, "009_lead_collections"):
+            # Tables lead_collections and lead_collection_items come from create_all; leads.connection_degree from run_simple_migrations.
+            db.add(p.Migration(version="009_lead_collections"))
+            db.commit()
 
 
 def _lower_to_ceiling(db, model, field: str, ceiling: int) -> None:

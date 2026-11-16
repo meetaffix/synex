@@ -198,6 +198,8 @@ class Lead(Base):
     # When this person became a 1st-degree connection (connections import).
     connected_at = Column(DateTime(timezone=True), nullable=True)
     mutual_connections = Column(Integer, nullable=True)
+    # 1, 2 or 3 (3 = 3rd or beyond) as LinkedIn showed it when the lead was collected; None when unknown.
+    connection_degree = Column(Integer, nullable=True)
     tags = Column(JSON, default=list)
     # Where the lead came from: csv | connections | search_url | inbox_sync | manual
     source = Column(String, nullable=True)
@@ -579,3 +581,48 @@ class AccountLease(Base):
     account_id = Column(String, ForeignKey("linkedin_accounts.id", ondelete="CASCADE"), primary_key=True)
     holder = Column(String, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class LeadCollection(Base):
+    """One "add leads" request: a source, its parameters, the sender that reads LinkedIn, and where the people go.
+
+    draft -> previewing -> preview_ready -> queued -> running -> completed | stopped | failed.
+    Sources that never touch LinkedIn (pasted URLs, CSV, existing lists, inbox contacts) resolve in the API and skip
+    the queued/running states. People found are staged in ``LeadCollectionItem`` and only become leads on import.
+    """
+
+    __tablename__ = "lead_collections"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String, ForeignKey("linkedin_accounts.id", ondelete="SET NULL"), nullable=True)
+    source = Column(String, nullable=False)
+    params = Column(JSON, default=dict)          # source URLs, reaction types, filters, column mapping, ...
+    options = Column(JSON, default=dict)         # degrees, skip_in_campaign, skip_contacted, skip_connected
+    list_name = Column(String, nullable=False, default="")
+    max_leads = Column(Integer, nullable=False, default=50)
+    status = Column(String, default="draft")
+    fetched_count = Column(Integer, default=0)
+    created_count = Column(Integer, default=0)
+    skipped = Column(JSON, default=dict)         # reason -> count
+    preview = Column(JSON, nullable=True)        # {"people": [first 10], "degrees": {"1": n, "2": n, "3": n, "unknown": n}}
+    list_id = Column(String, nullable=True)
+    stop_requested = Column(Boolean, default=False)
+    detail = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class LeadCollectionItem(Base):
+    __tablename__ = "lead_collection_items"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    collection_id = Column(String, ForeignKey("lead_collections.id", ondelete="CASCADE"), nullable=False, index=True)
+    url_key = Column(String, nullable=False)     # dedup.normalize_linkedin_url
+    profile_url = Column(String, nullable=False)
+    name = Column(String, default="")
+    headline = Column(Text, nullable=True)
+    company = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    degree = Column(Integer, nullable=True)
+    extra = Column(JSON, default=dict)           # CSV columns, email, ... carried to the lead
