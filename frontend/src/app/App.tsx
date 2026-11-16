@@ -13,6 +13,7 @@ import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { InboxPage } from "@/features/inbox/InboxPage";
 import { CampaignsPage } from "@/features/campaigns/CampaignsPage";
+import { CampaignBuilderPage } from "@/features/campaigns/CampaignBuilderPage";
 import { SenderAccountsPage } from "@/features/linkedin-accounts/AccountsPage";
 import { ReconnectPage } from "@/features/linkedin-accounts/ReconnectPage";
 import { LeadsHub } from "@/features/leads/LeadsHub";
@@ -73,6 +74,7 @@ export function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/campaigns/new" element={<CampaignBuilderPage />} />
             <Route path="/linkedin-accounts" element={<SenderAccountsPage />} />
             <Route path="/leads" element={<LeadsHub />} />
             <Route path="/templates" element={<TemplatesPage />} />

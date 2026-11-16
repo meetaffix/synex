@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ComingNext } from "@/components/shared/ComingNext";
+import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConnectAccountEmpty } from "@/components/shared/ConnectAccountEmpty";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -15,9 +15,9 @@ import { campaignAccountIds, type Campaign } from "./service";
 import { useCampaignList } from "./hooks";
 
 const NEW_CAMPAIGN = (
-  <ComingNext label="Building campaigns comes next">
-    <Button disabled>New campaign</Button>
-  </ComingNext>
+  <Button asChild>
+    <Link to="/campaigns/new">New campaign</Link>
+  </Button>
 );
 
 export function CampaignsPage() {
@@ -32,7 +32,7 @@ export function CampaignsPage() {
       <PageHeader
         title="Campaigns"
         description="Sequences that contact leads from your sender accounts."
-        actions={!loading && !failure && (accounts.data?.length === 0 || campaigns.data?.length === 0) ? undefined : NEW_CAMPAIGN}
+        actions={!loading && !failure && accounts.data?.length !== 0 && campaigns.data?.length === 0 ? undefined : NEW_CAMPAIGN}
       />
       {loading && <LoadingTable />}
       {!loading && failure && (
@@ -53,7 +53,7 @@ export function CampaignsPage() {
         <EmptyState
           illustration="campaigns"
           title="No campaigns yet"
-          description="A campaign is a sequence of steps, such as a connection request followed by a message, that Synex runs for each lead in a list. Building campaigns in the app is coming next; existing campaigns show here with their results."
+          description="A campaign is a sequence of steps, such as a connection request followed by a message, that Synex runs for each lead in a list. Build one with New campaign; its results show here."
           action={NEW_CAMPAIGN}
         />
       )}
