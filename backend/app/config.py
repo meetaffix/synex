@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     linkedin_session_attempt_timeout_seconds: int = 600
     linkedin_session_poll_interval_seconds: float = 1.0
     linkedin_session_headless: bool = True
+    # Where a failed login's redacted screenshot goes (this machine only, never committed). Empty: backend/captures.
+    linkedin_capture_dir: str = ""
     # Proxy test: one request to this neutral endpoint (never LinkedIn), through the proxy under test.
     linkedin_proxy_test_url: str = "https://ipinfo.io/json"
     linkedin_proxy_test_timeout_seconds: float = 10

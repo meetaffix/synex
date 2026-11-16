@@ -18,7 +18,11 @@ from dataclasses import dataclass, field
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, TimeoutError as PlaywrightTimeout, async_playwright
 
+from pathlib import Path
+from urllib.parse import urlsplit
+
 from . import store
+from .capture import Diagnosis, capture
 from .identity import new_identity, parse_proxy
 from .pages import Challenge, LoginSite, PageState, Profile
 from .runtime import BrowserRuntime
@@ -28,6 +32,8 @@ log = logging.getLogger("synex.linkedin_session")
 MAX_CODE_REJECTIONS = 3
 # A checkpoint page mid-navigation looks unrecognisable; only a stable one needs the user.
 MANUAL_VERIFICATION_POLLS = 3
+# A page that stays unrecognisable this long is not "still loading": stop instead of waiting out the whole attempt.
+PENDING_LIMIT_SECONDS = 90
 CHECK_TIMEOUT_SECONDS = 60
 RETENTION_SECONDS = 900
 STEP_TIMEOUT_MS = 30_000
@@ -73,6 +79,8 @@ class Attempt:
     cancel_requested: bool = False
     codes: asyncio.Queue = field(default_factory=asyncio.Queue)
     task: asyncio.Task | None = None
+    last_state: str | None = None
+    diagnosis: Diagnosis | None = None
 
     @property
     def active(self) -> bool:
@@ -94,10 +102,11 @@ class CheckResult:
 
 class SessionManager:
     def __init__(self, site: LoginSite, *, max_browsers: int, attempt_timeout: float,
-                 poll_interval: float, headless: bool) -> None:
+                 poll_interval: float, headless: bool, capture_dir: Path | None = None) -> None:
         self.site = site
         self._max_browsers, self._attempt_timeout = max_browsers, attempt_timeout
         self._poll, self._headless = poll_interval, headless
+        self._capture_dir = capture_dir
         self._runtime = BrowserRuntime()
         self._lock = threading.Lock()
         self._attempts: dict[str, Attempt] = {}
@@ -190,6 +199,8 @@ class SessionManager:
         log.info("linkedin login attempt %s -> %s", attempt.id, state)
 
     def _fail(self, attempt: Attempt, code: str, message: str) -> None:
+        if attempt.diagnosis and code in ("unknown", "timeout"):
+            message = f"{message} LinkedIn showed: {attempt.diagnosis.label}."
         attempt.challenge, attempt.error = None, (code, message)
         self._set_state(attempt, "failed")
         log.info("linkedin login attempt %s failed: %s", attempt.id, code)
@@ -271,10 +282,26 @@ class SessionManager:
     async def _login(self, attempt: Attempt, identifier: str, password: str, proxy_url: str | None,
                      timezone: str | None, identity: dict | None) -> "SignedIn":
         async with self._browser(identity, timezone, proxy_url, None) as (used_identity, context, page):
-            await self.site.open_login(page)
-            await self._drive(attempt, page, identifier, password)
+            try:
+                await self.site.open_login(page)
+                await self._drive(attempt, page, identifier, password)
+            except (LoginFailed, ManualVerification, PlaywrightTimeout, asyncio.CancelledError) as exc:
+                await self._record(attempt, page, "navigation_failed" if isinstance(exc, PlaywrightTimeout) and not attempt.last_state else None)
+                raise
+            except Exception as exc:  # noqa: BLE001 - a proxy or network error still gets its page recorded, then is re-raised as is
+                await self._record(attempt, page, "proxy_error" if self.site.is_proxy_error(exc) else None)
+                raise
             profile = await self.site.read_profile(page)
             return SignedIn(profile, await context.storage_state(), used_identity)
+
+    async def _record(self, attempt: Attempt, page: Page, force: str | None) -> None:
+        """Classify and screenshot what the browser is looking at. Never raises and never delays a failure by more than 10 s."""
+        try:
+            attempt.diagnosis = await asyncio.wait_for(
+                asyncio.shield(capture(self.site, page, self._capture_dir, attempt.id, attempt.last_state, force)), 10)
+            log.info("linkedin login attempt %s capture: %s", attempt.id, attempt.diagnosis.as_log())
+        except BaseException:  # noqa: BLE001 - includes cancellation: the original failure is what must propagate
+            pass
 
     async def _conclude(self, attempt: Attempt, signed_in: "SignedIn", identifier: str, proxy_url: str | None) -> None:
         """Save the session. An account's browser identity is fixed at its first connect: when this login
@@ -303,8 +330,18 @@ class SessionManager:
 
     async def _drive(self, attempt: Attempt, page: Page, identifier: str, password: str) -> None:
         submitted, rejections, unrecognised = False, 0, 0
+        pending_since = None
         while True:
             state = await self.site.detect_state(page)
+            if state.value != attempt.last_state:  # what the browser is looking at: never the query string or a typed value
+                attempt.last_state = state.value
+                log.info("linkedin login attempt %s page state: %s (path %s)", attempt.id, state.value, urlsplit(page.url).path)
+            if state is PageState.PENDING:
+                pending_since = pending_since or time.monotonic()
+                if time.monotonic() - pending_since > PENDING_LIMIT_SECONDS:
+                    raise LoginFailed("unknown", "LinkedIn showed a page Synex could not recognise. Nothing was saved.")
+            else:
+                pending_since = None
             unrecognised = unrecognised + 1 if state is PageState.MANUAL_VERIFICATION else 0
             if state is PageState.LOGGED_IN:
                 return
