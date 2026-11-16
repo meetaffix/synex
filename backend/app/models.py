@@ -303,6 +303,8 @@ class CampaignStep(Base):
     branch_condition = Column(JSON, nullable=True)
     # Per-message AI settings (see ai_prompt.check_step_ai); null means a plain message.
     ai_config = Column(JSON, nullable=True)
+    # Settings of the newer step types (voice note, InMail, If connection, Is active); see step_types.check_config.
+    config = Column(JSON, nullable=True)
 
     campaign = relationship("Campaign", back_populates="steps")
 
@@ -442,6 +444,7 @@ class SequenceRun(Base):
     stop_reason = Column(String, nullable=True)  # replied | not_interested | interested | ended
     next_action_at = Column(DateTime(timezone=True), default=_now)
     started_at = Column(DateTime(timezone=True), default=_now)
+    step_entered_at = Column(DateTime(timezone=True), nullable=True)  # when the run reached its current step (an If connection step times out from here)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     campaign = relationship("Campaign")

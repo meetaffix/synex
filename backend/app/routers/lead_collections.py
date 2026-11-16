@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import engine, lead_sources as ls, models
 from ..database import get_db
+from ..dedup import normalize_linkedin_url
 from ..deps import get_data_user, get_manager_user
 
 router = APIRouter(prefix="/lead-collections", tags=["lead-collections"])
@@ -122,7 +123,8 @@ def _resolve_local(db: Session, user: models.User, c: models.LeadCollection) -> 
             people, missing = ls.rows_to_people(rows, mapping)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
-        c.detail = f"{missing} rows had no LinkedIn profile URL and were left out." if missing else None
+        unique = {normalize_linkedin_url(p["profile_url"]) for p in people}
+        c.detail = f"{len(rows)} rows read: {len(unique)} valid, {missing} without a LinkedIn profile link, {len(people) - len(unique)} repeated in the file."
     elif c.source == "lists":
         ids = p.get("listIds") or []
         leads = (db.query(models.Lead).join(models.lead_list_members).filter(

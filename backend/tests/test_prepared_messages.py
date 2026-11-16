@@ -2,16 +2,50 @@
 worker and the dry run use finished text only. No external call is made while a database transaction is open."""
 import inspect
 import json
+import threading
 import time
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
+
+from sqlalchemy import event
 
 from test_outreach import INVITE_ONLY, MOCK, OutreachCase, SessionLocal  # noqa: E402  (sets the isolated environment)
 from app import database, drafts, engine, models, planner, providers  # noqa: E402
 from app.config import DEEPGRAM_USD_PER_MINUTE, DRAFT_SECONDS_ESTIMATE  # noqa: E402
 
 AI_CALLED = "an AI service was called"
+
+
+class HeldConnections:
+    """How many database connections each thread has checked out right now.
+
+    `database.engine.pool.checkedout()` counts every thread in the process. CI runs all the tests in ONE process (`python -m unittest discover`), where a
+    daemon thread left by an earlier test (a webhook delivery, a draft job, a worker) can hold a connection at the moment this test samples the pool, so the
+    old assertion failed now and then for a reason that has nothing to do with the code under test. The property to prove is that the thread making the
+    external call holds no connection, so that is what is counted."""
+
+    def __init__(self, engine):
+        self._lock = threading.Lock()
+        self._owner: dict[int, int] = {}
+        event.listen(engine, "checkout", self._out)
+        event.listen(engine, "checkin", self._in)
+
+    def _out(self, dbapi_connection, record, proxy):
+        with self._lock:
+            self._owner[id(record)] = threading.get_ident()
+
+    def _in(self, dbapi_connection, record):
+        with self._lock:
+            self._owner.pop(id(record), None)
+
+    def here(self) -> int:
+        me = threading.get_ident()
+        with self._lock:
+            return sum(1 for owner in self._owner.values() if owner == me)
+
+
+HELD = HeldConnections(database.engine)
 
 
 def forbid_ai():
@@ -110,7 +144,7 @@ class DraftPreparationTest(PreparedCase):
         self.calls: list[tuple[str, int]] = []
 
         def fake(provider_self, step_type, tone, ctx):
-            self.calls.append((ctx["first_name"], database.engine.pool.checkedout()))  # connections open at the moment of the call
+            self.calls.append((ctx["first_name"], HELD.here()))  # connections open at the moment of the call
             return f"Hi {ctx['first_name']}, a prepared note."
         self.fake = patch.object(providers.DeepgramAIProvider, "generate_message", fake)
         self.fake.start()
@@ -228,6 +262,29 @@ class DraftPreparationTest(PreparedCase):
         self.assertEqual(self.client.get("/campaigns/not-a-campaign/drafts").status_code, 404)
 
 
+class ConnectionCountingTest(PreparedCase):
+    def test_a_connection_held_by_another_thread_is_not_counted_against_this_one(self):
+        """The cause of the occasional CI failure: the old process-wide count saw 1 here, this thread's own count sees 0."""
+        taken, release = threading.Event(), threading.Event()
+
+        def other_thread():
+            with database.engine.connect():
+                taken.set()
+                release.wait(10)
+        thread = threading.Thread(target=other_thread, daemon=True)
+        thread.start()
+        self.assertTrue(taken.wait(5))
+        try:
+            self.assertEqual(database.engine.pool.checkedout(), 1)  # what the old assertion measured
+            self.assertEqual(HELD.here(), 0)
+            with database.engine.connect():
+                self.assertEqual(HELD.here(), 1)  # a connection held by THIS thread is still caught
+            self.assertEqual(HELD.here(), 0)
+        finally:
+            release.set()
+            thread.join(5)
+
+
 class NoTransactionDuringExternalCallsTest(PreparedCase):
     """Every other route that reaches Deepgram releases its database connection first."""
 
@@ -236,7 +293,7 @@ class NoTransactionDuringExternalCallsTest(PreparedCase):
         self.open_during_call: list[int] = []
 
         def fake_complete(system, text, timeout=25.0):
-            self.open_during_call.append(database.engine.pool.checkedout())
+            self.open_during_call.append(HELD.here())
             return "A drafted line."
         patcher = patch("app.deepgram_text.complete", fake_complete)
         patcher.start()

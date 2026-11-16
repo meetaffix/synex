@@ -126,6 +126,9 @@ export const CEILINGS: Record<string, [string, number]> = {
   sync_connections: ["Connection list reads", 12],
   collect_leads: ["Lead collection pages", 20],
   withdraw_invite: ["Invitation withdrawals", 20],
+  like_post: ["Post likes", 30],
+  send_inmail: ["InMails", 15],
+  send_voice_note: ["Voice notes", 20],
 };
 
 export const emptyPolicy = () => ({ preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 });
@@ -418,6 +421,10 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/leads" && method === "POST") return json(200, { id: "new1", tags: [], listIds: [], status: "new", createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
       if (path === "/lead-lists" && method === "GET") return json(200, api.lists);
+      const listExport = path.match(/^\/lead-lists\/([^/]+)\/export$/);
+      if (listExport && method === "GET") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "first_name,last_name\nAda,L\n" });
+      const listOne = path.match(/^\/lead-lists\/([^/]+)$/);
+      if (listOne && method === "DELETE") { api.lists = api.lists.filter((l) => l.id !== listOne[1]); return empty(); }
       if (path === "/dashboard/summary" && api.feeds.summary) return json(200, api.feeds.summary);
       if (path === "/dashboard/timeseries" && api.feeds.series) return json(200, api.feeds.series);
       if (path === "/dashboard/accounts" && api.feeds.accounts) return json(200, api.feeds.accounts);

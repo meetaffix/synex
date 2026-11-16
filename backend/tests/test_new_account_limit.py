@@ -94,7 +94,7 @@ class NewAccountLimitTest(unittest.TestCase):
     def test_the_agreed_hard_ceilings_are_unchanged(self):
         self.assertEqual(DAILY_TYPE_CEILINGS, {"send_invite": 40, "send_message": 100, "visit_profile": 80,
                                             "follow_profile": 50, "check_connection": 80,
-                                            "sync_inbox": 48, "sync_connections": 12, "collect_leads": 20, "withdraw_invite": 20})
+                                            "sync_inbox": 48, "sync_connections": 12, "collect_leads": 20, "withdraw_invite": 20, "like_post": 30, "send_inmail": 15, "send_voice_note": 20})
         self.assertEqual(WEEKLY_INVITE_CEILING, 150)
         self.assertEqual(DAILY_ACTION_CEILING, 200)
 

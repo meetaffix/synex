@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from . import campaign_settings
@@ -182,6 +182,21 @@ class StepIn(CamelIn):
     parent_step_id: str | None = None
     branch_condition: dict | None = None
     ai_config: dict | None = None
+    config: dict | None = None
+
+    @field_validator("type")
+    @classmethod
+    def _type(cls, value):
+        from .step_types import known
+        if not known(value):
+            raise ValueError("That is not a step Synex knows.")
+        return value
+
+    @model_validator(mode="after")
+    def _config(self):
+        from .step_types import check_config
+        self.config = check_config(self.type, self.config)
+        return self
 
     @field_validator("ai_config")
     @classmethod

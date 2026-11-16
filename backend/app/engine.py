@@ -23,16 +23,12 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from . import campaign_settings, dnc, models
+from . import campaign_settings, dnc, models, step_types
 from .config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING, settings
 from .providers import render_variables  # the engine never imports an AI provider: it sends finished text only
 
 # Campaign step type -> executor task type.
-ACTION_TASKS = {
-    "profile_visit": "visit_profile",
-    "follow": "follow_profile",
-    "follow_profile": "follow_profile",
-}
+ACTION_TASKS = step_types.ACTION_TASKS  # profile_visit, follow, like_post, withdraw_invite: one task each, no text
 
 ACCEPTED_STATES = {"connected", "replied", "interested", "not_interested"}
 ACTIVE_RUN_STATES = ("running", "waiting_connection", "awaiting_agent", "needs_review")
@@ -128,23 +124,62 @@ def sorted_steps(campaign: models.Campaign) -> list[models.CampaignStep]:
     return sorted(campaign.steps, key=lambda s: s.order)
 
 
+def _branch(step: models.CampaignStep) -> str | None:
+    return (step.branch_condition or {}).get("branch")
+
+
+def first_in_list(steps: list[models.CampaignStep], parent_id: str | None, branch: str | None) -> models.CampaignStep | None:
+    """The first step of one list: the main sequence (no parent) or one branch (yes or no) of a conditional step."""
+    items = sorted((s for s in steps if s.parent_step_id == parent_id and _branch(s) == branch), key=lambda s: s.order)
+    return items[0] if items else None
+
+
 def current_step(steps: list[models.CampaignStep], run: models.SequenceRun) -> models.CampaignStep | None:
     """The run's step, looked up by id so steps can be added to a live campaign."""
     if run.current_step_id is None:
-        return steps[0] if steps and run.status != "completed" else None
+        return first_in_list(steps, None, None) if steps and run.status != "completed" else None
     return next((s for s in steps if s.id == run.current_step_id), None)
 
 
 def next_step(steps: list[models.CampaignStep], step: models.CampaignStep) -> models.CampaignStep | None:
-    return next((s for s in steps if s.order > step.order), None)
+    """The step after this one in its own list. A branch that runs out of steps ends the run, so there is no jump back to the main list."""
+    items = sorted((s for s in steps if s.parent_step_id == step.parent_step_id and _branch(s) == _branch(step)), key=lambda s: s.order)
+    return next((s for s in items if s.order > step.order), None)
+
+
+def _complete(run: models.SequenceRun, now: datetime) -> None:
+    run.current_step_id, run.status, run.stop_reason, run.completed_at = None, "completed", "ended", now
+
+
+def _enter(run: models.SequenceRun, step: models.CampaignStep, now: datetime) -> None:
+    run.current_step_id, run.status, run.next_action_at, run.step_entered_at = step.id, "running", now, now
 
 
 def move_past(steps: list[models.CampaignStep], run: models.SequenceRun, step: models.CampaignStep, now: datetime) -> None:
     following = next_step(steps, step)
     if following is None:
-        run.current_step_id, run.status, run.stop_reason, run.completed_at = None, "completed", "ended", now
+        _complete(run, now)
         return
-    run.current_step_id, run.status, run.next_action_at = following.id, "running", now
+    _enter(run, following, now)
+
+
+def take_branch(steps: list[models.CampaignStep], run: models.SequenceRun, conditional: models.CampaignStep, branch: str, now: datetime) -> None:
+    """Continue a run down the yes or no branch of a conditional step; an empty branch ends it."""
+    first = first_in_list(steps, conditional.id, branch)
+    if first is None:
+        _complete(run, now)
+        return
+    _enter(run, first, now)
+
+
+def lead_is_active(db: Session, lead: models.Lead, now: datetime, days: int) -> bool:
+    """Active means Synex has recorded something from this person in the last `days` days: a reply, a message or an accepted invitation. LinkedIn's own
+    "active" signal needs the profile reader and is not used (built, unverified on real LinkedIn)."""
+    since = now - timedelta(days=days)
+    if lead.connected_at is not None and _aware(lead.connected_at) >= since:
+        return True
+    return db.query(models.LeadEvent.id).filter(models.LeadEvent.lead_id == lead.id, models.LeadEvent.created_at >= since,
+                                                models.LeadEvent.type.in_(("replied", "reply_received", "message_received", "connected", "accepted"))).first() is not None
 
 
 def step_order_of(steps: list[models.CampaignStep], run: models.SequenceRun) -> int | None:
@@ -161,7 +196,8 @@ def launch_campaign(db: Session, campaign: models.Campaign) -> int:
         return 0
     existing = {r.lead_id for r in db.query(models.SequenceRun).filter(models.SequenceRun.campaign_id == campaign.id).all()}
     steps = sorted_steps(campaign)
-    first = steps[0].id if steps else None
+    root = first_in_list(steps, None, None)
+    first = root.id if root else None
     now = _now()
     created = 0
     excluded: dict[str, int] = {}
@@ -178,7 +214,7 @@ def launch_campaign(db: Session, campaign: models.Campaign) -> int:
         db.add(
             models.SequenceRun(
                 user_id=campaign.user_id, campaign_id=campaign.id, lead_id=lead.id,
-                current_step_id=first, status="running", next_action_at=now,
+                current_step_id=first, status="running", next_action_at=now, step_entered_at=now,
                 started_at=now + timedelta(microseconds=index),  # a stable processing order
             )
         )
@@ -468,11 +504,11 @@ def emit_task(
     return task
 
 
-def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now) -> None:
+def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now, extra: dict | None = None) -> None:
     from .providers import render_sender_variables
     message = render_sender_variables(message, account)  # the sender is known only now, when an account is picked
     payload = {"leadId": lead.id, "linkedinUrl": lead.linkedin_url or "", "message": message or "",
-               "stepId": step.id, "campaignId": campaign.id}
+               "stepId": step.id, "campaignId": campaign.id, **(extra or {})}
     task = emit_task(db, account, ttype, payload, f"{run.id}:{step.id}", run)
     if task is not None:
         _reserve_daily(account, now)
@@ -480,14 +516,14 @@ def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now) -
     run.next_action_at = now + timedelta(hours=24)  # parked; the task result reschedules
 
 
-def _send_or_park(db, campaign, run, step, ttype, lead, message, accounts, now) -> None:
+def _send_or_park(db, campaign, run, step, ttype, lead, message, accounts, now, extra: dict | None = None) -> None:
     """Queue a task on a ready account that still has room for this action type, or park the run until it can act."""
     open_accounts = [a for a in accounts if not _type_limit_reached(db, campaign, a, ttype, now)]
     account = pick_account(open_accounts, now)
     if account is None or not within_hours(campaign, now, lead):
         run.next_action_at = _park_until(campaign, open_accounts, now, lead)
         return
-    _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now)
+    _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now, extra)
     account.next_action_at = now + _action_gap(campaign, account, now, lead)  # human pacing
 
 
@@ -553,6 +589,13 @@ def _await_acceptance(db, campaign, run, step, lead, accounts, now) -> None:
     account.next_action_at = now + _action_gap(campaign, account, now, lead)
 
 
+def _branch_and_continue(db, campaign, steps, run, conditional, branch, accounts, now) -> None:
+    """Take a branch and start its first step in the same tick, so a decision does not cost an extra wait."""
+    take_branch(steps, run, conditional, branch, now)
+    if run.status == "running":
+        _advance_run(db, campaign, steps, run, accounts, now)
+
+
 def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
     lead = run.lead
     if lead is None:
@@ -586,6 +629,26 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
         run.next_action_at = _schedule_after(campaign, now, step.delay_hours)
         return
 
+    if step.type == "if_connected":
+        connected = lead.status in ACCEPTED_STATES or (campaign.audience_source or {}).get("type") == "connections"
+        if connected:
+            _branch_and_continue(db, campaign, steps, run, step, "yes", accounts, now)
+            return
+        days = (step.config or {}).get("waitDays", step_types.DEFAULT_CONNECTION_WAIT_DAYS)
+        deadline = (_aware(run.step_entered_at) or _aware(run.started_at) or now) + timedelta(days=days)
+        if now >= deadline:  # not accepted in time: the "not connected" branch
+            _branch_and_continue(db, campaign, steps, run, step, "no", accounts, now)
+            return
+        _await_acceptance(db, campaign, run, step, lead, accounts, now)
+        if run.next_action_at is not None and _aware(run.next_action_at) > deadline and run.status == "waiting_connection":
+            run.next_action_at = deadline
+        return
+
+    if step.type == "if_active":
+        days = (step.config or {}).get("days", step_types.DEFAULT_ACTIVE_DAYS)
+        _branch_and_continue(db, campaign, steps, run, step, "yes" if lead_is_active(db, lead, now, days) else "no", accounts, now)
+        return
+
     if step.type == "connection_request":
         # Skip when already connected, or when the audience is "My connections".
         if (campaign.audience_source or {}).get("type") == "connections" or lead.status in ACCEPTED_STATES:
@@ -599,6 +662,23 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
             _await_acceptance(db, campaign, run, step, lead, accounts, now)
             return
         _send_or_park(db, campaign, run, step, "send_message", lead, message_for(db, campaign, step, lead)[0], accounts, now)
+        return
+
+    if step.type in ("inmail", "free_inmail"):
+        text = message_for(db, campaign, step, lead)[0]
+        extra = {"subject": (step.config or {}).get("subject", ""), "free": step.type == "free_inmail"}
+        _send_or_park(db, campaign, run, step, "send_inmail", lead, text, accounts, now, extra)
+        return
+
+    if step.type == "voice_note":
+        if lead.status not in ACCEPTED_STATES:
+            _await_acceptance(db, campaign, run, step, lead, accounts, now)
+            return
+        config = step.config or {}
+        if not config.get("audioId"):
+            stop_run(run, "voice_note_missing", now)
+            return
+        _send_or_park(db, campaign, run, step, "send_voice_note", lead, "", accounts, now, {"audioId": config["audioId"]})
         return
 
     if step.type in ACTION_TASKS:

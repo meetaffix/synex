@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +13,7 @@ import { ConnectDialog } from "./ConnectDialog";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { ReconnectLinkDialog, type LinkState } from "./ReconnectLinkDialog";
 import { complianceNote, requestFailureMessage } from "./copy";
-import { useAccountActions, useSenderAccounts } from "./hooks";
+import { pendingConnectAttempt, useAccountActions, useSenderAccounts } from "./hooks";
 import { useOverview } from "./management";
 import type { SenderAccount } from "./schemas";
 
@@ -23,9 +23,10 @@ export function SenderAccountsPage() {
   const accounts = useSenderAccounts();
   const actions = useAccountActions();
   const overview = useOverview();
+  const usage = useMemo(() => Object.values(overview.data?.accounts ?? {}).reduce((sum, a) => ({ connections: sum.connections + a.connections.used, messages: sum.messages + a.messages.used }), { connections: 0, messages: 0 }), [overview.data]);
   const [params, setParams] = useSearchParams();
   // "Connect LinkedIn account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
-  const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" ? {} : null);
+  const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" || pendingConnectAttempt() ? {} : null);
   useEffect(() => {
     if (params.get("connect") === "1") {
       params.delete("connect");
@@ -103,6 +104,12 @@ export function SenderAccountsPage() {
           <p><span className="text-muted-foreground">Plan</span> <span className="font-medium">{overview.data.plan}</span> <span className="text-subtle">(placeholder: billing is not built yet)</span></p>
           <p><span className="text-muted-foreground">Seats used</span> <span className="font-medium">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
           <p><span className="text-muted-foreground">Seats available</span> <span className="font-medium">{overview.data.seatsAvailable}</span></p>
+          <p data-testid="usage-meter"><span className="text-muted-foreground">Last 24 hours</span> <span className="font-medium">{usage.connections} connection requests, {usage.messages} messages</span></p>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <Link className="font-medium underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
+            <Button size="sm" variant="outline" disabled aria-describedby="plan-soon">Manage plan</Button>
+            <span id="plan-soon" className="text-xs text-muted-foreground">Coming soon: Synex does not sell plans yet.</span>
+          </span>
         </section>
       )}
       {accounts.isLoading && <LoadingList />}

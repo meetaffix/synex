@@ -18,6 +18,9 @@ DAILY_TYPE_CEILINGS = {             # per action type, on one account in its day
     "withdraw_invite": 20,           # taking back a stale connection request: opens a profile page, so it is counted like a visit
     "sync_connections": 12,         # one read of the sender's own connection list or received invitations, a few pages each
     "collect_leads": 20,            # one page of search results, post reactions or a list: each opens LinkedIn pages
+    "like_post": 30,                # reacting to one post of a lead: opens their activity page, so it is counted like a visit
+    "send_inmail": 15,              # an InMail or a free InMail (open profile) to someone not connected
+    "send_voice_note": 20,          # a prepared voice note sent in a conversation
 }
 WEEKLY_INVITE_CEILING = 150         # connection requests on one account in any seven days
 

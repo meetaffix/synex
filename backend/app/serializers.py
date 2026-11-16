@@ -150,6 +150,7 @@ def step_out(s: models.CampaignStep) -> dict:
         "parentStepId": s.parent_step_id,
         "branchCondition": s.branch_condition,
         "aiConfig": s.ai_config,
+        "config": s.config,
     }
 
 

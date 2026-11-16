@@ -104,6 +104,10 @@ class CollectionApiTest(unittest.TestCase):
         self.assertEqual(first["needsMapping"]["suggested"]["linkedin_url"], "Link")
         second = self.make(source="csv", limit=10, params={"text": csv_text, "mapping": {"linkedin_url": "Link", "name": "Who"}}).json()
         self.assertEqual(second["fetched"], 1)
+        self.assertEqual(second["detail"], "1 rows read: 1 valid, 0 without a LinkedIn profile link, 0 repeated in the file.")
+        messy = "Who,Link\nAda,https://www.linkedin.com/in/ada\nAda again,https://www.linkedin.com/in/ada/\nNo link,\nBob,https://www.linkedin.com/in/bob\n"
+        third = self.make(source="csv", limit=10, params={"text": messy, "mapping": {"linkedin_url": "Link", "name": "Who"}}).json()
+        self.assertEqual((third["fetched"], third["detail"]), (2, "4 rows read: 2 valid, 1 without a LinkedIn profile link, 1 repeated in the file."))
 
     def test_a_linkedin_source_needs_a_connected_sender_and_a_valid_link(self):
         self.assertEqual(self.make(source="search", limit=10, params={"url": "https://www.linkedin.com/search/results/people/?keywords=x"}).status_code, 422)

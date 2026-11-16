@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -59,12 +60,19 @@ def launch_problems(db: Session, campaign: models.Campaign) -> list[dict]:
     if not campaign.steps:
         missing("no_steps", "steps", "Add at least one step to the sequence before launching.", "sequence")
     else:
-        actionable = [s for s in campaign.steps if s.type not in ("wait", "end")]
+        from .. import step_types
+        actionable = [s for s in campaign.steps if s.type not in ("wait", "end", *step_types.CONDITIONALS)]
         if not actionable:
             missing("no_actionable_step", "steps", "The sequence has no action. Add a connection request or a message.", "sequence")
-        writes = [s for s in actionable if s.type in ("message", "follow_up")]
+        writes = [s for s in actionable if s.type in ("message", "follow_up", "inmail", "free_inmail")]
         if any(not (s.message or "").strip() and not (s.ai_config or {}).get("mode") == "ai" for s in writes):
             missing("empty_message", "steps", "One or more message steps are empty. Write the message copy before launching.", "sequence")
+        for s in actionable:
+            if s.type == "voice_note":
+                reason = step_types.needs_setup(s.type, s.message, s.ai_config, s.config)
+                if reason:
+                    missing("voice_note_not_ready", "steps", f"A voice note step is not ready. {reason}", "sequence")
+                    break
         ai_steps = [s for s in actionable if (s.ai_config or {}).get("mode") == "ai"]
         if ai_steps and campaign.lead_list:
             lead_ids = [l.id for l in campaign.lead_list.leads if (l.linkedin_url or "").strip()]
@@ -112,19 +120,77 @@ def _apply_steps(campaign: models.Campaign, steps) -> None:
     """Replace the sequence, keeping the id of every step that is still present so runs
     in flight keep their position (they are stored by step id)."""
     existing = {s.id: s for s in campaign.steps}
+    rows = [raw if isinstance(raw, dict) else raw.model_dump() for raw in steps]
+    # A new step arrives with a temporary id of the browser's choosing, so a branch can name its conditional before either is saved.
+    real: dict[str, str] = {}
+    created: dict[str, models.CampaignStep] = {}
+    for data in rows:
+        key = data.get("id") or ""
+        if key and key not in existing and key not in created:
+            created[key] = models.CampaignStep(type=data["type"])
+            created[key].id = uuid.uuid4().hex
+            real[key] = created[key].id
+    types = {(data.get("id") or ""): data["type"] for data in rows}
+    check_tree(rows, types)
     updated: list[models.CampaignStep] = []
-    for i, raw in enumerate(steps):
-        data = raw if isinstance(raw, dict) else raw.model_dump()
-        step = existing.get(data.get("id") or "") or models.CampaignStep(type=data["type"])
+    for i, data in enumerate(rows):
+        key = data.get("id") or ""
+        step = existing.get(key) or created.get(key) or models.CampaignStep(type=data["type"])
         step.type = data["type"]
         step.order = data.get("order", i)
         step.message = data.get("message")
         step.delay_hours = data.get("delay_hours")
-        step.parent_step_id = data.get("parent_step_id")
+        parent = data.get("parent_step_id")
+        step.parent_step_id = real.get(parent, parent) if parent else None
         step.branch_condition = data.get("branch_condition")
         step.ai_config = data.get("ai_config")
+        step.config = data.get("config")
         updated.append(step)
     campaign.steps[:] = updated
+
+
+MAX_STEPS = 60
+MAX_DEPTH = 6
+
+
+def check_tree(rows: list[dict], types: dict[str, str]) -> None:
+    """The steps must form a tree the engine can run: branches hang off conditional steps, a conditional ends its list, and nothing is too big."""
+    from fastapi import HTTPException
+
+    from .. import step_types
+
+    def bad(message: str):
+        raise HTTPException(status_code=422, detail=[{"loc": ["body", "steps"], "msg": message, "type": "steps.invalid"}])
+    if len(rows) > MAX_STEPS:
+        bad(f"A sequence can have up to {MAX_STEPS} steps.")
+    by_list: dict[tuple, list[dict]] = {}
+    parents: dict[str, str | None] = {}
+    for data in rows:
+        parent = data.get("parent_step_id") or None
+        branch = (data.get("branch_condition") or {}).get("branch")
+        parent_type = types.get(parent) if parent else None
+        if parent and parent not in types:
+            bad("A branch points at a step that is not in the sequence.")
+        try:
+            step_types.check_branch(data["type"], parent_type, data.get("branch_condition"))
+        except ValueError as exc:
+            bad(str(exc))
+        by_list.setdefault((parent, branch), []).append(data)
+        parents[data.get("id") or ""] = parent
+    for (parent, branch), items in by_list.items():
+        items.sort(key=lambda d: d.get("order", 0))
+        for item in items[:-1]:
+            if item["type"] in step_types.CONDITIONALS:
+                bad("An If step must be the last step of its list: what comes next goes inside its yes and no branches.")
+    for key in parents:
+        depth, seen, node = 0, set(), key
+        while parents.get(node):
+            if node in seen:
+                bad("The branches form a loop.")
+            seen.add(node)
+            node, depth = parents[node], depth + 1
+        if depth > MAX_DEPTH:
+            bad(f"Branches can be nested up to {MAX_DEPTH} levels deep.")
 
 
 @router.get("")
@@ -410,7 +476,8 @@ def _duplicate(campaign_id: str, db: Session, user: models.User):
         ai_context=src.ai_context, sequence_mode=src.sequence_mode, graph=src.graph)
     db.add(copy)
     db.flush()
-    _apply_steps(copy, [{"type": s.type, "order": s.order, "message": s.message, "delay_hours": s.delay_hours, "ai_config": s.ai_config} for s in src.steps])
+    _apply_steps(copy, [{"id": s.id, "type": s.type, "order": s.order, "message": s.message, "delay_hours": s.delay_hours, "ai_config": s.ai_config, "config": s.config,
+                         "parent_step_id": s.parent_step_id, "branch_condition": s.branch_condition} for s in src.steps])
     db.commit()
     db.refresh(copy)
     return campaign_out(copy)
@@ -421,11 +488,16 @@ def _import_sequence(body: dict, db: Session, user: models.User):
     data = body.get("sequence")
     if not isinstance(data, dict) or data.get("synexSequence") != 1 or not isinstance(data.get("steps"), list) or not data["steps"]:
         raise HTTPException(status_code=422, detail="That is not a Synex sequence file. Use a file made with Share sequence.")
+    from .. import step_types
     steps = []
-    for i, raw in enumerate(data["steps"][:30]):
-        if not isinstance(raw, dict) or raw.get("type") not in ("connection_request", "wait", "message", "follow_up", "end"):
+    for i, raw in enumerate(data["steps"][:MAX_STEPS]):
+        if not isinstance(raw, dict) or not step_types.known(str(raw.get("type"))):
             raise HTTPException(status_code=422, detail=f"Step {i + 1} is not a step Synex knows.")
-        steps.append(_parse(StepIn, {"type": raw["type"], "order": i, "message": raw.get("message"), "delayHours": raw.get("delayHours"), "aiConfig": raw.get("aiConfig")}))
+        branch = raw.get("branch")
+        steps.append(_parse(StepIn, {"id": f"s{i}", "type": raw["type"], "order": raw.get("order", i), "message": raw.get("message"), "delayHours": raw.get("delayHours"),
+                                     "aiConfig": raw.get("aiConfig"), "config": raw.get("config"),
+                                     "parentStepId": f"s{raw['parent']}" if isinstance(raw.get("parent"), int) else None,
+                                     "branchCondition": {"branch": branch} if branch else None}))
     created = _create(_parse(CampaignIn, {"name": str(data.get("name") or "Imported sequence")[:200], "aiContext": data.get("aiContext") or {}, "sequenceMode": "classic"}), db, user)
     campaign = _owned(db, user, created["id"])
     _apply_steps(campaign, steps)
@@ -447,8 +519,11 @@ def _archive(campaign_id: str, db: Session, user: models.User):
 def share_sequence(campaign_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
     """The sequence as a file to pass to someone else: steps, AI settings and the campaign context, never leads, senders or runs."""
     campaign = _owned(db, user, campaign_id)
+    ordered = sorted(campaign.steps, key=lambda x: (x.parent_step_id or "", x.order))
+    index_of = {s.id: i for i, s in enumerate(ordered)}
     return {"synexSequence": 1, "name": campaign.name, "sequenceMode": campaign.sequence_mode or "classic", "aiContext": campaign.ai_context or {},
-            "steps": [{"type": s.type, "message": s.message, "delayHours": s.delay_hours, "aiConfig": s.ai_config} for s in sorted(campaign.steps, key=lambda x: x.order)]}
+            "steps": [{"type": s.type, "message": s.message, "delayHours": s.delay_hours, "aiConfig": s.ai_config, "config": s.config, "order": s.order,
+                       "parent": index_of.get(s.parent_step_id), "branch": (s.branch_condition or {}).get("branch")} for s in ordered]}
 
 
 def _delete(campaign_id: str, db: Session, user: models.User):

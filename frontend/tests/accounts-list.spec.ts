@@ -14,6 +14,10 @@ test("the overview card shows plan, seats used and seats available, and says bil
   await expect(card).toContainText("Seats used 2 of 3");
   await expect(card).toContainText("Seats available 1");
   await expect(card).toContainText("placeholder");
+  await expect(page.getByTestId("usage-meter")).toContainText(/Last 24 hours \d+ connection requests, \d+ messages/);
+  await expect(card.getByRole("link", { name: "View usage" })).toHaveAttribute("href", "/settings/integrations?tab=usage");
+  await expect(card.getByRole("button", { name: "Manage plan" })).toBeDisabled();
+  await expect(card.getByText("Coming soon: Synex does not sell plans yet.")).toBeVisible();
 });
 
 test("each account shows its 24-hour usage against today's range, a Smart pill and honest performance chips", async ({ page }) => {

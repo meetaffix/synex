@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,8 @@ import {
   Pencil,
   Trash2,
   ArrowRight,
+  Download,
+  Search,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -36,6 +38,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLeadLists, useLeadListMutations } from "@/hooks/api";
+import { NativeSelect } from "@/components/ui/native-select";
+import { api } from "@/services/client";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { LeadList } from "@/types";
@@ -186,6 +190,28 @@ export function LeadListsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editList, setEditList] = useState<LeadList | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LeadList | null>(null);
+  const [query, setQuery] = useState("");
+  const [show, setShow] = useState<"all" | "with" | "empty">("all");
+  const [sort, setSort] = useState<"newest" | "name" | "size">("newest");
+  const shown = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const rows = (lists ?? []).filter((l) => (show === "all" || (show === "with" ? l.leadCount > 0 : l.leadCount === 0)) && (!needle || `${l.name} ${l.description ?? ""}`.toLowerCase().includes(needle)));
+    if (sort === "name") rows.sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "size") rows.sort((a, b) => b.leadCount - a.leadCount);
+    return rows;
+  }, [lists, query, show, sort]);
+  const exportList = async (list: LeadList) => {
+    try {
+      const url = URL.createObjectURL(new Blob([await api.getText(`/lead-lists/${list.id}/export`)], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `synex-list-${list.name.replace(/[^\w-]+/g, "-")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("The list could not be exported. Try again.");
+    }
+  };
 
   const openCreate = () => {
     setEditList(null);
@@ -242,8 +268,21 @@ export function LeadListsPage() {
           }
         />
       ) : (
+        <>
+        <div role="search" aria-label="Find a list" className="flex flex-wrap items-end gap-3">
+          <div className="grid min-w-0 flex-1 gap-1 sm:max-w-xs">
+            <Label htmlFor="list-search">Search lists</Label>
+            <div className="relative"><Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="list-search" className="pl-9" value={query} placeholder="Name or description" onChange={(e) => setQuery(e.target.value)} /></div>
+          </div>
+          <div className="grid gap-1"><Label htmlFor="list-show">Show</Label>
+            <NativeSelect id="list-show" value={show} onChange={(e) => setShow(e.target.value as typeof show)}><option value="all">All lists</option><option value="with">With leads</option><option value="empty">Empty lists</option></NativeSelect></div>
+          <div className="grid gap-1"><Label htmlFor="list-sort">Sort by</Label>
+            <NativeSelect id="list-sort" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="newest">Newest first</option><option value="name">Name</option><option value="size">Most leads</option></NativeSelect></div>
+          <p role="status" className="pb-2 text-sm text-muted-foreground">{shown.length} of {lists.length} {lists.length === 1 ? "list" : "lists"}</p>
+        </div>
+        {shown.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No list matches. Clear the search or choose All lists.</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {lists.map((list) => (
+          {shown.map((list) => (
             <Card
               key={list.id}
               className="group relative overflow-hidden transition-transform duration-200 hover:-translate-y-0.5"
@@ -280,6 +319,10 @@ export function LeadListsPage() {
                         <ArrowRight className="h-4 w-4" />
                         View leads
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void exportList(list)}>
+                        <Download className="h-4 w-4" />
+                        Export CSV
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         destructive
@@ -312,6 +355,7 @@ export function LeadListsPage() {
             </Card>
           ))}
         </div>
+        </>
       )}
 
       <ListDialog open={dialogOpen} onOpenChange={setDialogOpen} list={editList} />

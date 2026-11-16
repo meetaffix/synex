@@ -339,6 +339,25 @@ test.describe("sender accounts", () => {
     await expect.poll(() => callsTo(api, "DELETE", /\/connect\/a1$/).length).toBe(1);
   });
 
+  test("the sign-in shows the time elapsed and a page refresh resumes it without keeping the password", async ({ page }) => {
+    const api = newApi({ script: [attempt("starting"), attempt("awaiting_code", { challenge: { type: "sms_code" } })] });
+    await openConnect(page, api);
+    await fillCredentials(page);
+    await submit(page);
+    await expect(page.getByRole("heading", { name: "Enter your verification code" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("connect-elapsed")).toContainText(/Time elapsed 0:\d\d/);
+    const stored = await page.evaluate(() => JSON.stringify({ ...sessionStorage }) + JSON.stringify({ ...localStorage }));
+    expect(stored).toContain("a1");
+    expect(stored).not.toContain("Sup3r-Secret-Pw");
+    await page.reload();
+    await expect(page.getByRole("dialog").getByRole("heading", { name: "Enter your verification code" })).toBeVisible({ timeout: 15_000 });
+    expect(callsTo(api, "DELETE", /\/connect\/a1$/)).toHaveLength(0); // a refresh does not cancel the attempt
+    await page.keyboard.press("Escape");
+    await expect.poll(() => callsTo(api, "DELETE", /\/connect\/a1$/).length).toBe(1);
+    await page.reload();
+    await expect(page.getByRole("dialog")).toBeHidden(); // a cancelled attempt is not offered again
+  });
+
   test("pausing an account and editing its limit", async ({ page }) => {
     const api = newApi({ accounts: [account()] });
     await mockApi(page, api);

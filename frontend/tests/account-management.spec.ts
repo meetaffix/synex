@@ -37,8 +37,8 @@ test("a new account is offered recommended limits; applying them saves a policy 
   await expect(page.getByText("Limits saved.")).toBeVisible();
   const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { preset: string; actions: Record<string, { dailyLimit: number; stopAt: number }> };
   expect(saved.preset).toBe("conservative");
-  expect(Object.keys(saved.actions)).toHaveLength(9);
-  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20, withdraw_invite: 20 };
+  expect(Object.keys(saved.actions)).toHaveLength(12);
+  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20, withdraw_invite: 20, like_post: 30, send_inmail: 15, send_voice_note: 20 };
   for (const [action, policy] of Object.entries(saved.actions)) {
     expect(policy.stopAt).toBeLessThanOrEqual(ceilings[action]);
     expect(policy.dailyLimit).toBeLessThanOrEqual(policy.stopAt);
@@ -50,7 +50,7 @@ test("the limits table shows what was used, today's limit with its range, and th
   await open(page);
   const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
   await expect(table.getByRole("columnheader")).toHaveText(["Action", "Used", "Today's limit", "Range", "Hard maximum"]);
-  await expect(table.getByRole("row")).toHaveCount(10);
+  await expect(table.getByRole("row")).toHaveCount(13);
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
   await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
 });
@@ -227,4 +227,48 @@ test("AI configuration: a preset voice is assigned with its licence shown; cloni
   await expect(page.getByTestId("assigned-voice")).toContainText("Cori (English (UK), Female)");
   await page.getByRole("button", { name: "Remove voice" }).click();
   await expect(page.getByTestId("assigned-voice")).toContainText("No voice assigned");
+});
+
+test("keyboard only: tabs by arrow keys, a limit changed and saved, and the delete dialog traps focus and returns it on Escape", async ({ page }) => {
+  const api = await open(page);
+  // Every stop on the way is a real control with a name, and Tab reaches the limits form and its Save button.
+  await page.getByRole("tab", { name: "Sender limits" }).focus();
+  const stops: string[] = [];
+  for (let i = 0; i < 80 && !stops.includes("Save limits"); i++) {
+    await page.keyboard.press("Tab");
+    const name = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return el ? (el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || el.tagName).trim().slice(0, 60) : "";
+    });
+    stops.push(name);
+  }
+  expect(stops.some((s) => /Connection requests: daily limit/.test(s))).toBe(true);
+  expect(stops).toContain("Save limits");
+  expect(await page.evaluate(() => [...document.querySelectorAll("[tabindex]")].filter((e) => Number(e.getAttribute("tabindex")) > 0).length)).toBe(0);
+  // Change a limit with the keyboard alone and save it with Enter.
+  const daily = page.getByLabel("Connection requests: daily limit");
+  await daily.focus();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("7");
+  await page.getByRole("button", { name: "Save limits" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Limits saved.")).toBeVisible();
+  const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { actions: Record<string, { dailyLimit: number }> };
+  expect(saved.actions.send_invite.dailyLimit).toBe(7);
+  // Arrow keys reach the last tab; its Delete button opens a dialog that keeps focus inside and gives it back on Escape.
+  await page.getByRole("tab", { name: "Sender limits" }).focus();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("tab", { name: "Account" })).toHaveAttribute("aria-selected", "true");
+  const trigger = page.getByRole("button", { name: "Delete account" });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest("[role=dialog]"))).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });

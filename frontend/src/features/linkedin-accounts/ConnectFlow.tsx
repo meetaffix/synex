@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConnectFlow, type FlowView } from "./hooks";
 import type { FlowScope } from "./service";
 import { CodeStep } from "./steps/CodeStep";
@@ -27,6 +27,17 @@ const announcements: Record<FlowView["kind"], string> = {
   lost: "Synex lost contact with the server.",
 };
 
+/** Time since the sign-in started, so a slow LinkedIn check is visibly still going. Not announced: it would chatter. */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const seconds = Math.max(0, Math.floor((now - since) / 1000));
+  return <p className="mb-3 text-xs text-muted-foreground" data-testid="connect-elapsed">Time elapsed {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</p>;
+}
+
 const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function ConnectFlow({ scope, onClose }: Props) {
@@ -50,6 +61,7 @@ export function ConnectFlow({ scope, onClose }: Props) {
       <p role="status" aria-live="polite" className="sr-only">
         {announcements[view.kind]}
       </p>
+      {flow.startedAt !== null && ["starting", "code", "approval", "manual"].includes(view.kind) && <Elapsed since={flow.startedAt} />}
       {view.kind === "form" && (
         <CredentialsStep
           defaults={kept}

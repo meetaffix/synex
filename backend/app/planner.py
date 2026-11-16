@@ -76,9 +76,11 @@ def _name(lead: models.Lead) -> str:
 
 
 def _first_action(campaign: models.Campaign, steps: list[models.CampaignStep], lead: models.Lead):
-    """(step, task type, hours of waiting before it) for the lead's first real action, or None."""
+    """(step, task type, hours of waiting before it) for the lead's first real action, or None. Follows the branch the lead would take now."""
     waited = 0
-    for step in steps:
+    step = engine.first_in_list(steps, None, None)
+    while step is not None:
+        following = None
         if step.type == "end":
             return None
         if step.type == "wait":
@@ -88,8 +90,25 @@ def _first_action(campaign: models.Campaign, steps: list[models.CampaignStep], l
                 return step, "send_invite", waited
         elif step.type in ("message", "follow_up"):
             return step, ("send_message" if lead.status in engine.ACCEPTED_STATES else "check_connection"), waited
+        elif step.type in ("inmail", "free_inmail"):
+            return step, "send_inmail", waited
+        elif step.type == "voice_note":
+            return step, ("send_voice_note" if lead.status in engine.ACCEPTED_STATES else "check_connection"), waited
+        elif step.type == "if_connected":
+            connected = lead.status in engine.ACCEPTED_STATES or (campaign.audience_source or {}).get("type") == "connections"
+            if not connected:
+                waited += 24 * (step.config or {}).get("waitDays", 15)
+            following = engine.first_in_list(steps, step.id, "yes" if connected else "no")
+            step = following
+            continue
+        elif step.type == "if_active":
+            days = (step.config or {}).get("days", 30)
+            recent = lead.connected_at is not None and engine._aware(lead.connected_at) >= engine._now() - timedelta(days=days)
+            step = engine.first_in_list(steps, step.id, "yes" if recent else "no")
+            continue
         elif step.type in engine.ACTION_TASKS:
             return step, engine.ACTION_TASKS[step.type], waited
+        step = engine.next_step(steps, step)
     return None
 
 

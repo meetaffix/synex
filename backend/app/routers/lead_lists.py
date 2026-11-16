@@ -1,4 +1,8 @@
+import csv
+import io
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -7,7 +11,7 @@ from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import lead_list_out
 from ..schemas import LeadListIn, LeadListUpdateIn
-from .. import models
+from .. import csv_safe, models
 
 router = APIRouter(prefix="/lead-lists", tags=["lead-lists"])
 
@@ -24,6 +28,20 @@ def _owned(db: Session, user: models.User, list_id: str) -> models.LeadList:
     if not ll or ll.user_id != user.id:
         raise HTTPException(status_code=404, detail="List not found")
     return ll
+
+
+@router.get("/{list_id}/export")
+def export_list(list_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """The people on one list as CSV. Text that would run as a spreadsheet formula is neutralised."""
+    lead_list = _owned(db, user, list_id)
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["first_name", "last_name", "company", "job_title", "headline", "linkedin_url", "email", "phone", "location", "industry", "status"])
+    for lead in sorted(lead_list.leads, key=lambda l: (l.last_name or "", l.first_name or "")):
+        writer.writerow(csv_safe.row([lead.first_name, lead.last_name, lead.company, lead.job_title, lead.headline, lead.linkedin_url, lead.email, lead.phone,
+                                      lead.location, lead.industry, lead.status]))
+    name = "".join(c if c.isalnum() or c in "-_" else "-" for c in lead_list.name)[:60] or "list"
+    return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="synex-list-{name}.csv"'})
 
 
 @router.get("")

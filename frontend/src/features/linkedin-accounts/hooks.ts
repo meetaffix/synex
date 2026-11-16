@@ -16,6 +16,26 @@ export const senderKeys = { list: ["sender-accounts"] as const };
 
 export const POLL_INTERVAL_MS = 2000;
 
+/** An attempt still running when the page is refreshed: only its id and start time are kept (never the credentials), so the dialog can resume it. */
+const PENDING_KEY = "synex.connect-attempt";
+export interface PendingAttempt { id: string; at: number }
+export function pendingConnectAttempt(): PendingAttempt | null {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(PENDING_KEY) ?? "null") as PendingAttempt | null;
+    return value && typeof value.id === "string" && typeof value.at === "number" ? value : null;
+  } catch {
+    return null;
+  }
+}
+function rememberAttempt(value: PendingAttempt | null) {
+  try {
+    if (value) sessionStorage.setItem(PENDING_KEY, JSON.stringify(value));
+    else sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* storage can be blocked: the flow still works, it just cannot resume */
+  }
+}
+
 export const useSenderAccounts = () =>
   useQuery({ queryKey: senderKeys.list, queryFn: senderAccountsService.list });
 
@@ -100,7 +120,9 @@ function toView(attempt: Attempt, codeError: string | undefined): FlowView {
  */
 export function useConnectFlow(scope: FlowScope) {
   const qc = useQueryClient();
-  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [pending] = useState(() => (scope.kind === "account" ? pendingConnectAttempt() : null));
+  const [attemptId, setAttemptId] = useState<string | null>(pending?.id ?? null);
+  const [startedAt, setStartedAt] = useState<number | null>(pending?.at ?? null);
   const [starting, setStarting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [codeError, setCodeError] = useState<string>();
@@ -130,10 +152,17 @@ export function useConnectFlow(scope: FlowScope) {
     const { scope: current, attemptId: id, state } = latest.current;
     if (id === null || isSettled(state) || cancelled.current) return;
     cancelled.current = true;
+    rememberAttempt(null);
     connectService.cancel(current, id).catch(() => undefined);
   }, []);
 
   useEffect(() => cancel, [cancel]);
+
+  const gone = attempt.error instanceof ApiError && attempt.error.status === 404;
+  const finished = isSettled(attempt.data?.state) || gone;
+  useEffect(() => {
+    if (finished) rememberAttempt(null);
+  }, [finished]);
 
   const succeeded = attempt.data?.state === "succeeded";
   useEffect(() => {
@@ -151,6 +180,9 @@ export function useConnectFlow(scope: FlowScope) {
         return;
       }
       cancelled.current = false;
+      const now = Date.now();
+      setStartedAt(now);
+      if (scope.kind === "account") rememberAttempt({ id: created.attemptId, at: now });
       qc.setQueryData(["connect-attempt", scope.kind, created.attemptId], created);
       setAttemptId(created.attemptId);
     } catch (error) {
@@ -173,6 +205,8 @@ export function useConnectFlow(scope: FlowScope) {
 
   const reset = () => {
     qc.removeQueries({ queryKey });
+    rememberAttempt(null);
+    setStartedAt(null);
     setAttemptId(null);
     setNotice(undefined);
     setCodeError(undefined);
@@ -184,7 +218,6 @@ export function useConnectFlow(scope: FlowScope) {
   } else if (attempt.data && !(attempt.isError && !isSettled(attempt.data.state))) {
     view = toView(attempt.data, codeError);
   } else if (attempt.isError) {
-    const gone = attempt.error instanceof ApiError && attempt.error.status === 404;
     view = gone
       ? { kind: "failed", code: "unknown", message: failureCopy.gone }
       : { kind: "lost", message: requestFailureMessage(attempt.error) };
@@ -192,5 +225,5 @@ export function useConnectFlow(scope: FlowScope) {
     view = { kind: "starting" };
   }
 
-  return { view, start, sendCode, cancel, reset, retryPolling: () => void attempt.refetch() };
+  return { view, startedAt, start, sendCode, cancel, reset, retryPolling: () => void attempt.refetch() };
 }
