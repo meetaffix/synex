@@ -49,7 +49,7 @@ Status before = what existed when this build started (see `docs/reports/area-3-a
 1. Auto-withdraw of stale invitations: setting saved, nothing is withdrawn (area 11).
 2. Extra action rows in the limits table (likes, withdraw, InMails) with areas 5 and 11.
 3. Voice samples need Piper installed; cloning needs a licensed model (see `docs/DEPENDENCIES.md`).
-4. Keyboard walk-through test of the account page is not yet a dedicated test (arrow keys between tabs are tested).
+4. OPEN: keyboard walk-through test of the account page (checklist 3.I03). Area 3 is therefore NOT done.
 
 ## Standing reminders
 - Secret scan broken in CI (deferred by the owner on 15 Nov 2026; must be fixed and run on full history before any public repo or real user).

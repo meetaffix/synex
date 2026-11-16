@@ -2,6 +2,7 @@
 
 Source: `docs/reference/outflo-inspection-2026-11-16.txt` (section numbers in brackets), its gap list (G1 to G10), and Synex extras (X).
 Rule: tick `[x]` only with evidence in the line (test name or screenshot path). `[~]` means built but not fully verified (reason given). `[ ]` means not done.
+Tags: `[LV:mock]` = LinkedIn-dependent, built and tested on the mock site only; `[LV:real]` = verified on real LinkedIn (none yet). `tools/checklist_status.py` counts them. "Done" for an area means every line is ticked.
 "Unverified LV" = built and tested on the mock site; not verified on real LinkedIn (no access or no GO yet).
 Written 2026-11-16. Counts per area are at the end of this file.
 
@@ -34,7 +35,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 
 ### 3.C Account page
 - [x] 3.C01 Page at `/linkedin-accounts/:id` with header, status badge and summary (account-management.spec.ts #1)
-- [x] 3.C02 Resync button (runs the account check)
+- [x] 3.C02 [LV:mock] Resync button (runs the account check)
 - [x] 3.C03 Six tabs: Sender limits, Inbox privacy, Health, Manage connections, Account (+ AI configuration, see 3.H); tab in the address, arrow-key navigation (account-management.spec.ts #1)
 - [x] 3.C04 Unknown account shows a clear message and a way back (account-management.spec.ts #9)
 - [x] 3.C05 Banner: profile photo, headline, location, company, "connected since" line [4.4] (account-management.spec #1 (Connected since, profile link))
@@ -61,7 +62,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.E04 "Share with account owner" link with Copy (account-management.spec 'send the owner a link')
 
 ### 3.F Health [4.8]
-- [~] 3.F01 Auto-withdraw stale invites: setting saved, execution not built yet (page says so); built in area 11
+- [x] 3.F01 [LV:mock] Auto-withdraw stale invites: setting saved and executed by the engine sweep (backend/tests/test_withdraw.py; account-management.spec health test). Unverified on real LinkedIn
 - [x] 3.F02 Honest SSI message (account-management.spec.ts #7)
 - [x] 3.F03 Health summary: last check, last warning, paused reason, restrictions (account-management.spec #7 (Health summary))
 
@@ -76,7 +77,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.G08 Export CSV, formulas neutralised (backend ExportImportTest; UI test "CSV is uploaded...")
 - [x] 3.G09 Upload CSV with result counts (same)
 - [x] 3.G10 Empty state with how to fill the list (account-management.spec.ts "empty list")
-- [~] 3.G11 Real reads of connections and invitations: Unverified LV (selectors fixture-tested only)
+- [~] 3.G11 [LV:mock] Real reads of connections and invitations: Unverified LV (selectors fixture-tested only)
 
 ### 3.H AI configuration [4.11]
 - [x] 3.H01 Tab "AI configuration" with assigned voice (none by default) (account-management.spec 'AI configuration')
@@ -109,16 +110,16 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 4.B07 CSV: counts of valid, duplicate, invalid, already-known (skipped counts per reason are shown after import; a 'rows without a LinkedIn URL' count shows in the detail line; no dedicated UI test)
 - [x] 4.B08 Add from my saved list: list picker, Refresh, Create empty list (lists source in AddLeadsDialog; test_lead_collections)
 - [x] 4.B09 Saved lists empty state "No saved lead lists found" (AddLeadsDialog shows 'You have no lists yet.')
-- [~] 4.B10 Basic LinkedIn search URL: URL, account, list name (dated default), limit (default 100, max 1,000) (collection framework exists; Unverified LV) (test_lead_collections search; Unverified LV)
-- [~] 4.B11 Sales Navigator leads: URL, account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats; Unverified LV: no access)
-- [~] 4.B12 Recruiter: URL, recruiter account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats (same reader); Unverified LV: no access)
-- [~] 4.B13 LinkedIn post: URL formats (activity, ugcPost, share), scrape type Reactions / Comments / Both, limit 1,000 (post address validation in test_lead_sources_more; reader exists; Unverified LV)
-- [~] 4.B14 LinkedIn event: URL, "account must be attending" warning, limit 1,000 (test_lead_sources_more event collector; add-leads.spec warning; Unverified LV)
-- [~] 4.B15 LinkedIn companies: company list source (opens its own form, not a redirect) (test_lead_sources_more company collector and company lists; leads-extras.spec; Unverified LV)
-- [~] 4.B16 Sales Navigator accounts: company search URL, account, list, companies limit 100 (Unverified LV) (test_lead_sources_more company collector; Unverified LV: no access)
+- [~] 4.B10 [LV:mock] Basic LinkedIn search URL: URL, account, list name (dated default), limit (default 100, max 1,000) (collection framework exists; Unverified LV) (test_lead_collections search; Unverified LV)
+- [~] 4.B11 [LV:mock] Sales Navigator leads: URL, account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats; Unverified LV: no access)
+- [~] 4.B12 [LV:mock] Recruiter: URL, recruiter account, list, limit max 2,500 (Unverified LV: no access) (test_lead_sources_more CollectorTest seats (same reader); Unverified LV: no access)
+- [~] 4.B13 [LV:mock] LinkedIn post: URL formats (activity, ugcPost, share), scrape type Reactions / Comments / Both, limit 1,000 (post address validation in test_lead_sources_more; reader exists; Unverified LV)
+- [~] 4.B14 [LV:mock] LinkedIn event: URL, "account must be attending" warning, limit 1,000 (test_lead_sources_more event collector; add-leads.spec warning; Unverified LV)
+- [~] 4.B15 [LV:mock] LinkedIn companies: company list source (opens its own form, not a redirect) (test_lead_sources_more company collector and company lists; leads-extras.spec; Unverified LV)
+- [~] 4.B16 [LV:mock] Sales Navigator accounts: company search URL, account, list, companies limit 100 (Unverified LV) (test_lead_sources_more company collector; Unverified LV: no access)
 - [x] 4.B17 LinkedIn group: disabled "Coming soon" until built (add-leads.spec 'unbuilt one says Coming soon'; test_lead_sources_more group)
-- [x] 4.B18 Extra: my connections (from the connections reader) (connections source: test_lead_collections / account connections reader)
-- [~] 4.B19 Extra: engagers of my own posts (test_lead_sources_more own posts collector; Unverified LV)
+- [x] 4.B18 [LV:mock] Extra: my connections (from the connections reader) (connections source: test_lead_collections / account connections reader)
+- [~] 4.B19 [LV:mock] Extra: engagers of my own posts (test_lead_sources_more own posts collector; Unverified LV)
 - [x] 4.B20 Extra: inbox contacts (inbox source: test_lead_collections)
 - [x] 4.B21 Extra: Google Sheets (open-source/CSV-export path; no paid service) (csv source with Google Sheets link: test_lead_collections sheet link test)
 - [x] 4.B22 Extra: bulk paste of links (urls source: test_lead_collections 'pasted links preview import')
@@ -208,9 +209,9 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [ ] 5.F06 Node: Follow profile
 - [ ] 5.F07 Node: Like a post
 - [ ] 5.F08 Node: View profile
-- [ ] 5.F09 Node: Send free InMail (Unverified LV)
-- [ ] 5.F10 Node: Send InMail (Unverified LV)
-- [ ] 5.F11 Node: Withdraw invite
+- [ ] 5.F09 [LV:mock] Node: Send free InMail (Unverified LV)
+- [ ] 5.F10 [LV:mock] Node: Send InMail (Unverified LV)
+- [ ] 5.F11 [LV:mock] Node: Withdraw invite
 - [ ] 5.F12 Conditional: If connection
 - [ ] 5.F13 Conditional: Is active on LinkedIn
 - [ ] 5.F14 Each branch has Add action and End
@@ -224,7 +225,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 5.G02 Drawer "Configure AI for message N" with Direct | AI assisted (campaign-builder.spec 'AI writing' (Direct and AI assisted tabs))
 - [~] 5.G03 Direct tab: editor with Preview link (Direct tab explains; the editor has its own Preview)
 - [x] 5.G04 Card linking to AI campaign context (campaign-builder.spec 'AI writing' (context card))
-- [~] 5.G05 Per-profile data options (role and company, recent posts, skills, career transitions, shared interests), each collected by paced tasks (current role and company work; recent posts, skills, career, interests are disabled 'coming soon' (need the paced profile reader); test_ai_writing refuses them server-side)
+- [~] 5.G05 [LV:mock] Per-profile data options (role and company, recent posts, skills, career transitions, shared interests), each collected by paced tasks (current role and company work; recent posts, skills, career, interests are disabled 'coming soon' (need the paced profile reader); test_ai_writing refuses them server-side)
 - [x] 5.G06 Per-sender read-only list (how the sender talks, profile, previous messages, sequence) (campaign-builder.spec 'AI writing' (per-sender list))
 - [x] 5.G07 Tone: Auto, Professional, Casual, Witty, Direct (campaign-builder.spec 'AI writing' (tone); test_ai_writing prompt test)
 - [x] 5.G08 Strategy: Auto, Common ground, Value offer, Curiosity hook (campaign-builder.spec 'AI writing' (strategy))
@@ -313,10 +314,10 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 6.22 Sending checked against outreach limits; reading uses its own ceiling (test_inbox DraftScheduleTest (limits checked when due); refresh uses the sync_inbox ceiling, not outreach limits (ExportRefreshTest))
 - [x] 6.23 AI suggested reply using campaign context, shown with cost, editable [beat OutFlo] (inbox.spec 'a suggested reply shows its cost'; test_inbox SuggestTest)
 - [x] 6.24 Interest labels (interested, not interested, meeting, wrong person) [beat OutFlo] (inbox.spec 'opening a thread' (interest); test_inbox BulkTest)
-- [~] 6.25 Profile panel: photo, Fetch profile, followers, connections, location, local time, about, experience (stored fields shown; Fetch profile is disabled 'coming soon' (needs the paced profile reader))
+- [~] 6.25 [LV:mock] Profile panel: photo, Fetch profile, followers, connections, location, local time, about, experience (stored fields shown; Fetch profile is disabled 'coming soon' (needs the paced profile reader))
 - [x] 6.26 Profile panel buttons: Mark as starred, Mark as answered, Select tags, Archive (inbox.spec 'opening a thread ... profile panel')
 - [x] 6.27 Lead overview with Add to campaign (inbox.spec 'opening a thread' (Lead overview); area 4 test_lead_overview)
-- [~] 6.28 Refresh and live sync indicator (inbox.spec 'Refresh'; the list polls every 30 s (no test of the polling))
+- [~] 6.28 [LV:mock] Refresh and live sync indicator (inbox.spec 'Refresh'; the list polls every 30 s (no test of the polling))
 - [~] 6.29 Axe, 360/768/1280, both themes, keyboard path (axe and 360 px pass for inbox-no-account, inbox-empty, inbox-thread, inbox-filters-and-bulk; keyboard path not a dedicated test)
 
 ## Area 7: Dashboard and analytics
@@ -380,8 +381,8 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 10.17 Social post planner: board and calendar views (existing publishing module (Studio, Calendar, Queue); not re-audited this stretch)
 - [~] 10.18 Post editor: title, account, copy (3,000), mentions, media, first comment (1,250) (existing post editor; not re-audited)
 - [ ] 10.19 Post review workflow: reviewers, magic link portal, feedback thread (external reviewers with a magic link are not built)
-- [~] 10.20 Post publishing through paced tasks within a ceiling (Unverified LV) (existing publishing; Unverified LV)
-- [ ] 10.21 Manual engagement: reactions and comments with history (Unverified LV) (manual reactions and comments not built)
+- [~] 10.20 [LV:mock] Post publishing through paced tasks within a ceiling (Unverified LV) (existing publishing; Unverified LV)
+- [ ] 10.21 [LV:mock] Manual engagement: reactions and comments with history (Unverified LV) (manual reactions and comments not built)
 - [ ] 10.22 What's new panel (not built)
 - [~] 10.23 Language and appearance settings (light and dark themes exist; no language setting)
 - [~] 10.24 Every control works or is disabled with "Coming soon" (new screens have no inert controls (disabled items say why); a scan of every older screen is part of area 12)
@@ -396,7 +397,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [ ] 11.06 Ramp-up never exceeds ceilings (test)
 - [ ] 11.07 Auto-pause on LinkedIn warning, checkpoint, restriction (test on mock site)
 - [ ] 11.08 Random gaps between actions (test)
-- [ ] 11.09 Stale-invite withdrawal executes within limits (test)
+- [x] 11.09 [LV:mock] Stale-invite withdrawal executes within limits (backend/tests/test_withdraw.py)
 - [ ] 11.10 Sender health page
 - [ ] 11.11 Kill switch: stops everything at once (test)
 - [ ] 11.12 Operating hours enforced (test)

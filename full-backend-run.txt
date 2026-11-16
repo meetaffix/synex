@@ -1,0 +1,28 @@
+ports: no test binds a fixed port (every mock server binds port 0, so each process gets its own)
+reference: the sequential loader counts 508 tests
+-- run 1 of 1: 9 serial class(es) first, one at a time, then 118 in parallel (8 processes)
+ok   test_linkedin_session.LoginFlowTest                                     12 tests   27.9s
+ok   test_worker_process.CleanShutdownTest                                    2 tests   16.0s
+ok   test_publishing.PublishingTest                                          23 tests   34.9s
+ok   test_outreach.NoDoubleSendTest                                          10 tests   22.8s
+ok   test_outreach.LeaseTest                                                  6 tests   13.4s
+ok   test_worker_process.HardStopTest                                         1 tests   16.9s
+ok   test_worker_process.TwoWorkersTest                                       1 tests   12.9s
+ok   test_worker_process.LeaseHeartbeatTest                                   1 tests   24.3s
+ok   test_worker_process.FreshDiskTest                                        1 tests    8.7s
+ok   test_linkedin_session.HardeningTest                                     11 tests   84.2s
+ok   test_linkedin_session.ProxyTestApiTest                                  10 tests   94.3s
+ok   test_linkedin_session.SyncPreferenceTest                                 9 tests   63.2s
+ok   test_linkedin_session.ReconnectLinkTest                                  8 tests   63.9s
+ok   test_assistant.RelayTest                                                11 tests   58.8s
+ok   test_linkedin_session.AccountApiTest                                     6 tests   46.0s
+ok   test_outreach.SafetyTest                                                 9 tests   63.1s
+ok   test_linkedin_session.LoginIdentifierTest                                5 tests   42.1s
+ok   test_outreach.LimitsTest                                                 7 tests   37.9s
+ok   test_outreach.DryRunTimesTest                                            7 tests   34.0s
+ok   test_outreach.ZeroAndCeilingTest                                         7 tests   39.7s
+ok   test_assistant.ToolRegistryTest                                          6 tests   24.0s
+ok   test_assistant.ConfirmationTest                                          6 tests   27.6s
+ok   test_assistant.SessionApiTest                                            6 tests   23.6s
+ok   test_linkedin_session.IsolatedManagerTest                                4 tests   25.2s
+ok   test_outreach.ActionLayerTest                                            6 tests   40.9s
