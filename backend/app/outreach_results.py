@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from . import dnc, engine, models
+from . import dnc, engine, integrations_core as integrations, models
 from .config import settings
 from .database import SessionLocal
 from .linkedin_session import store
@@ -419,6 +419,7 @@ def handle_session_error(account_id: str, task_id: str | None, kind: str) -> Non
         store.apply_status(account, "restricted" if kind == "restricted" else "needs_reconnect")
         account.paused_reason = PAUSE_REASONS[kind]
         account.last_checked_at = datetime.now(timezone.utc)
+        integrations.emit(db, account.user_id, "account_disconnected", {"name": account.name, "account": account.name, "reason": PAUSE_REASONS[kind]})
         if task_id:
             task = db.get(models.AgentTask, task_id)
             if task.committed_at is not None:
@@ -486,6 +487,8 @@ def _store_thread(db: Session, account: models.LinkedInAccount, lead: models.Lea
                 if lead.status in ("new", "contacted", "connected"):
                     lead.status = "replied"
                 engine.record_event(db, lead, "replied", raw.text[:140], campaign=lead.campaign, account=account)
+                integrations.emit(db, account.user_id, "reply_received", {"name": f"{lead.first_name} {lead.last_name}".strip(), "lead": f"{lead.first_name} {lead.last_name}".strip(),
+                                                                          "campaign": lead.campaign.name if lead.campaign else ""})
                 _stop_runs_on_reply(db, lead, now)
 
 

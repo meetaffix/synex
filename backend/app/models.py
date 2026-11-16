@@ -711,6 +711,78 @@ class DoNotContact(Base):
     __table_args__ = (Index("ux_do_not_contact", "user_id", "kind", "key", unique=True),)
 
 
+class ApiKey(Base):
+    """A key for the public API and the MCP server. Only its hash is stored; the key is shown once when made."""
+    __tablename__ = "api_keys"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, default="API key")
+    prefix = Column(String, nullable=False)
+    key_hash = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Webhook(Base):
+    __tablename__ = "webhooks"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String, default="webhook")  # webhook | slack
+    url = Column(String, nullable=False)
+    events = Column(JSON, default=list)
+    secret = Column(String, nullable=False)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class WebhookDelivery(Base):
+    __tablename__ = "webhook_deliveries"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    webhook_id = Column(String, ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False, index=True)
+    event = Column(String, nullable=False)
+    status_code = Column(Integer, nullable=True)
+    error = Column(String, nullable=True)
+    ok = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=_now, index=True)
+
+
+class WorkspaceSetting(Base):
+    """Small per-workspace settings (notifications, integration tokens), one JSON value per key."""
+    __tablename__ = "workspace_settings"
+
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    key = Column(String, primary_key=True)
+    value = Column(JSON, default=dict)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class OutboxEmail(Base):
+    """Every email Synex tried to send. Sent through SMTP when it is set up; otherwise it only waits here."""
+    __tablename__ = "outbox_emails"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_address = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    body = Column(Text, default="")
+    status = Column(String, default="stored")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    subject = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
 class AccountConnection(Base):
     """One person in a sender account's own connection list or received invitations, read by a paced task or uploaded as CSV."""
 

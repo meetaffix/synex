@@ -361,31 +361,31 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 9.08 Axe, 360/768/1280, both themes (axe and 360 px pass for the touched pages (campaigns, builder, inbox, settings); a templates page state is not in the axe list)
 
 ## Area 10: Settings and integrations [6]
-- [~] 10.01 Settings page exists (audit)
-- [ ] 10.02 Notifications: notification emails
-- [ ] 10.03 Notification toggles: account connected, disconnected, any message
-- [ ] 10.04 Campaign-related notification settings
-- [ ] 10.05 Notifications actually sent (local email provider interface, test)
-- [ ] 10.06 Webhook: URL, events, test button, signing secret, delivery log
-- [ ] 10.07 API keys: create (shown once), revoke, last used
-- [ ] 10.08 Public API reference page
-- [ ] 10.09 Slack integration (webhook-based)
-- [ ] 10.10 HubSpot: import contacts, sync outreach status (Unverified LV of HubSpot)
-- [ ] 10.11 Email-tool exports for Smartlead and Instantly formats
-- [ ] 10.12 MCP server for AI clients
-- [ ] 10.13 Migration importer (competitor export files)
-- [ ] 10.14 Usage meter (replaces credits and billing)
-- [ ] 10.15 Support page with contact form (local mail provider)
-- [ ] 10.16 Profile settings: name, phone, designation, company
-- [ ] 10.17 Social post planner: board and calendar views
-- [ ] 10.18 Post editor: title, account, copy (3,000), mentions, media, first comment (1,250)
-- [ ] 10.19 Post review workflow: reviewers, magic link portal, feedback thread
-- [ ] 10.20 Post publishing through paced tasks within a ceiling (Unverified LV)
-- [ ] 10.21 Manual engagement: reactions and comments with history (Unverified LV)
-- [ ] 10.22 What's new panel
-- [ ] 10.23 Language and appearance settings
-- [ ] 10.24 Every control works or is disabled with "Coming soon"
-- [ ] 10.25 Axe, 360/768/1280, both themes
+- [x] 10.01 Settings page exists (audit) (settings page and the new /settings/integrations page)
+- [x] 10.02 Notifications: notification emails (integrations.spec notifications; test_integrations NotificationTest)
+- [x] 10.03 Notification toggles: account connected, disconnected, any message (integrations.spec notifications (toggles saved); test_integrations)
+- [x] 10.04 Campaign-related notification settings (campaign paused and launched toggles; test_integrations 'an event emails only when that notification is on')
+- [~] 10.05 Notifications actually sent (local email provider interface, test) (test_integrations: emails are written to the outbox and sent through SMTP when configured; events wired: reply received, account disconnected, campaign launched, interested label; 'account connected' and 'campaign paused' events are not emitted yet; real SMTP not exercised)
+- [x] 10.06 Webhook: URL, events, test button, signing secret, delivery log (integrations.spec webhooks; test_integrations WebhookTest (signature, delivery log, test button, private addresses refused))
+- [x] 10.07 API keys: create (shown once), revoke, last used (integrations.spec API keys; test_integrations KeyAndApiTest (shown once, hashed, revoked))
+- [~] 10.08 Public API reference page (endpoints are listed on the API tab; no generated reference page)
+- [x] 10.09 Slack integration (webhook-based) (integrations.spec webhooks (Slack type); test_integrations (only hooks.slack.com accepted))
+- [~] 10.10 HubSpot: import contacts, sync outreach status (Unverified LV of HubSpot) (test_integrations HubSpot import with a stand-in; built from HubSpot's public docs, unverified on a real account; syncing outreach status back is not built)
+- [x] 10.11 Email-tool exports for Smartlead and Instantly formats (integrations.spec email tools; test_integrations exports)
+- [x] 10.12 MCP server for AI clients (test_integrations KeyAndApiTest (MCP: initialize, tools/list, tools/call; read and draft tools only))
+- [~] 10.13 Migration importer (competitor export files) (test_integrations importer for leads and lists from another tool's CSV; campaigns and conversation history are not imported)
+- [x] 10.14 Usage meter (replaces credits and billing) (integrations.spec usage; test_integrations usage)
+- [~] 10.15 Support page with contact form (local mail provider) (integrations.spec support; messages are saved in the workspace, not emailed)
+- [ ] 10.16 Profile settings: name, phone, designation, company (not built)
+- [~] 10.17 Social post planner: board and calendar views (existing publishing module (Studio, Calendar, Queue); not re-audited this stretch)
+- [~] 10.18 Post editor: title, account, copy (3,000), mentions, media, first comment (1,250) (existing post editor; not re-audited)
+- [ ] 10.19 Post review workflow: reviewers, magic link portal, feedback thread (external reviewers with a magic link are not built)
+- [~] 10.20 Post publishing through paced tasks within a ceiling (Unverified LV) (existing publishing; Unverified LV)
+- [ ] 10.21 Manual engagement: reactions and comments with history (Unverified LV) (manual reactions and comments not built)
+- [ ] 10.22 What's new panel (not built)
+- [~] 10.23 Language and appearance settings (light and dark themes exist; no language setting)
+- [~] 10.24 Every control works or is disabled with "Coming soon" (new screens have no inert controls (disabled items say why); a scan of every older screen is part of area 12)
+- [x] 10.25 Axe, 360/768/1280, both themes (axe and 360 px pass for six integrations tabs and settings, both themes)
 
 ## Area 11: Safety
 - [x] 11.01 Ceilings for every task type; test fails if one is missing (test_ceilings_cover_every_type)

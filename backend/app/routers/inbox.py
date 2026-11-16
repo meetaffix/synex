@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from .. import ai_prompt, engine, models, providers
+from .. import ai_prompt, engine, integrations_core as integrations, models, providers
 from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import message_out
@@ -200,6 +200,8 @@ def bulk(body: BulkIn, db: Session = Depends(get_db), user: models.User = Depend
         elif body.action == "tag_remove":
             c.tags = [t for t in (c.tags or []) if t != tag]
         elif body.action == "interest":
+            if body.value == "interested" and c.interest != "interested":
+                integrations.emit(db, user.id, "lead_interested", {"name": c.lead.first_name if c.lead else "", "lead": c.lead.first_name if c.lead else ""})
             c.interest = body.value or None
     db.commit()
     return {"changed": len(rows)}

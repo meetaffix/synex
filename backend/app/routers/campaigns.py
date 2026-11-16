@@ -10,7 +10,7 @@ from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import campaign_out
 from ..schemas import CampaignIn, CampaignUpdateIn, RunActionIn, StepIn
-from .. import campaign_settings, models, engine
+from .. import campaign_settings, integrations_core, models, engine
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -232,9 +232,12 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
     # Going live: validate, stamp launch time, and enroll prospects in the engine.
     if data.get("status") == "active":
         _validate_launch(db, campaign)
-        if campaign.launched_at is None:
+        first_launch = campaign.launched_at is None
+        if first_launch:
             campaign.launched_at = datetime.now(timezone.utc)
         engine.launch_campaign(db, campaign)
+        if first_launch:
+            integrations_core.emit(db, campaign.user_id, "campaign_launched", {"name": campaign.name, "campaign": campaign.name})
 
     db.commit()
     db.refresh(campaign)

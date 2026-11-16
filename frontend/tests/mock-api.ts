@@ -42,6 +42,7 @@ export interface Api {
   /** Per-account management data (limits policy, lifecycle), created on first read. */
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
+  integ: unknown;
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
   builder: Record<string, unknown> | null;
@@ -215,6 +216,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
     scheduledList: [],
     builder: null,
@@ -331,6 +333,33 @@ export async function mockApi(page: Page, api: Api) {
       if (path === "/assistant/local/status") return json(200, { reachable: api.syncStatus !== "ollama-off", model: "llama3.2", installed: true });
       if (path === "/assistant/local/chat") return json(200, { reply: "Two conversations need a reply.", cards: [{ type: "proposal", proposal: { id: "p1", summary: "Add 1 company to the do-not-contact list.", changes: ["Acme Inc will never be contacted."], status: "pending" } }] });
       if (/^\/assistant\/proposals\/p1\/(confirm|cancel)$/.test(path)) return json(200, { ok: true });
+      if (path.startsWith("/integrations/")) {
+        const st = api.integ as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (path === "/integrations/events") return json(200, [{ id: "reply_received", label: "A lead replied" }, { id: "campaign_launched", label: "A campaign was launched" }]);
+        if (path === "/integrations/notifications" && method === "GET") return json(200, st.notify);
+        if (path === "/integrations/notifications" && method === "PUT") { st.notify = body; return json(200, body); }
+        if (path === "/integrations/notifications/test") { st.outbox = [{ id: "o1", to: st.notify.emails[0], subject: "Synex: test notification", status: "stored", createdAt: "2026-11-16T10:00:00Z" }]; return json(200, { results: ["stored"], note: "Emails are always saved in the outbox below. They are sent only when SMTP is set up on the server." }); }
+        if (path === "/integrations/outbox") return json(200, st.outbox);
+        if (path === "/integrations/api-keys" && method === "GET") return json(200, st.keys);
+        if (path === "/integrations/api-keys" && method === "POST") { st.keys.push({ id: "k1", name: (body as { name: string }).name, prefix: "syx_abcdefgh", createdAt: "2026-11-16T10:00:00Z", lastUsedAt: null, revoked: false }); return json(201, { id: "k1", key: "syx_abcdefgh_THE_WHOLE_KEY", prefix: "syx_abcdefgh" }); }
+        if (path === "/integrations/api-keys/k1" && method === "DELETE") { st.keys[0].revoked = true; return empty(); }
+        if (path === "/integrations/webhooks" && method === "GET") return json(200, st.hooks);
+        if (path === "/integrations/webhooks" && method === "POST") {
+          if (String((body as { url: string }).url).includes("localhost")) return json(422, { detail: "That address points to a private network, which Synex will not call." });
+          st.hooks.push({ id: "h1", kind: (body as { kind: string }).kind, url: (body as { url: string }).url, events: (body as { events: string[] }).events, enabled: true });
+          return json(201, { ...st.hooks[0], secret: "whsec_SECRET123" });
+        }
+        if (path === "/integrations/webhooks/h1/test") return json(200, { ok: false, status: 500, error: "The receiver answered 500." });
+        if (path === "/integrations/webhooks/h1/deliveries") return json(200, [{ id: "d1", event: "test", status: 500, ok: false, error: "The receiver answered 500.", createdAt: "2026-11-16T10:00:00Z" }]);
+        if (path === "/integrations/usage") return json(200, { actionsLast24h: { send_invite: 3 }, aiDraftsThisMonth: 4, assistantMinutesThisMonth: 1.5, leads: 12, campaigns: 2, seatsUsed: 1, month: "2026-11", note: "Synex does not sell credits or plans yet, so this is a meter of what you used, not a balance." });
+        if (path === "/integrations/support" && method === "POST") return json(201, { ok: true, note: "Your message is saved in this workspace." });
+        if (path === "/integrations/support") return json(200, []);
+        if (path === "/integrations/hubspot" && method === "GET") return json(200, { connected: st.hubspot, note: "Built from HubSpot's public API documentation and not verified against a real HubSpot account." });
+        if (path === "/integrations/hubspot" && method === "PUT") { st.hubspot = true; return json(200, { connected: true }); }
+        if (path === "/integrations/hubspot/import") return json(200, { seen: 3, created: 2, withoutLinkedinAddress: 1 });
+        if (path.startsWith("/integrations/exports/")) return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "email,first_name\nada@example.com,Ada\n" });
+        if (path === "/integrations/import/leads") return json(200, { created: 2, alreadyKnown: 1, withoutProfileLink: 1, lists: ["Spring"] });
+      }
       if (path.startsWith("/inbox/")) {
         const q = url.searchParams;
         const inboxItems = api.inbox as Record<string, unknown>[];

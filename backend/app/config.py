@@ -114,6 +114,15 @@ class Settings(BaseSettings):
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "llama3.2"
 
+    # Integrations. Webhooks to private or local addresses are refused unless this is on (for testing on one machine).
+    allow_private_webhooks: bool = False
+    # Notification email. With no SMTP host, emails are only written to the outbox table, which the app can show.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+
     # Authentication. "local" is the built-in email and password sign-in (used by the tests); "clerk" accepts only
     # Clerk session tokens (see docs/CLERK_MIGRATION.md). One variable switches back if Clerk is misconfigured.
     auth_provider: str = "local"
