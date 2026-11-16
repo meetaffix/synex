@@ -637,6 +637,8 @@ def emit_inbox_syncs(db: Session, now: datetime) -> int:
 # Tick
 # --------------------------------------------------------------------------
 def tick(db: Session) -> dict:
+    from .routers.inbox import release_due
+    release_due(db, _now())  # scheduled replies whose time has come, each checked against the sender's limits
     """Process all due sequence runs once, queueing tasks for the worker to execute."""
     if kill_switch_active(db):
         return {"processed": 0, "killed": True}

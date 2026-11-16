@@ -321,6 +321,14 @@ class Conversation(Base):
     last_message_at = Column(DateTime(timezone=True), default=_now)
     unread = Column(Boolean, default=False)
     status = Column(String, default="active")  # active | interested | not_interested | archived
+    starred = Column(Boolean, default=False)
+    # The sender has dealt with this thread, so it no longer "needs a reply" until the person writes again.
+    answered = Column(Boolean, default=False)
+    tags = Column(JSON, default=list)
+    # interested | not_interested | meeting_booked | wrong_person | follow_up_later (see routers/inbox.py)
+    interest = Column(String, nullable=True)
+    # A reply being written (saved as you type) or suggested by AI; never sent until the sender sends it.
+    draft_body = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="conversations")
     lead = relationship("Lead")
@@ -353,6 +361,21 @@ class Message(Base):
     task_id = Column(String, nullable=True, index=True)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+
+class ScheduledMessage(Base):
+    """A reply the sender asked to send later. Checked against the sender's limits when its time comes."""
+    __tablename__ = "scheduled_messages"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    conversation_id = Column(String, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String, ForeignKey("linkedin_accounts.id", ondelete="SET NULL"), nullable=True)
+    body = Column(Text, nullable=False)
+    send_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(String, default="pending")  # pending | sent | failed | cancelled
+    error = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
 
 
 class LeadDraft(Base):

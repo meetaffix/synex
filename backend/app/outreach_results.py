@@ -481,6 +481,7 @@ def _store_thread(db: Session, account: models.LinkedInAccount, lead: models.Lea
         convo.last_message_preview, convo.last_message_at = raw.text, sent_at
         if inbound:
             convo.unread = True
+            convo.answered = False  # the person wrote again, so it needs a reply again
             if since is not None and sent_at > since:
                 if lead.status in ("new", "contacted", "connected"):
                     lead.status = "replied"
