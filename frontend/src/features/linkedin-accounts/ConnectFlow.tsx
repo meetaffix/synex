@@ -7,6 +7,7 @@ import { FailedStep } from "./steps/FailedStep";
 import { LostStep } from "./steps/LostStep";
 import { ManualStep } from "./steps/ManualStep";
 import { SucceededStep } from "./steps/SucceededStep";
+import { StartingStep } from "./steps/StartingStep";
 import { WaitingStep } from "./steps/WaitingStep";
 
 interface Props {
@@ -62,9 +63,7 @@ export function ConnectFlow({ scope, onClose }: Props) {
         />
       )}
       {view.kind === "starting" && (
-        <WaitingStep title="Signing in to LinkedIn" onCancel={cancel}>
-          This usually takes under a minute. Keep this window open.
-        </WaitingStep>
+        <StartingStep onCancel={cancel} />
       )}
       {view.kind === "code" && (
         <CodeStep challenge={view.challenge} error={view.error} onSubmit={flow.sendCode} onCancel={cancel} />
