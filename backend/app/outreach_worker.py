@@ -123,6 +123,10 @@ class OutreachWorker:
             state, identity, proxy = store.load_state(account), account.browser_profile, store.load_proxy(account)
             if state is None or not identity:
                 return False
+            if settings.require_account_proxy and not proxy:  # the hosted safety gate: no proxy, no browser, no lease
+                log.warning("account %s has no proxy: this server requires one, so no browser is opened for it", account_id)
+                self._cooldown[account_id] = datetime.now(timezone.utc) + timedelta(minutes=10)
+                return False
             # No browser is opened for an account this worker does not hold the lease for.
             if not results.acquire_lease(db, account_id, self.id, datetime.now(timezone.utc)):
                 return False

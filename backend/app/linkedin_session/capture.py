@@ -24,6 +24,7 @@ LABELS = {
     "restricted": "a restricted-account notice",
     "authwall": "a page asking to sign in again",
     "blocked_or_blank": "a blank or blocked page",
+    "profile_not_read": "your profile page, which Synex could not read after signing in",
     "navigation_failed": "no page at all (the connection to LinkedIn failed or timed out)",
     "proxy_error": "no page at all (the proxy could not be reached)",
     "unknown": "a page Synex did not recognise",

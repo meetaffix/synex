@@ -52,6 +52,7 @@ export const attemptErrorCodeSchema = z.enum([
   "invalid_credentials",
   "timeout",
   "proxy_error",
+  "proxy_required",
   "cancelled",
   "unknown",
 ]);

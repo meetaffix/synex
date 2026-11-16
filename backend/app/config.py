@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     linkedin_session_attempt_timeout_seconds: int = 600
     linkedin_session_poll_interval_seconds: float = 1.0
     linkedin_session_headless: bool = True
+    # On a hosted server: refuse to open a browser for any account that has no proxy (a datacenter address is the risk).
+    require_account_proxy: bool = False
     # Where a failed login's redacted screenshot goes (this machine only, never committed). Empty: backend/captures.
     linkedin_capture_dir: str = ""
     # Proxy test: one request to this neutral endpoint (never LinkedIn), through the proxy under test.

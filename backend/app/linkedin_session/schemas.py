@@ -96,7 +96,7 @@ class ChallengeOut(CamelModel):
 
 
 class ErrorOut(CamelModel):
-    code: Literal["invalid_credentials", "timeout", "proxy_error", "cancelled", "unknown"]
+    code: Literal["invalid_credentials", "timeout", "proxy_error", "proxy_required", "cancelled", "unknown"]
     message: str
 
 

@@ -20,6 +20,10 @@ export const failureCopy: Record<AttemptErrorCode, { title: string; detail: stri
     title: "Synex could not connect through the proxy",
     detail: "Check the proxy address and credentials, or remove the proxy, then try again.",
   },
+  proxy_required: {
+    title: "This server needs a proxy for this account",
+    detail: "For safety, Synex only connects LinkedIn accounts from this server through a proxy in your own country. Add a proxy under Advanced: proxy, then connect again.",
+  },
   cancelled: {
     title: "The connection was cancelled",
     detail: "Nothing was saved. Start again whenever you are ready.",

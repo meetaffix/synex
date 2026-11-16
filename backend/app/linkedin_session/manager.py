@@ -47,6 +47,14 @@ class CodeNotExpected(Exception):
     """The attempt is not waiting for a verification code."""
 
 
+PROXY_REQUIRED_MESSAGE = ("This server only connects LinkedIn accounts through a proxy in your own country. "
+                          "Add a proxy to this account (Advanced: proxy), then try again.")
+
+
+class ProxyRequired(Exception):
+    """The server requires a proxy for every browser, and this account has none. Nothing was opened."""
+
+
 class CheckFailed(Exception):
     """A health check could not reach a verdict (network, proxy or timeout)."""
 
@@ -102,11 +110,13 @@ class CheckResult:
 
 class SessionManager:
     def __init__(self, site: LoginSite, *, max_browsers: int, attempt_timeout: float,
-                 poll_interval: float, headless: bool, capture_dir: Path | None = None) -> None:
+                 poll_interval: float, headless: bool, capture_dir: Path | None = None,
+                 require_proxy: bool = False) -> None:
         self.site = site
         self._max_browsers, self._attempt_timeout = max_browsers, attempt_timeout
         self._poll, self._headless = poll_interval, headless
         self._capture_dir = capture_dir
+        self._require_proxy = require_proxy
         self._runtime = BrowserRuntime()
         self._lock = threading.Lock()
         self._attempts: dict[str, Attempt] = {}
@@ -226,6 +236,8 @@ class SessionManager:
             self._fail(attempt, "cancelled", "The connection attempt was cancelled.")
             if not attempt.cancel_requested:
                 raise  # application shutdown
+        except ProxyRequired:
+            self._fail(attempt, "proxy_required", PROXY_REQUIRED_MESSAGE)
         except ManualVerification:
             attempt.challenge = None
             self._set_state(attempt, "awaiting_manual_verification")
@@ -258,6 +270,9 @@ class SessionManager:
     @asynccontextmanager
     async def _browser(self, identity: dict | None, timezone: str | None, proxy_url: str | None,
                        storage_state: dict | None):
+        if self._require_proxy and not proxy_url:  # the single place every browser is launched: nothing opens without a proxy
+            log.warning("browser refused: this server requires a proxy and the account has none")
+            raise ProxyRequired
         if self._playwright is None:
             self._playwright = await async_playwright().start()
         launch: dict = {"headless": self._headless}
@@ -282,16 +297,19 @@ class SessionManager:
     async def _login(self, attempt: Attempt, identifier: str, password: str, proxy_url: str | None,
                      timezone: str | None, identity: dict | None) -> "SignedIn":
         async with self._browser(identity, timezone, proxy_url, None) as (used_identity, context, page):
+            stage = "sign-in"
             try:
                 await self.site.open_login(page)
                 await self._drive(attempt, page, identifier, password)
+                stage = "profile"
+                profile = await self.site.read_profile(page)
             except (LoginFailed, ManualVerification, PlaywrightTimeout, asyncio.CancelledError) as exc:
-                await self._record(attempt, page, "navigation_failed" if isinstance(exc, PlaywrightTimeout) and not attempt.last_state else None)
+                force = "profile_not_read" if stage == "profile" else ("navigation_failed" if isinstance(exc, PlaywrightTimeout) and not attempt.last_state else None)
+                await self._record(attempt, page, force)
                 raise
             except Exception as exc:  # noqa: BLE001 - a proxy or network error still gets its page recorded, then is re-raised as is
-                await self._record(attempt, page, "proxy_error" if self.site.is_proxy_error(exc) else None)
+                await self._record(attempt, page, "proxy_error" if self.site.is_proxy_error(exc) else ("profile_not_read" if stage == "profile" else None))
                 raise
-            profile = await self.site.read_profile(page)
             return SignedIn(profile, await context.storage_state(), used_identity)
 
     async def _record(self, attempt: Attempt, page: Page, force: str | None) -> None:
@@ -402,6 +420,8 @@ class SessionManager:
             raise CheckFailed("LinkedIn did not respond in time.") from None
         except CheckFailed:
             raise
+        except ProxyRequired:
+            raise CheckFailed(PROXY_REQUIRED_MESSAGE) from None
         except Exception as exc:  # noqa: BLE001
             log.warning("linkedin session check error: %s", type(exc).__name__)
             if self.site.is_proxy_error(exc):
