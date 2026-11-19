@@ -82,6 +82,9 @@ async function submitCredentials(page: Page) {
 }
 
 const connectAt = (heading: string | RegExp): State["prepare"] => async (page) => {
+  // A sign-in that is still running is resumed after a page load, so on the second width the dialog is already open on its heading.
+  await page.getByRole("dialog").waitFor({ timeout: 2500 }).catch(() => undefined);
+  if (await page.getByRole("dialog").getByRole("heading", { name: heading }).isVisible()) return;
   await openConnect(page);
   await submitCredentials(page);
   await expect(page.getByRole("dialog").getByRole("heading", { name: heading })).toBeVisible({ timeout: 15_000 });
@@ -343,7 +346,7 @@ export const states: State[] = [
     await page.getByRole("dialog").getByRole("button", { name: "Switch to Smart" }).click();
     await page.getByRole("button", { name: "Add action to the sequence" }).click();
     await page.getByRole("menuitem", { name: /If connection/ }).click();
-    await expect(page.getByRole("heading", { name: "Not connected", level: 4 })).toBeVisible();
+    await expect(page.getByText("Not connected", { exact: true })).toBeVisible();
   } },
   { name: "settings-providers", path: "/settings", api: () => newApi({ accounts: accounts() }) },
   { name: "engagement", path: "/others/publishing/engagement", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.engagements = [{ id: "e1", account: "Ada Lovelace", postUrl: "https://www.linkedin.com/feed/update/urn:li:activity:1/", reaction: "like", comment: "Great point", status: "done", detail: null, createdAt: "2026-11-16T10:00:00Z" }]; return api; } },

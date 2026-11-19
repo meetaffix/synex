@@ -5,7 +5,7 @@ import { account, mockApi, newApi } from "./mock-api";
 
 const open = async (page: import("@playwright/test").Page, accounts = [account("a1", "Ada Lovelace"), account("a2", "Grace Hopper", { status: "needs_reconnect" })]) => {
   await mockApi(page, newApi({ accounts }));
-  await page.goto("/linkedin-accounts");
+  await page.goto("/linkedin-accounts?view=cards");
 };
 
 test("the overview card shows plan, seats used and seats available, and says billing is a placeholder", async ({ page }) => {
@@ -69,7 +69,7 @@ test("with no accounts the page offers Connect, and a failed load offers Try aga
 test("the connect dialog offers the extension as coming soon (disabled) and a share link for a new sender", async ({ page }) => {
   const api = newApi({ accounts: [account("a1", "Ada Lovelace")] });
   await mockApi(page, api);
-  await page.goto("/linkedin-accounts");
+  await page.goto("/linkedin-accounts?view=cards");
   await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
   await expect(page.getByRole("button", { name: "Connect with the Chrome extension" })).toBeDisabled();
   await expect(page.getByText("Coming soon. Nothing to install today.")).toBeVisible();

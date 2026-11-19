@@ -1,5 +1,8 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { GitBranch, Maximize2, Minimize2, Plus, Sparkles, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Background, Controls, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { Eye, Flag, GitBranch, Heart, Mail, Maximize2, MessageSquare, Mic, Minimize2, Plus, Send, Sparkles, Timer, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -19,12 +22,100 @@ interface Props {
   onOpenContext: () => void;
 }
 
-const ZOOMS = [0.6, 0.75, 1, 1.25, 1.5];
 const ONCE_ACTIONS: StepType[] = ["profile_visit", "follow", "like_post", "withdraw_invite"];
+
+/* ---- Canvas layout and node types ---- */
+const STEP_W = 250, STEP_H = 68, ADD_W = 140, ADD_H = 38, VGAP = 56, HGAP = 36;
+const ICONS: Partial<Record<StepType, typeof Send>> = {
+  connection_request: UserPlus, message: MessageSquare, follow_up: MessageSquare, voice_note: Mic, inmail: Mail, free_inmail: Mail,
+  profile_visit: Eye, follow: UserPlus, like_post: Heart, withdraw_invite: UserMinus, wait: Timer, if_connected: GitBranch, if_active: GitBranch, end: Flag,
+};
+const branchLabel = (type: StepType, b: Branch) => (type === "if_connected" ? (b === "yes" ? "Connected" : "Not connected") : b === "yes" ? "Active" : "Not active");
+
+function summary(s: BuilderStep): string {
+  if (s.type === "wait") return s.delayHours >= 24 && s.delayHours % 24 === 0 ? `${s.delayHours / 24} days` : `${s.delayHours} hours`;
+  if (s.type === "if_connected") return `Waits up to ${Number(s.config.waitDays ?? 15)} days`;
+  if (s.type === "if_active") return `Active in the last ${Number(s.config.days ?? 30)} days`;
+  if (s.aiConfig?.mode === "ai") return "Written by Synex AI";
+  if (s.type === "voice_note") return s.config.audioId ? "Audio ready" : "Audio not set";
+  if (["connection_request", "message", "follow_up", "inmail", "free_inmail"].includes(s.type)) return s.message.trim() ? s.message.trim().slice(0, 60) : "No text yet";
+  return "Runs once";
+}
+
+interface StepData extends Record<string, unknown> { step: BuilderStep; issue: string | null; open: () => void }
+interface AddData extends Record<string, unknown> { menu: ReactElement | null }
+
+function StepNode({ data }: NodeProps<Node<StepData>>) {
+  const { step, issue, open } = data;
+  const Icon = ICONS[step.type] ?? Send;
+  return (
+    <div style={{ width: STEP_W, height: STEP_H }}>
+      <Handle type="target" position={Position.Top} className="!border-0 !bg-border" isConnectable={false} />
+      <button type="button" onClick={open}         className={`nodrag flex h-full w-full items-center gap-3 rounded-lg border bg-surface px-3 text-left shadow-sm hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${issue ? "border-danger" : "border-border"}`}>
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-foreground"><Icon className="size-4" aria-hidden /></span>
+        <span className="min-w-0"><span className="block truncate text-sm font-semibold">{LABELS[step.type]}</span><span className={`block truncate text-xs ${issue ? "text-danger" : "text-muted-foreground"}`}>{issue ?? summary(step)}</span><span className="sr-only">Open settings</span></span>
+      </button>
+      <Handle type="source" position={Position.Bottom} className="!border-0 !bg-border" isConnectable={false} />
+    </div>
+  );
+}
+function StartNode() {
+  return (
+    <div className="flex h-[44px] w-[180px] items-center justify-center gap-2 rounded-full border border-border bg-surface text-sm font-semibold shadow-sm">
+      <Send className="size-4" aria-hidden /> Campaign start
+      <Handle type="source" position={Position.Bottom} className="!border-0 !bg-border" isConnectable={false} />
+    </div>
+  );
+}
+function AddNode({ data }: NodeProps<Node<AddData>>) {
+  return (
+    <div style={{ width: ADD_W, height: ADD_H }} className="nodrag flex items-center justify-center">
+      <Handle type="target" position={Position.Top} className="!border-0 !bg-border" isConnectable={false} />
+      {data.menu ?? <span className="text-xs text-muted-foreground">Then end</span>}
+    </div>
+  );
+}
+const NODE_TYPES = { step: StepNode, start: StartNode, add: AddNode };
+
+/** Positions the tree top to bottom; each If step splits its width between its two branches. */
+function layout(steps: BuilderStep[], issues: { key: number; message: string }[], open: (key: number) => void, addAction: (parent: number | null, branch: Branch | null) => ReactElement | null) {
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  const edge = (source: string, target: string, label?: string): Edge => ({ id: `${source}-${target}`, source, target, type: "smoothstep", label, markerEnd: { type: MarkerType.ArrowClosed }, style: { strokeWidth: 1.5 }, labelStyle: { fontSize: 12, fontWeight: 600 } });
+  const width = (parent: number | null, branch: Branch | null): number => {
+    let w = Math.max(STEP_W, ADD_W);
+    for (const s of listOf(steps, parent, branch)) if (isConditional(s.type)) w = Math.max(w, width(s.key, "yes") + HGAP + width(s.key, "no"));
+    return w;
+  };
+  const place = (parent: number | null, branch: Branch | null, cx: number, y: number, prev: string, label?: string): number => {
+    const list = listOf(steps, parent, branch);
+    let pending = label;
+    for (const s of list) {
+      const id = `s${s.key}`;
+      nodes.push({ id, type: "step", position: { x: cx - STEP_W / 2, y }, data: { step: s, issue: issues.find((p) => p.key === s.key)?.message ?? null, open: () => open(s.key) } satisfies StepData });
+      edges.push(edge(prev, id, pending));
+      pending = undefined; prev = id; y += STEP_H + VGAP;
+      if (isConditional(s.type)) {
+        const wy = width(s.key, "yes"), wn = width(s.key, "no");
+        const total = wy + HGAP + wn;
+        const a = place(s.key, "yes", cx - total / 2 + wy / 2, y, id, branchLabel(s.type, "yes"));
+        const b = place(s.key, "no", cx + total / 2 - wn / 2, y, id, branchLabel(s.type, "no"));
+        return Math.max(a, b);
+      }
+    }
+    const id = `add-${parent ?? "root"}-${branch ?? "main"}`;
+    nodes.push({ id, type: "add", position: { x: cx - ADD_W / 2, y }, data: { menu: addAction(parent, branch) } satisfies AddData });
+    edges.push(edge(prev, id, pending));
+    return y + ADD_H;
+  };
+  nodes.push({ id: "start", type: "start", position: { x: -90, y: 0 }, data: {} });
+  place(null, null, 0, 44 + VGAP, "start");
+  return { nodes, edges };
+}
 
 /** The Smart sequence: a tree of actions with If steps that split into two branches. Every node shows its settings on its card. */
 export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
-  const [zoom, setZoom] = useState(2);
+  const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [full, setFull] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [aiFor, setAiFor] = useState<BuilderStep | null>(null);
@@ -152,57 +243,24 @@ export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
     return null;
   };
 
-  const nodeList = (parentKey: number | null, branch: Branch | null): ReactElement => {
-    const list = listOf(steps, parentKey, branch);
-    return (
-      <ol className="grid gap-3 border-l-2 border-border pl-3 sm:pl-4" aria-label={parentKey === null ? "Main sequence" : branch === "yes" ? "Yes branch" : "No branch"}>
-        {list.map((s) => {
-          const issue = issues.find((p) => p.key === s.key);
-          const conditional = isConditional(s.type);
-          return (
-            <li key={s.key} className="grid gap-3">
-              <article aria-label={LABELS[s.type]} className="grid gap-3 rounded-lg border border-border bg-surface p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="flex items-center gap-2 text-base font-semibold">{conditional && <GitBranch className="size-4" aria-hidden />}{LABELS[s.type]}</h3>
-                  <Button size="sm" variant="ghost" className="text-danger" aria-label={`Remove ${LABELS[s.type]}`} onClick={() => set({ steps: removeNode(steps, s.key) })}><Trash2 aria-hidden /> Remove</Button>
-                </div>
-                {nodeBody(s)}
-                {issue && <p role="status" className="text-xs text-danger">{issue.message}</p>}
-              </article>
-              {conditional && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {(["yes", "no"] as const).map((b) => (
-                    <section key={b} aria-label={`${s.type === "if_connected" ? (b === "yes" ? "Connected" : "Not connected") : b === "yes" ? "Active" : "Not active"} branch`} className="grid min-w-0 gap-2 rounded-lg bg-surface-muted p-3">
-                      <h4 className="text-sm font-semibold">{s.type === "if_connected" ? (b === "yes" ? "Connected" : "Not connected") : b === "yes" ? "Active" : "Not active"}</h4>
-                      {nodeList(s.key, b)}
-                      <div className="flex flex-wrap items-center gap-2">{addAction(s.key, b)}<span className="text-xs text-muted-foreground">Then end</span></div>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    );
-  };
+  const selected = steps.find((s) => s.key === selectedKey) ?? null;
+  const { nodes, edges } = layout(steps, issues, (key) => setSelectedKey(key), addAction);
 
-  const scale = ZOOMS[zoom];
   const canvas = (
-    <div className={full ? "fixed inset-0 z-50 overflow-auto bg-background p-4" : "grid gap-3"} {...(full ? { role: "region", "aria-label": "Sequence graph, full screen" } : {})}>
-      <div role="toolbar" aria-label="Graph tools" className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="outline" aria-label="Zoom out" disabled={zoom === 0} onClick={() => setZoom(zoom - 1)}><ZoomOut aria-hidden /></Button>
-        <span role="status" className="min-w-12 text-center text-sm" aria-label="Zoom level">{Math.round(scale * 100)}%</span>
-        <Button type="button" size="sm" variant="outline" aria-label="Zoom in" disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom(zoom + 1)}><ZoomIn aria-hidden /></Button>
+    <div className={full ? "fixed inset-0 z-50 grid grid-rows-[auto_1fr] gap-2 bg-background p-4" : "grid gap-2"} {...(full ? { role: "region", "aria-label": "Sequence graph, full screen" } : {})}>
+      <div role="toolbar" aria-label="Graph tools" className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" size="sm" variant="outline" onClick={() => setFull(!full)}>{full ? <><Minimize2 aria-hidden /> Exit full screen</> : <><Maximize2 aria-hidden /> Full screen</>}</Button>
         <Button type="button" size="sm" variant="outline" className="text-danger" disabled={steps.length === 0} onClick={() => setClearing(true)}><Trash2 aria-hidden /> Clear all</Button>
       </div>
-      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Sequence graph canvas">
-        <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0", width: `${100 / scale}%` }} className="grid gap-3">
-          <div className="w-fit rounded-full bg-primary-soft px-3 py-1 text-sm font-medium text-primary-soft-foreground">Campaign start</div>
-          {nodeList(null, null)}
-          <div className="flex flex-wrap items-center gap-2">{addAction(null, null)}<span className="text-xs text-muted-foreground">Then end</span></div>
-        </div>
+      <div className={`${full ? "min-h-0" : "h-[680px]"} overflow-hidden rounded-lg border border-border bg-surface-muted`} role="region" aria-label="Sequence graph canvas">
+        <ReactFlowProvider>
+          <ReactFlow key={nodes.length} nodes={nodes} edges={edges} nodeTypes={NODE_TYPES} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }} minZoom={0.3} maxZoom={1.5}
+            nodesDraggable={false} nodesConnectable={false} elementsSelectable zoomOnScroll={false} preventScrolling={false} proOptions={{ hideAttribution: true }}
+            colorMode={document.documentElement.classList.contains("dark") ? "dark" : "light"}>
+            <Background gap={20} />
+            <Controls showInteractive={false} />
+          </ReactFlow>
+        </ReactFlowProvider>
       </div>
     </div>
   );
@@ -225,6 +283,30 @@ export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DialogPrimitive.Root open={!!selected} onOpenChange={(o) => !o && setSelectedKey(null)}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-overlay/40" />
+          <DialogPrimitive.Content className="fixed inset-y-0 right-0 z-[60] flex w-[min(520px,100vw)] flex-col gap-4 overflow-y-auto border-l border-border bg-surface p-5 shadow-float">
+            {selected && (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <DialogPrimitive.Title className="text-lg font-semibold">Configure {LABELS[selected.type].toLowerCase()}</DialogPrimitive.Title>
+                    <DialogPrimitive.Description className="text-sm text-muted-foreground">Changes apply to the sequence at once. Save the draft when you are done.</DialogPrimitive.Description>
+                  </div>
+                  <DialogPrimitive.Close className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-surface-muted" aria-label="Close settings"><X className="size-4" aria-hidden /></DialogPrimitive.Close>
+                </div>
+                {nodeBody(selected)}
+                {issues.find((p) => p.key === selected.key) && <p role="status" className="text-xs text-danger">{issues.find((p) => p.key === selected.key)?.message}</p>}
+                <div className="mt-auto flex justify-between gap-2 border-t border-border pt-4">
+                  <Button variant="ghost" className="text-danger" onClick={() => { set({ steps: removeNode(steps, selected.key) }); setSelectedKey(null); }}><Trash2 aria-hidden /> Remove step</Button>
+                  <Button onClick={() => setSelectedKey(null)}>Done</Button>
+                </div>
+              </>
+            )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
       {aiFor && (
         <AiDrawer title={LABELS[aiFor.type].toLowerCase()} stepType={aiFor.type} value={aiFor.aiConfig ?? { ...defaultAi(), mode: "ai" }} campaignId={campaignId}
           onSave={(value) => patch(aiFor.key, { aiConfig: value })} onClose={() => setAiFor(null)} onOpenContext={onOpenContext} />

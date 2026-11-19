@@ -3,6 +3,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 const tools = [
   {
+    title: "Lead List Management",
+    to: "/leads?tab=lists",
+    description: "Build reusable lead lists, see which campaigns they feed, and manage the do-not-contact list.",
+  },
+  {
     title: "Content publishing",
     to: "/others/publishing",
     description: "Write, schedule and publish LinkedIn posts. Includes Studio, Calendar, Queue, Activity and Analytics.",

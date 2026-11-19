@@ -140,7 +140,7 @@ test.describe("app shell", () => {
     await page.getByRole("link", { name: /Content publishing/ }).click();
     await expect(page).toHaveURL(/\/others\/publishing$/);
     const section = page.getByRole("navigation", { name: "Content publishing" });
-    await expect(section.getByRole("link")).toHaveText(["Overview", "Studio", "Calendar", "Queue", "Activity", "Analytics", "Connections"]);
+    await expect(section.getByRole("link")).toHaveText(["Overview", "Studio", "Calendar", "Queue", "Activity", "Engagement", "Analytics", "Connections"]);
 
     await section.getByRole("link", { name: "Studio" }).click();
     await expect(page).toHaveURL(/\/others\/publishing\/studio$/);

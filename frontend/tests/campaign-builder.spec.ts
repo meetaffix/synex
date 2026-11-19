@@ -12,16 +12,19 @@ const open = async (page: Page, over: Parameters<typeof newApi>[0] = {}) => {
 };
 const lastUpdate = (api: Awaited<ReturnType<typeof open>>) => callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { action?: string })?.action === "update").at(-1)?.body as Record<string, unknown>;
 
-test("it opens with no sender and no leads, shows four steps, and lets you move on freely", async ({ page }) => {
-  await open(page);
+test("it opens with no sender and no leads, shows four steps, and unlocks them strictly in order", async ({ page }) => {
+  await open(page, { builderEmpty: true } as Parameters<typeof newApi>[0]);
   const steps = page.getByRole("navigation", { name: "Builder steps" }).getByRole("button");
-  await expect(steps).toHaveText(["1. LinkedIn senders", "2. List of leads", "3. Sequence", "4. Review and launch"]);
+  await expect(steps).toHaveText(["1. LinkedIn senders", "2. List of leads(locked until the step before is done)", "3. Sequence(locked until the step before is done)", "4. Review and launch(locked until the step before is done)"]);
+  await expect(steps.nth(1)).toBeDisabled();
+  await expect(steps.nth(3)).toBeDisabled();
   await expect(page.getByTestId("sender-total")).toHaveText("0 accounts selected. Total daily limit: 0 connections.");
-  await page.getByRole("button", { name: "Next" }).click(); // no sender chosen: still allowed
-  await expect(page.getByText("Add leads to begin")).toBeVisible();
-  await page.getByRole("button", { name: "Next" }).click(); // no leads chosen: still allowed
-  await expect(page.getByRole("heading", { name: "Sequence" })).toBeVisible();
-  await expect(page).toHaveURL(/step=2/);
+  await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
+  await expect(page.getByText("Next is off: Choose a sender account.")).toBeVisible();
+  await page.getByLabel("Use Ada Lovelace").check();
+  await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
+  await expect(steps.nth(1)).toBeEnabled();
+  await expect(steps.nth(2)).toBeDisabled(); // no leads yet
 });
 
 test("choosing a sender shows its limit and total, and the allocation drawer reserves a slice", async ({ page }) => {
@@ -146,7 +149,6 @@ test("review: schedule, exclusions with the do-not-contact list locked on, and t
   await expect.poll(() => (lastUpdate(api)?.exclusions as Record<string, boolean>)?.existing_connections).toBe(true);
   expect(Object.keys(lastUpdate(api).weekSchedule as object)).toHaveLength(7);
   await expect(page.getByText("Missing required information")).toBeVisible();
-  await expect(page.getByText("No lead list selected. Please go back and select a lead list.")).toBeVisible();
   const launch = page.getByRole("button", { name: "Fix 3 things to launch" });
   await expect(launch).toBeDisabled();
   await expect(page.getByLabel("I confirm all details are correct and ready to launch")).toBeDisabled();

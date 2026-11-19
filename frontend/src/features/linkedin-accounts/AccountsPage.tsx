@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState as SharedEmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AccountRow, type RowActions } from "./AccountRow";
+import { AccountsTable } from "./AccountsTable";
 import { ConnectDialog } from "./ConnectDialog";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { ReconnectLinkDialog, type LinkState } from "./ReconnectLinkDialog";
@@ -38,6 +39,9 @@ export function SenderAccountsPage() {
   const [link, setLink] = useState<{ account: SenderAccount; state: LinkState } | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
+  // OutFlo lists accounts in a table; Synex keeps its cards as the second view. The choice is remembered in the address.
+  const view = params.get("view") === "cards" ? "cards" : "table";
+  const setView = (next: "table" | "cards") => { const q = new URLSearchParams(params); if (next === "table") q.delete("view"); else q.set("view", next); setParams(q, { replace: true }); };
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
   const matches = useMemo(
@@ -136,11 +140,18 @@ export function SenderAccountsPage() {
             <option value="restricted">Restricted</option>
             <option value="disconnected">Disconnected</option>
           </NativeSelect>
+          <div role="group" aria-label="List view" className="ml-auto flex gap-1">
+            <Button size="sm" variant={view === "table" ? "default" : "outline"} aria-pressed={view === "table"} onClick={() => setView("table")}>Table</Button>
+            <Button size="sm" variant={view === "cards" ? "default" : "outline"} aria-pressed={view === "cards"} onClick={() => setView("cards")}>Cards</Button>
+          </div>
         </div>
       )}
       {!!accounts.data?.length && shown.length === 0 && <p role="status" className="text-sm text-muted-foreground">No accounts match.</p>}
+      {!!shown.length && view === "table" && (
+        <div className="hidden md:block"><AccountsTable accounts={shown} summaries={overview.data?.accounts} actionsFor={rowActions} checkingId={actions.check.isPending ? (actions.check.variables as string) : undefined} errors={rowErrors} /></div>
+      )}
       {!!shown.length && (
-        <ul aria-label="Connected accounts" className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+        <ul aria-label="Connected accounts" className={`${view === "table" ? "md:hidden " : ""}grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]`}>
           {shown.map((account, index) => (
             <AccountRow
               key={account.id}

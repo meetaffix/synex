@@ -132,7 +132,7 @@ const callsTo = (api: Api, method: string, pattern: RegExp) => api.calls.filter(
 
 async function openConnect(page: Page, api: Api) {
   await mockApi(page, api);
-  await page.goto("/linkedin-accounts");
+  await page.goto("/linkedin-accounts?view=cards");
   await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
 }
 
@@ -148,7 +148,7 @@ test.describe("sender accounts", () => {
 
   test("empty state explains sender accounts and offers one primary action", async ({ page }) => {
     await mockApi(page, newApi());
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await expect(page.getByRole("heading", { name: "Sender accounts", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No sender accounts yet" })).toBeVisible();
     await expect(page.getByText("A sender account is a LinkedIn profile that Synex sends")).toBeVisible();
@@ -361,7 +361,7 @@ test.describe("sender accounts", () => {
   test("pausing an account and editing its limit", async ({ page }) => {
     const api = newApi({ accounts: [account()] });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await expect(page.getByText("12 today, up to 50 a day")).toBeVisible();
 
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
@@ -385,7 +385,7 @@ test.describe("sender accounts", () => {
   test("a limit of 0 reads as paused, never as unlimited, and the ceilings show beside the field", async ({ page }) => {
     const api = newApi({ accounts: [account()] });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Ceiling 200 a day")).toBeVisible();
@@ -402,7 +402,7 @@ test.describe("sender accounts", () => {
   test("the sync preference is read-only for someone who did not connect the account", async ({ page }) => {
     const api = newApi({ accounts: [account({ canChangeSyncMode: false, syncMode: "all" })] });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("All LinkedIn conversations")).toBeChecked();
@@ -414,7 +414,7 @@ test.describe("sender accounts", () => {
   test("the account owner can change the sync preference and see a saved proxy is hidden", async ({ page }) => {
     const api = newApi({ accounts: [account({ proxyConfigured: true })] });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("A proxy is set. Its address is not shown.")).toBeVisible();
@@ -429,7 +429,7 @@ test.describe("sender accounts", () => {
   test("disconnecting asks first and states what is kept and removed", async ({ page }) => {
     const api = newApi({ accounts: [account()] });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
     await page.getByRole("menuitem", { name: "Disconnect" }).click();
     const dialog = page.getByRole("dialog");
@@ -448,7 +448,7 @@ test.describe("sender accounts", () => {
 
   test("a reconnect link can be created for sending to the account owner", async ({ page }) => {
     await mockApi(page, newApi({ accounts: [account({ status: "needs_reconnect", pausedReason: "LinkedIn signed this account out. Reconnect it to resume sending." })] }));
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await expect(page.getByText("LinkedIn signed this account out. Reconnect it to resume sending.")).toBeVisible();
     await page.getByRole("button", { name: "More actions for Ada Lovelace" }).click();
     await page.getByRole("menuitem", { name: "Send a link so the owner reconnects it" }).click();
@@ -460,7 +460,7 @@ test.describe("sender accounts", () => {
     await page.setViewportSize({ width: 360, height: 740 });
     const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     await mockApi(page, newApi({ accounts: [account({ proxyConfigured: true })] }));
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
     expect(await noOverflow()).toBe(true);
     await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
@@ -477,7 +477,7 @@ test.describe("sender accounts", () => {
   test("a failed list load shows a retry", async ({ page }) => {
     const api = newApi({ listStatus: 500 });
     await mockApi(page, api);
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await expect(page.getByRole("alert").filter({ hasText: "The server is unavailable." })).toBeVisible();
     api.listStatus = 200;
     api.accounts = [account()];

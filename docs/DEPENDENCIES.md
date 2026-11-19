@@ -8,6 +8,7 @@ Last updated 2026-11-16 (area 3). A full audit of the pre-existing packages (eve
 | Package or asset | Where | Licence | AGPL-3.0 compatible | Commercial use | Notes |
 |---|---|---|---|---|---|
 | Piper text-to-speech program (optional, not bundled, not a pip or npm package) | `backend/app/voice.py` (voice notes made from a script, area 5) | MIT (Piper) | yes | yes | Installed by the owner and found through `PIPER_BINARY` and `PIPER_VOICE_EN_US/EN_GB/EN_IN`. Synex ships no voice. Only voices whose data licence allows commercial use may be used: see the voice table below (public domain, CC0, Apache-2.0, CC BY, CC BY-SA are fine; the CC BY-NC-SA voices are not). Piper's own MIT licence was recorded by an earlier session and is to be re-checked against the release actually installed. No Indian English Piper voice exists, so English (India) stays unavailable until one is set. |
+| `@xyflow/react` 12.8.4 (React Flow) | `frontend/src/features/campaigns/builder/SmartGraph.tsx` (Smart sequence node canvas) | MIT | yes | yes | Pulls in `@xyflow/system`, `d3-zoom`, `d3-selection`, `classcat`, `zustand` (all MIT or ISC). Attribution banner hidden with `proOptions.hideAttribution`, which the MIT licence permits for the open-source package; we credit React Flow here instead. |
 | (no other package added in areas 3 to 10) | | | | | Everything else used was already in `package.json` and `requirements.txt`; their audit is part of area 12. |
 
 ## Voice data used by the preset voices (area 3)

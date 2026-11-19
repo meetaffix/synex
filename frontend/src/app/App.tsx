@@ -32,6 +32,7 @@ import { ReviewPage } from "@/features/publishing/ReviewPage";
 import { EngagementPage } from "@/features/publishing/EngagementPage";
 import { PrivacyPage } from "@/features/assistant/PrivacyPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
+import { SettingsLayout } from "@/components/shared/SettingsLayout";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
 import { Overview, AccountsPage, Studio, CalendarPage, AutomationPage, ActivityPage, AnalyticsPage, SettingsPage } from "@/features/publishing/Workspace";
 
@@ -98,9 +99,11 @@ export function App() {
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="connections" element={<AccountsPage />} />
             </Route>
-            <Route path="/settings/integrations" element={<IntegrationsPage />} />
-            <Route path="/settings/safety" element={<SafetyPage />} />
-            <Route path="/settings" element={<Stack><AssistantSettings /><LocalAssistantCard /><SettingsPage /></Stack>} />
+            <Route element={<SettingsLayout />}>
+              <Route path="/settings/integrations" element={<IntegrationsPage />} />
+              <Route path="/settings/safety" element={<SafetyPage />} />
+              <Route path="/settings" element={<Stack><AssistantSettings /><LocalAssistantCard /><SettingsPage /></Stack>} />
+            </Route>
             <Route path="/help" element={<HelpPage />} />
             {redirects.map(([from, to]) => (
               <Route key={from} path={from} element={<Redirect to={to} />} />

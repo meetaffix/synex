@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,8 @@ import { ReviewStep } from "./ReviewStep";
 import { SendersStep } from "./SendersStep";
 import { SequenceStep } from "./SequenceStep";
 import { problems as nodeProblems } from "./graph";
+import { useQuery } from "@tanstack/react-query";
+import { leadListsService } from "@/services/resources";
 import { fromServer, useBuilderCampaign, useLaunchCheck, useSaveCampaign, type BuilderState } from "./model";
 
 const STEPS = ["LinkedIn senders", "List of leads", "Sequence", "Review and launch"];
@@ -35,7 +37,8 @@ export function BuilderPage() {
   const dirty = useRef(false);
   const timer = useRef<number | undefined>(undefined);
   const check = useLaunchCheck(campaignId, version);
-  const step = Math.min(3, Math.max(0, Number(params.get("step") ?? 0) || 0));
+  const lists = useQuery({ queryKey: ["lead-lists"], queryFn: leadListsService.list });
+  const requested = Math.min(3, Math.max(0, Number(params.get("step") ?? 0) || 0));
 
   useEffect(() => {
     if (campaign.data && !state) {
@@ -115,7 +118,13 @@ export function BuilderPage() {
   }
 
   const smartIssues = state.mode === "smart" ? nodeProblems(state.steps) : [];
-  const blocked = step === 2 && smartIssues.length > 0 ? smartIssues[0].message : null;
+  // Like OutFlo: a step opens only when the one before it is done. No sender, no step 2; no leads, no step 3.
+  const hasLeads = !!state.leadListId && (lists.data?.find((l) => l.id === state.leadListId)?.leadCount ?? 0) > 0;
+  const reachable = state.accountIds.length === 0 ? 0 : !hasLeads ? 1 : state.mode === "smart" && nodeProblems(state.steps).length > 0 ? 2 : 3;
+  const step = Math.min(requested, reachable);
+  const blocked = step === 0 && reachable === 0 ? "Choose a sender account."
+    : step === 1 && reachable === 1 ? "Choose a lead list with at least one lead, or add leads."
+    : step === 2 && smartIssues.length > 0 ? smartIssues[0].message : null;
   const indicator = { saved: "Saved", dirty: "Unsaved changes", saving: "Saving", failed: "Not saved: will retry" }[saving];
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -133,12 +142,23 @@ export function BuilderPage() {
       </header>
 
       <nav aria-label="Builder steps">
-        <ol className="flex flex-wrap gap-2">
-          {STEPS.map((label, i) => (
-            <li key={label}>
-              <Button type="button" size="sm" variant={i === step ? "default" : "outline"} aria-current={i === step ? "step" : undefined} onClick={() => goTo(i)}>{`${i + 1}. ${label}`}</Button>
-            </li>
-          ))}
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
+          {STEPS.map((label, i) => {
+            const done = i < reachable && i !== step;
+            const locked = i > reachable;
+            return (
+              <li key={label} className="flex items-center gap-2">
+                <button type="button" disabled={locked} aria-current={i === step ? "step" : undefined} onClick={() => goTo(i)}
+                  title={locked ? `Finish step ${reachable + 1} first` : undefined}
+                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed ${i === step ? "border-primary bg-primary text-primary-foreground" : done ? "border-primary/40 bg-primary-soft text-primary-soft-foreground" : "border-dashed border-border text-muted-foreground"}`}>
+                  {(done || locked) && <span aria-hidden className="grid size-5 place-items-center rounded-full bg-background/20 text-xs">{done ? <Check className="size-3" /> : <Lock className="size-3" />}</span>}
+                  <span>{`${i + 1}. ${label}`}</span>
+                  {locked && <span className="sr-only">(locked until the step before is done)</span>}
+                </button>
+                {i < STEPS.length - 1 && <span aria-hidden className={`h-px w-4 sm:w-8 ${i < reachable ? "bg-primary" : "bg-border"}`} />}
+              </li>
+            );
+          })}
         </ol>
       </nav>
 
