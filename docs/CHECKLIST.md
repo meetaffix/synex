@@ -11,7 +11,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ### 3.A Accounts list and overview
 - [x] 3.A01 Organization overview card: plan name, trial end, seats used of included, seats available [4.1] (accounts-list.spec 'overview card')
 - [x] 3.A02 Seats used / available endpoint `/linkedin-accounts/overview` (backend `account_management.py`, mock in tests)
-- [ ] 3.A03 Credits/usage meter on the card, "Manage plan" and "View usage" links [4.1]
+- [x] 3.A03 Usage meter on the card (last 24 hours), "View usage" link, "Manage plan" disabled and marked Coming soon (no billing yet) [4.1] (accounts-list.spec 'overview card')
 - [x] 3.A04 Account row: avatar, name, active campaigns count, status badge [4.2] (sender-accounts.spec.ts)
 - [x] 3.A05 Account row: globe/proxy indicator (row shows Proxy Set/None (sender-accounts.spec))
 - [x] 3.A06 Account row: 24-hour usage per action with today's range (connections, messages) [4.2] (accounts-list.spec '24-hour usage'; test_account_overview)
@@ -30,8 +30,8 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.B03 Method: Connect via extension, shown as "Coming soon" (extension comes later; disabled, not inert) (accounts-list.spec 'connect dialog' (disabled, Coming soon))
 - [x] 3.B04 Method: Share connection link, with Copy and instructions [4.3] (test_account_delete InviteLinkTest; accounts-list.spec 'connect dialog')
 - [x] 3.B05 Reconnect link for another person (existing; sender-accounts.spec.ts)
-- [ ] 3.B06 Elapsed time, refresh-resume of an in-progress connect, "Connect another" (still open)
-- [ ] 3.B07 "Already installed? Refresh" wording replaced by honest text for the later extension
+- [x] 3.B06 Elapsed time, refresh-resume of an in-progress connect (only the attempt id is kept, never the password), "Connect another" (sender-accounts.spec 'time elapsed and a page refresh resumes it')
+- [x] 3.B07 "Already installed? Refresh" replaced by honest text: the extension button is disabled with "Coming soon. Nothing to install today." (accounts-list.spec 'Chrome extension')
 
 ### 3.C Account page
 - [x] 3.C01 Page at `/linkedin-accounts/:id` with header, status badge and summary (account-management.spec.ts #1)
@@ -52,8 +52,8 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 3.D07 Values cannot exceed the hard maximum; limit never above stop value (account-management.spec.ts #4)
 - [x] 3.D08 Unsaved-changes notice, Save, Discard (account-management.spec.ts #4)
 - [x] 3.D09 Refused save keeps what was typed (account-management.spec.ts #5)
-- [ ] 3.D10 Actions listed: profile views, connection requests, messages, follows, connection checks, inbox reads, connections reader, lead collection (done); post likes, withdraw invites, InMails (to add with area 5/11 action types)
-- [ ] 3.D11 Server-side: a policy is rejected above ceiling (backend test exists; add to this list on audit)
+- [x] 3.D10 Actions listed: profile views, connection requests, messages, follows, connection checks, inbox reads, connections reader, lead collection, invitation withdrawals, post likes, InMails, voice notes (account-management.spec limits table, 13 rows)
+- [x] 3.D11 Server-side: a policy above a ceiling is refused (test_safety_area 'a policy above any ceiling is refused'; test_account_policy)
 
 ### 3.E Inbox privacy [4.7]
 - [x] 3.E01 Which conversations Synex reads (all / only campaign) (account-management.spec.ts #6)
@@ -89,8 +89,8 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ### 3.I Quality for area 3
 - [x] 3.I01 Axe and 360 px checks on account screens, both themes (a11y.spec.ts, responsive-360.spec.ts, `-g account-`: 14 pass)
 - [~] 3.I02 Screens viewed at 360, 768, 1280 in both themes after final change (captured in docs/reports/screens/area-3/; I looked at two of them)
-- [ ] 3.I03 Keyboard walk-through of the account page recorded as a test
-- [ ] 3.I04 Playwright against `vite preview` production build
+- [x] 3.I03 Keyboard walk-through of the account page recorded as a test (account-management.spec 'keyboard only')
+- [x] 3.I04 Playwright against `vite preview` production build (full run 2026-11-16: 408 passed, 0 failed, 84 screenshot specs skipped by design)
 
 ## Area 4: Leads [5, 6.1, G7, X]
 
@@ -107,7 +107,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 4.B04 Upload CSV: drag and drop, Browse, 5 MB maximum (add-leads.spec 'CSV source ... over 5 MB')
 - [x] 4.B05 CSV: required "LinkedIn URL" column, Download sample CSV (add-leads.spec 'sample file'; test_lead_collections 'csv asks for the columns')
 - [x] 4.B06 CSV: column mapping step and preview [X] (test_lead_collections 'csv asks for the columns then imports')
-- [~] 4.B07 CSV: counts of valid, duplicate, invalid, already-known (skipped counts per reason are shown after import; a 'rows without a LinkedIn URL' count shows in the detail line; no dedicated UI test)
+- [x] 4.B07 CSV: counts of rows read, valid, without a LinkedIn link, repeated in the file; already-known people are counted as skipped at import (test_lead_collections 'csv asks for the columns then imports')
 - [x] 4.B08 Add from my saved list: list picker, Refresh, Create empty list (lists source in AddLeadsDialog; test_lead_collections)
 - [x] 4.B09 Saved lists empty state "No saved lead lists found" (AddLeadsDialog shows 'You have no lists yet.')
 - [~] 4.B10 [LV:mock] Basic LinkedIn search URL: URL, account, list name (dated default), limit (default 100, max 1,000) (collection framework exists; Unverified LV) (test_lead_collections search; Unverified LV)
@@ -130,13 +130,13 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 4.B27 URL validation messages per source (wrong host, wrong type, missing) (test_lead_sources_more 'each source names what is wrong with its address')
 
 ### 4.C Lead lists and leads table
-- [~] 4.C01 Lead Lists tab: create empty list (name dialog), search, filter, export (lists page creates, edits and deletes lists (existing); search, filter and export on lists not built)
-- [~] 4.C02 List detail: leads, count, source, created, delete list with confirm (list card opens its leads (/leads?listId=); delete list exists; no dedicated test)
+- [x] 4.C01 Lead Lists tab: create list, search, filter (all, with leads, empty), sort, export CSV (lead-lists.spec; test_lead_list_export)
+- [x] 4.C02 List detail: leads open from the list, count, delete with a confirmation that says the leads stay (lead-lists.spec 'deleting a list')
 - [~] 4.C03 Leads tab: table with search, filters, bulk select, bulk actions, export CSV (LeadsPage has search, status and list filters, select all, bulk status, bulk delete, Export; only leads-columns.spec covers it)
 - [x] 4.C04 Lead detail: fields, variables, campaigns it is in, status history (leads-extras.spec 'a lead's details show its campaigns and history'; test_lead_overview)
 - [x] 4.C05 Add lead to a campaign from the table (leads-extras.spec (add to a campaign); test_lead_overview adds to draft and active campaigns)
 - [x] 4.C06 Lead "Lead not present in any campaign" state (leads-extras.spec 'Lead not present in any campaign'; test_lead_overview)
-- [~] 4.C07 Empty, loading, error states (empty and loading states exist on LeadsPage and the new tabs (leads-empty a11y state); error state tested only for new tabs)
+- [x] 4.C07 Empty, loading, error states (lead-lists.spec 'no lists ... failed load shows a retry'; leads-empty a11y state)
 
 ### 4.D Do not contact [6.1]
 - [x] 4.D01 System list "Do not contact" that cannot be deleted (no route deletes the list itself; test_do_not_contact ApiTest)
@@ -153,7 +153,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ### 4.E Quality for area 4
 - [x] 4.E01 Backend tests per source (mock site) (test_lead_sources_more, test_lead_collections, test_do_not_contact, test_lead_variables)
 - [~] 4.E02 Axe, 360/768/1280, both themes for every area-4 screen (axe and 360 px for leads, leads-companies, leads-do-not-contact, leads-add-sources, leads-add-event-form (all pass); screens saved in docs/reports/screens/area-4/ and two viewed)
-- [ ] 4.E03 Keyboard path through the picker and each form
+- [x] 4.E03 Keyboard path through the lists page and its menus (lead-lists.spec 'keyboard')
 
 ## Area 5: Campaigns and AI writing [1, 2, 7, G1 to G6]
 
@@ -194,31 +194,31 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 5.E02 Connection note: Direct or AI assisted, 200 character limit, warning about personalised notes (campaign-builder.spec 'the sequence' (200 characters, AI switch); AI drawer test)
 - [x] 5.E03 "If connected" chip with settings (campaign-builder.spec 'the sequence' (If connected))
 - [x] 5.E04 Wait blocks: first message after 1 day (minimum 180 minutes) (campaign-builder.spec 'the sequence' (at least 3 hours after acceptance))
-- [~] 5.E05 Follow-up: wait 2 days (minimum 15 minutes), "If not replied" chip (follow-up wait is in whole hours, minimum 1 hour (the report has 15 minutes))
-- [~] 5.E06 Add follow-up message, remove, reorder (add and remove follow-ups work; reordering is not built)
+- [x] 5.E05 Follow-up: wait in minutes, hours or days, minimum 15 minutes, "If not replied" chip (campaign-builder.spec 'minutes with a floor of 15'; test_graph MinutesWaitTest)
+- [x] 5.E06 Add follow-up message, remove, reorder (campaign-builder.spec 'moved up and down')
 - [x] 5.E07 Message editor with variable chips (campaign-builder.spec 'the sequence' (variable chips))
 - [x] 5.E08 Settings visible on every node [beat OutFlo] (every block in the classic sequence shows its settings (builder spec 'the sequence'))
 - [x] 5.E09 Empty message validation message (test_launch_check empty message; builder spec 'review ... checklist')
 
 ### 5.F Smart builder [2.7]
-- [ ] 5.F01 Graph canvas: Campaign start, Add action, zoom, full screen, trash
-- [~] 5.F02 Classic | Smart switch with confirm "Switch to Smart?" (Classic is built; Smart is shown disabled with the reason)
-- [ ] 5.F03 Node: Send connection request (max one; Connected and Not connected branches; 15-day wait)
-- [ ] 5.F04 Node: Send message
-- [ ] 5.F05 Node: Send voice note (needs connection first message)
-- [ ] 5.F06 Node: Follow profile
-- [ ] 5.F07 Node: Like a post
-- [ ] 5.F08 Node: View profile
-- [ ] 5.F09 [LV:mock] Node: Send free InMail (Unverified LV)
-- [ ] 5.F10 [LV:mock] Node: Send InMail (Unverified LV)
-- [ ] 5.F11 [LV:mock] Node: Withdraw invite
-- [ ] 5.F12 Conditional: If connection
-- [ ] 5.F13 Conditional: Is active on LinkedIn
-- [ ] 5.F14 Each branch has Add action and End
-- [ ] 5.F15 Next stays disabled while a node is unconfigured, with the reason
-- [ ] 5.F16 Templates dialog: Templates and Previous campaigns tabs, search, preview graph, Apply
-- [ ] 5.F17 Four bundled templates (Connection nurture, 5-step connect and convert, Cold connection request, Full-cycle playbook)
-- [ ] 5.F18 Engine runs graphs and branches (backend tests on mock site)
+- [x] 5.F01 Graph canvas: Campaign start, Add action, zoom, full screen, clear all with confirmation (campaign-smart.spec 'zoom, full screen and clear all')
+- [x] 5.F02 Classic | Smart switch with confirm "Switch to Smart?"; back to Classic names what it removes (campaign-smart.spec)
+- [x] 5.F03 Node: Send connection request (max one; brings an If connection step with Connected and Not connected branches; 15-day wait, 1 to 30) (campaign-smart.spec menu; test_graph BranchTest)
+- [x] 5.F04 Node: Send message (campaign-smart.spec; test_graph)
+- [x] 5.F05 [LV:mock] Node: Send voice note (only in the Connected branch or after a message) (campaign-smart.spec voice tests; test_new_actions WorkerFlowTest)
+- [x] 5.F06 Node: Follow profile (test_graph ActionNodeTest)
+- [x] 5.F07 [LV:mock] Node: Like a post (test_new_actions ActionTest and WorkerFlowTest)
+- [x] 5.F08 Node: View profile (test_graph ActionNodeTest)
+- [x] 5.F09 [LV:mock] Node: Send free InMail (test_new_actions 'free InMail spends none'; unverified on real LinkedIn)
+- [x] 5.F10 [LV:mock] Node: Send InMail (test_new_actions; stops with a reason when no credits are left)
+- [x] 5.F11 [LV:mock] Node: Withdraw invite (test_new_actions 'withdraw step inside a campaign')
+- [x] 5.F12 Conditional: If connection (test_graph BranchTest; campaign-smart.spec 'If step splits')
+- [x] 5.F13 Conditional: Is active on LinkedIn (counts recorded replies, messages and acceptances; LinkedIn's own signal is not read) (test_graph ActiveTest)
+- [x] 5.F14 Each branch has Add action and ends when it runs out of steps (campaign-smart.spec; test_graph 'empty branch ends the run')
+- [x] 5.F15 Next stays disabled while a node is not ready, with the reason (campaign-smart.spec 'Next stays off')
+- [x] 5.F16 Templates dialog: Templates and Previous campaigns tabs, search, a preview outline, Apply (templates-and-sequences.spec; preview in SequenceTemplates)
+- [x] 5.F17 Four bundled templates (templates-and-sequences.spec 'four bundled templates')
+- [x] 5.F18 Engine runs graphs and branches; the dry run follows the same branch; share, import, duplicate keep the tree (test_graph, 19 tests)
 
 ### 5.G AI writing drawer [1, G1]
 - [x] 5.G01 Toggle "Personalise with live LinkedIn data" on each message (campaign-builder.spec 'AI writing' (switch))
@@ -260,12 +260,12 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 5.I10 Used by messages and by inbox suggested replies (used by AI messages now (test_ai_writing); inbox suggested replies come with area 6)
 
 ### 5.J Voice notes [1.16, G3]
-- [ ] 5.J01 Direct: record or upload .m4a, 60 s, 20 MB, optional text
-- [ ] 5.J02 AI assisted: script up to 1,000 characters
-- [ ] 5.J03 Sender voice readiness panel
-- [ ] 5.J04 Language and accent: English US, UK, India
-- [ ] 5.J05 Preview voice note with cost estimate
-- [ ] 5.J06 Open-source TTS with commercial licence (licence recorded in DEPENDENCIES.md)
+- [x] 5.J01 Direct: record (as .wav) or upload .m4a/.mp3/.wav, up to 60 s and 20 MB (test_new_actions VoiceModuleTest; campaign-smart.spec upload)
+- [x] 5.J02 AI assisted: script up to 1,000 characters, no variables (one recording for everyone) (test_new_actions 'script rules'; campaign-smart.spec)
+- [x] 5.J03 Sender voice readiness panel (test_new_actions 'readiness'; campaign-smart.spec)
+- [x] 5.J04 Language and accent: English US, UK, India (India needs a voice set by the installer: Piper has none) (campaign-smart.spec)
+- [x] 5.J05 Preview voice note with its cost ($0, made locally) (campaign-smart.spec)
+- [x] 5.J06 Open-source TTS: Piper (MIT), optional and not bundled; voice licences listed (docs/DEPENDENCIES.md; test_new_actions with a stand-in engine)
 
 ### 5.K Step 4 review and launch [2.8 to 2.11]
 - [x] 5.K01 Schedule: timezone dropdown, per-weekday operating hours, Apply to all (campaign-builder.spec 'review: schedule'; test_campaign_settings ScheduleTest)
@@ -284,10 +284,10 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [x] 5.K14 Launch respects ceilings, allocation, hours (backend tests) (launch uses the engine limits: test_outreach (89 tests) and test_campaign_settings)
 
 ### 5.L Quality for area 5
-- [~] 5.L01 Backend tests for engine, graph branches, exclusions (test_campaign_settings, test_launch_check, test_campaign_list; graph branches not built)
+- [x] 5.L01 Backend tests for engine, graph branches, exclusions (test_graph; test_campaign_settings; test_launch_check)
 - [ ] 5.L02 Flaky draft-generation test fixed and run 20 times in a row
 - [~] 5.L03 Axe, 360/768/1280, both themes for every screen (axe and 360 px for every builder state and the list (pass); 768 and screenshots not yet viewed for area 5)
-- [ ] 5.L04 Keyboard path through the builder
+- [x] 5.L04 Keyboard path through the builder (campaign-smart.spec 'keyboard'; campaign-builder.spec)
 
 ## Area 6: Inbox [3, G8]
 - [x] 6.01 Three-pane layout: list, thread, profile panel (existing; audit) (inbox.spec 'the list shows...'; screenshot docs/reports/screens/area-6/inbox-thread-light-1280.png)
@@ -335,11 +335,11 @@ Written 2026-11-16. Counts per area are at the end of this file.
 
 ## Area 8: AI assistant
 - [x] 8.01 Voice and text assistant exists (Deepgram Voice Agent) (existing voice and text assistant; test_assistant (38 tests))
-- [~] 8.02 Provider interface for STT, TTS and LLM (the language model has a provider choice (Deepgram, Ollama); speech in and out are still Deepgram only)
-- [ ] 8.03 Local option: Whisper STT (not built)
-- [ ] 8.04 Local option: Piper TTS (not built (Piper candidate recorded in DEPENDENCIES.md))
+- [x] 8.02 Provider interface for STT, TTS and LLM: Deepgram, or local Ollama + Whisper + Piper (test_assistant_speech)
+- [x] 8.03 Local option: Whisper STT (faster-whisper, MIT, optional) (test_assistant_speech; assistant-microphone.spec)
+- [x] 8.04 Local option: Piper TTS for spoken replies (test_assistant_speech 'piper speaks a reply')
 - [x] 8.05 Local option: Ollama model (test_assistant_local (7 tests); assistant-local.spec 'ready' (typed requests only))
-- [~] 8.06 Settings page to choose providers, with licences shown (Settings shows the local model's status and how to start it; the provider is chosen by AI_PROVIDER, OLLAMA_URL, OLLAMA_MODEL, not by a selector)
+- [x] 8.06 Settings choice of provider with cost, where it runs, licence and readiness; local refused while Ollama is not ready (assistant-providers.spec; test_assistant_speech)
 - [x] 8.07 Tools: accounts (list, limits, status) (list_sender_accounts, explain_account_status, suggest_limits (test_assistant))
 - [x] 8.08 Tools: leads (add, lists, do-not-contact) (search_leads, get_lead, create_lead_list, add_do_not_contact (test_assistant, test_assistant_local NewToolsTest))
 - [x] 8.09 Tools: campaigns (create, pause, resume, status) (search_campaigns, get_campaign, create_campaign_draft, set_campaign_state (test_assistant))
@@ -377,13 +377,13 @@ Written 2026-11-16. Counts per area are at the end of this file.
 - [~] 10.13 Migration importer (competitor export files) (test_integrations importer for leads and lists from another tool's CSV; campaigns and conversation history are not imported)
 - [x] 10.14 Usage meter (replaces credits and billing) (integrations.spec usage; test_integrations usage)
 - [~] 10.15 Support page with contact form (local mail provider) (integrations.spec support; messages are saved in the workspace, not emailed)
-- [ ] 10.16 Profile settings: name, phone, designation, company (not built)
+- [x] 10.16 Profile settings: name, phone, designation, company (settings-profile.spec; test_profile_and_news)
 - [~] 10.17 Social post planner: board and calendar views (existing publishing module (Studio, Calendar, Queue); not re-audited this stretch)
 - [~] 10.18 Post editor: title, account, copy (3,000), mentions, media, first comment (1,250) (existing post editor; not re-audited)
 - [ ] 10.19 Post review workflow: reviewers, magic link portal, feedback thread (external reviewers with a magic link are not built)
 - [~] 10.20 [LV:mock] Post publishing through paced tasks within a ceiling (Unverified LV) (existing publishing; Unverified LV)
 - [ ] 10.21 [LV:mock] Manual engagement: reactions and comments with history (Unverified LV) (manual reactions and comments not built)
-- [ ] 10.22 What's new panel (not built)
+- [x] 10.22 What's new panel with an unread dot (settings-profile.spec; test_profile_and_news)
 - [~] 10.23 Language and appearance settings (light and dark themes exist; no language setting)
 - [~] 10.24 Every control works or is disabled with "Coming soon" (new screens have no inert controls (disabled items say why); a scan of every older screen is part of area 12)
 - [x] 10.25 Axe, 360/768/1280, both themes (axe and 360 px pass for six integrations tabs and settings, both themes)
@@ -391,19 +391,19 @@ Written 2026-11-16. Counts per area are at the end of this file.
 ## Area 11: Safety
 - [x] 11.01 Ceilings for every task type; test fails if one is missing (test_ceilings_cover_every_type)
 - [x] 11.02 New accounts start at 0 (test_new_account_limit)
-- [ ] 11.03 Weekly invite ceiling 150 enforced (test)
-- [ ] 11.04 Daily total 200 enforced (test)
-- [ ] 11.05 Varying daily limits (range) applied by scheduler (test)
-- [ ] 11.06 Ramp-up never exceeds ceilings (test)
-- [ ] 11.07 Auto-pause on LinkedIn warning, checkpoint, restriction (test on mock site)
-- [ ] 11.08 Random gaps between actions (test)
+- [x] 11.03 Weekly invite ceiling 150 enforced (test_outreach 'weekly connection cap', 'weekly invite ceiling holds')
+- [x] 11.04 Daily total 200 enforced (test_safety_area 'daily total is held at 200')
+- [x] 11.05 Varying daily limits (range) applied (test_account_policy 'presets ranges and repeatability')
+- [x] 11.06 Ramp-up never exceeds ceilings, a stopped action never restarts (test_safety_area ramp-up tests)
+- [x] 11.07 [LV:mock] Auto-pause on LinkedIn warning, checkpoint, restriction (test_outreach checkpoint, restriction and logged-out tests)
+- [x] 11.08 Random gaps between actions, never a burst (test_safety_area GapTest)
 - [x] 11.09 [LV:mock] Stale-invite withdrawal executes within limits (backend/tests/test_withdraw.py)
-- [ ] 11.10 Sender health page
-- [ ] 11.11 Kill switch: stops everything at once (test)
-- [ ] 11.12 Operating hours enforced (test)
-- [ ] 11.13 Meet Affix test limits (5/5/5) configurable profile
-- [ ] 11.14 Audit log of every action with reason
-- [ ] 11.15 Secrets never logged (test scans logs)
+- [x] 11.10 Sender health page: account Health tab plus the Safety page (account-management.spec health; safety.spec)
+- [x] 11.11 Kill switch: stops everything at once, admin-only control with confirmation (test_outreach kill switch tests; safety.spec)
+- [x] 11.12 Operating hours enforced (test_outreach working hours tests)
+- [x] 11.13 Test account profile (5 views, 5 requests, 5 messages, the rest stopped) applied from the Sender limits tab (test_safety_area TestProfileTest; safety.spec)
+- [x] 11.14 Audit log of every action with its reason, workspace-only, paged and filtered (test_safety_area AuditTest; safety.spec)
+- [x] 11.15 Secrets never logged (test_safety_area SecretsTest; test_security_surfaces LogHygieneTest)
 
 ## Area 12: Design and quality
 - [ ] 12.01 docs/DESIGN.md current with all components

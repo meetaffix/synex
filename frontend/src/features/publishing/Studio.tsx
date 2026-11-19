@@ -29,6 +29,7 @@ import {
   type Post,
 } from "./data";
 import { Header, Status, Notice, Load, Profile, ZoneList } from "./shared";
+import { ReviewPanel } from "./ReviewPanel";
 
 export function Studio() {
   const posts = usePosts(),
@@ -490,6 +491,7 @@ export function Studio() {
               the server, even when your browser is closed.
             </p>
           </div>
+          {current && <ReviewPanel postId={current.id} />}
         </aside>
       </div>
       <section className="section library">

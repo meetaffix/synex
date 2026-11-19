@@ -28,6 +28,7 @@ import { AssistantSettings } from "@/features/assistant/AssistantSettings";
 import { LocalAssistantCard } from "@/features/assistant/LocalAssistantCard";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { SafetyPage } from "@/features/safety/SafetyPage";
+import { ReviewPage } from "@/features/publishing/ReviewPage";
 import { PrivacyPage } from "@/features/assistant/PrivacyPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
@@ -111,6 +112,7 @@ export function App() {
         {/* Public: opened from a single-use link, no session needed */}
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/reconnect/:token" element={<ReconnectPage />} />
+        <Route path="/review/:token" element={<ReviewPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppProviders>

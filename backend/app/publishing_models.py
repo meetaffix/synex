@@ -99,3 +99,30 @@ class Migration(Base):
     __tablename__ = "schema_migrations"
     version = Column(String, primary_key=True)
     applied_at = Column(DateTime(timezone=True), default=_now)
+
+
+class ReviewLink(Base):
+    """A private link that lets one named person read a post and leave feedback, without an account. Only a hash of the token is stored."""
+    __tablename__ = "post_review_links"
+    id = Column(String, primary_key=True, default=_uuid)
+    post_id = Column(String, ForeignKey("content_posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    reviewer = Column(String, nullable=False)
+    token_hash = Column(String, nullable=False, unique=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True))
+    last_seen_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class ReviewFeedback(Base):
+    """One message in a post's feedback thread: from the owner, or from a reviewer through their link."""
+    __tablename__ = "post_review_feedback"
+    id = Column(String, primary_key=True, default=_uuid)
+    post_id = Column(String, ForeignKey("content_posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    link_id = Column(String, ForeignKey("post_review_links.id", ondelete="SET NULL"))
+    author = Column(String, nullable=False)
+    decision = Column(String, default="comment")  # comment | approve | changes
+    body = Column(Text, default="")
+    post_version = Column(Integer)
+    created_at = Column(DateTime(timezone=True), default=_now)

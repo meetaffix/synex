@@ -43,7 +43,7 @@ export interface Api {
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
   integ: unknown;
-  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean; admin: boolean; killed: boolean; audit: (Record<string, unknown> & { accountId: string })[] };
+  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean; admin: boolean; killed: boolean; audit: (Record<string, unknown> & { accountId: string })[]; reviews: { links: { id: string; reviewer: string; state: string; expiresAt: string; lastSeenAt: string | null }[]; thread: { id: string; author: string; decision: string; body: string; postVersion: number; createdAt: string; fromReviewer: boolean }[] } };
   voice: { ttsReady: boolean; made: Record<string, unknown> | null; readiness: unknown[] };
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
@@ -222,7 +222,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
-    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false, admin: false, killed: false, audit: [] },
+    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false, admin: false, killed: false, audit: [], reviews: { links: [], thread: [] } },
     voice: { ttsReady: false, made: null, readiness: [{ accountId: "a1", name: "Ada Lovelace", ready: false, reasons: ["Its daily voice-note limit is 0. Set a limit on the account's Sender limits tab."], roomToday: 0 }] },
     integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
@@ -265,6 +265,7 @@ export async function mockApi(page: Page, api: Api) {
       const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
       const empty = () => route.fulfill({ status: 204, headers: cors });
 
+      if (path === "/auth/me" && method === "PUT") return json(200, { ...USER, ...(body as Record<string, unknown>) });
       if (path === "/auth/me") return api.signedOut ? json(401, { detail: "Not signed in" }) : json(200, api.assistant.admin ? { ...USER, role: "admin", isAdmin: true } : USER);
       if (path === "/publishing/posts" && method === "GET") return json(200, api.publishing.posts);
       if (path === "/linkedin/accounts" && method === "GET") return json(200, api.publishing.accounts);
@@ -355,6 +356,21 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
+      const reviews = path.match(/^\/publishing\/posts\/([^/]+)\/(reviews|reviewers|feedback)(?:\/([^/]+))?$/);
+      if (reviews) {
+        const r = api.assistant.reviews;
+        if (reviews[2] === "reviews") return json(200, { links: r.links, thread: r.thread, approvedBy: r.thread.filter((f) => f.decision === "approve").map((f) => f.author) });
+        if (reviews[2] === "reviewers" && method === "POST") { const link = { id: `l${r.links.length + 1}`, reviewer: (body as { reviewer: string }).reviewer, state: "active", expiresAt: "2026-11-30T00:00:00Z", lastSeenAt: null }; r.links.push(link); return json(201, { ...link, token: "TOKEN123", path: "/review/TOKEN123" }); }
+        if (reviews[2] === "reviewers" && method === "DELETE") { const link = r.links.find((l) => l.id === reviews[3]); if (link) link.state = "revoked"; return empty(); }
+        if (reviews[2] === "feedback") { const item = { id: `f${r.thread.length + 1}`, author: "Owner Test", decision: "comment", body: (body as { body: string }).body, postVersion: 1, createdAt: "2026-11-16T10:00:00Z", fromReviewer: false }; r.thread.push(item); return json(201, item); }
+      }
+      const reviewer = path.match(/^\/review\/([^/]+)(\/feedback)?$/);
+      if (reviewer) {
+        const r = api.assistant.reviews;
+        if (reviewer[1] !== "TOKEN123") return json(404, { detail: "This review link is not valid any more. Ask the person who sent it for a new one." });
+        if (reviewer[2]) { const b = body as { decision: string; body: string }; const item = { id: `f${r.thread.length + 1}`, author: "Priya", decision: b.decision, body: b.body, postVersion: 1, createdAt: "2026-11-16T10:00:00Z", fromReviewer: true }; r.thread.push(item); return json(201, item); }
+        return json(200, { reviewer: "Priya", post: { title: "Launch week", body: "We shipped it.", status: "draft", version: 1, scheduledAt: null }, thread: r.thread, expiresAt: "2026-11-30T00:00:00Z" });
+      }
       if (path === "/outreach/ceilings") return json(200, { daily: Object.entries(CEILINGS).map(([action, [label, ceiling]]) => ({ action, label, ceiling })), dailyTotal: 200, weeklyInvites: 150, newAccountDailyLimit: 0,
         testProfile: Object.fromEntries(Object.keys(CEILINGS).map((a) => [a, ({ visit_profile: 5, send_invite: 5, send_message: 5, check_connection: 5, sync_inbox: 12 } as Record<string, number>)[a] ?? 0])) });
       if (path === "/outreach/status") return api.assistant.admin ? json(200, { killSwitch: api.assistant.killed, forcedBySetting: false, workersActive: 1 }) : json(403, { detail: "Only a platform administrator can use this control." });

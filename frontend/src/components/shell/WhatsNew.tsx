@@ -36,7 +36,7 @@ export function WhatsNew() {
               </li>
             ))}
           </ol>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Close</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Done</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>
