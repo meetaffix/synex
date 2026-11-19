@@ -16,6 +16,8 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+from sqlalchemy.orm import object_session
+
 from . import dnc, engine, integrations_core as integrations, models
 from .config import settings
 from .database import SessionLocal
@@ -169,6 +171,9 @@ def register_failure(campaign: models.Campaign | None) -> None:
             and campaign.consecutive_failures >= settings.outreach_max_consecutive_failures):
         campaign.status = "paused"
         campaign.paused_reason = f"Paused automatically after {campaign.consecutive_failures} failed actions in a row."
+        session = object_session(campaign)
+        if session is not None:
+            integrations.emit(session, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": campaign.paused_reason})
 
 
 def _register_success(campaign: models.Campaign | None) -> None:

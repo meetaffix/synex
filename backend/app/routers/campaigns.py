@@ -281,6 +281,7 @@ def _create(payload: CampaignIn, db: Session, user: models.User):
 def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: models.User):
     campaign = _owned(db, user, campaign_id)
     data = payload.model_dump(exclude_unset=True)
+    was_paused = campaign.status == "paused"
     for key in (
         "name", "description", "status", "account_id", "account_ids", "lead_list_id",
         "daily_connection_limit", "daily_message_limit",
@@ -305,6 +306,8 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
         if first_launch:
             integrations_core.emit(db, campaign.user_id, "campaign_launched", {"name": campaign.name, "campaign": campaign.name})
 
+    if data.get("status") == "paused" and not was_paused:
+        integrations_core.emit(db, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": "Paused by you."})
     db.commit()
     db.refresh(campaign)
     return campaign_out(campaign)

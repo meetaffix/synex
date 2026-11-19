@@ -43,6 +43,7 @@ export interface Api {
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
   integ: unknown;
+  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean };
   voice: { ttsReady: boolean; made: Record<string, unknown> | null; readiness: unknown[] };
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
@@ -221,6 +222,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
+    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false },
     voice: { ttsReady: false, made: null, readiness: [{ accountId: "a1", name: "Ada Lovelace", ready: false, reasons: ["Its daily voice-note limit is 0. Set a limit on the account's Sender limits tab."], roomToday: 0 }] },
     integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
@@ -353,6 +355,24 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
+      if (path === "/integrations/whats-new") return json(200, { items: [{ id: "n1", date: "2026-11-16", title: "Smart sequences", body: "Build a sequence as a graph." }, { id: "n0", date: "2026-11-10", title: "Earlier change", body: "Something older." }], latestId: "n1", unread: api.assistant.unreadNews });
+      if (path === "/integrations/whats-new/seen") { api.assistant.unreadNews = false; return json(200, { ok: true }); }
+      if (path === "/assistant/settings") {
+        if (method === "PUT") {
+          const want = (body as { provider?: string }).provider;
+          if (want === "local" && api.syncStatus === "ollama-off") return json(409, { detail: "The local language model is not ready, so the assistant cannot switch to it. Start Ollama and pull the model first (see the Local models card)." });
+          if (want) api.assistant.provider = want;
+        }
+        return json(200, { available: true, enabled: true, monthlyMinuteCap: 60, usedSeconds: 120, remainingSeconds: 3480, capReached: false, idleTimeoutSeconds: 120, historyEnabled: false, language: "en", provider: api.assistant.provider, voice: "aura", model: "gpt", month: "2026-11", canEdit: true });
+      }
+      if (path === "/assistant/providers") return json(200, { selected: api.assistant.provider, providers: [
+        { id: "deepgram", label: "Deepgram voice agent", cost: "Paid per minute", runs: "Deepgram's servers", licence: "Commercial service (default)", ready: true, detail: "Voice and text in the assistant panel. The default.", parts: [] },
+        { id: "local", label: "Local models", cost: "Free", runs: "This computer or network", licence: "Ollama MIT, Whisper MIT, Piper MIT; each model has its own licence", ready: api.syncStatus !== "ollama-off", detail: "Typed questions need Ollama. Speaking needs Whisper; spoken replies need Piper.", parts: [
+          { id: "llm", label: "Language model (Ollama)", ready: api.syncStatus !== "ollama-off", detail: "llama3.2 is running." },
+          { id: "stt", label: "Speech to text (Whisper)", ready: api.assistant.sttReady, detail: api.assistant.sttReady ? "Ready." : "Not set up. Missing: the faster-whisper package (pip install faster-whisper)" },
+          { id: "tts", label: "Voice (Piper)", ready: api.assistant.ttsReady, detail: api.assistant.ttsReady ? "Ready." : "Not set up. Install Piper." }] }] });
+      if (path === "/assistant/local/transcribe") return json(200, { text: "Which conversations need a reply?" });
+      if (path === "/assistant/local/speak") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "audio/wav" }, body: Buffer.from("RIFF0000WAVE") });
       if (path === "/assistant/local/status") return json(200, { reachable: api.syncStatus !== "ollama-off", model: "llama3.2", installed: true });
       if (path === "/assistant/local/chat") return json(200, { reply: "Two conversations need a reply.", cards: [{ type: "proposal", proposal: { id: "p1", summary: "Add 1 company to the do-not-contact list.", changes: ["Acme Inc will never be contacted."], status: "pending" } }] });
       if (/^\/assistant\/proposals\/p1\/(confirm|cancel)$/.test(path)) return json(200, { ok: true });
@@ -440,6 +460,7 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/leads" && method === "POST") return json(200, { id: "new1", tags: [], listIds: [], status: "new", createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
       if (path === "/lead-lists" && method === "GET") return json(200, api.lists);
+      if (path === "/lead-lists" && method === "POST" && (body as { action?: string })?.action === "delete") { api.lists = api.lists.filter((l) => l.id !== (body as { id: string }).id); return json(200, { ok: true }); }
       const listExport = path.match(/^\/lead-lists\/([^/]+)\/export$/);
       if (listExport && method === "GET") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "first_name,last_name\nAda,L\n" });
       const listOne = path.match(/^\/lead-lists\/([^/]+)$/);

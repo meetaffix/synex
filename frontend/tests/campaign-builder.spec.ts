@@ -77,7 +77,8 @@ test("the sequence: variables insert as chips, spintax, preview with a missing-v
   await expect(page.getByText("If not replied")).toBeVisible();
   await page.getByRole("button", { name: "Remove" }).click();
   await expect(page.getByRole("heading", { name: "Follow-up message" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Smart" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Smart", exact: true })).toBeEnabled(); // Smart is built: switching asks first (campaign-smart.spec)
+  await expect(page.getByRole("button", { name: "Classic", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("AI writing: the drawer has Direct and AI assisted, tone, strategy, honest profile options, a preview with its cost, and an unsaved-changes prompt", async ({ page }) => {
@@ -191,4 +192,32 @@ test("a campaign that is running cannot be edited here, and an unknown one says 
   api.builder = { ...(api.builder ?? {}), status: "active" } as never;
   await page.reload();
   await expect(page.getByText(/has launched and is running/)).toBeVisible();
+});
+
+test("a follow-up wait can be set in minutes with a floor of 15, and follow-ups can be moved up and down", async ({ page }) => {
+  const api = await open(page);
+  await page.goto("/campaigns/cb1/edit?step=2");
+  await page.getByRole("button", { name: "Add follow-up message" }).click();
+  await page.getByRole("button", { name: "Add follow-up message" }).click();
+  const texts = page.getByRole("textbox", { name: "Follow-up message text", exact: true });
+  await texts.nth(0).fill("First follow-up");
+  await texts.nth(1).fill("Second follow-up");
+  // The wait before the first follow-up: minutes are offered, 5 is raised to the 15-minute floor, and the exact figure is saved.
+  const unit = page.getByLabel("Wait unit").nth(1);
+  await expect(unit.locator("option")).toHaveText(["minutes", "hours", "days"]);
+  await unit.selectOption("minutes");
+  await page.getByLabel("Wait", { exact: true }).nth(1).fill("5");
+  await expect(page.getByLabel("Wait", { exact: true }).nth(1)).toHaveValue("15");
+  await expect(page.getByText("at least 15 minutes")).toBeVisible();
+  await expect.poll(() => ((lastUpdate(api)?.steps ?? []) as { type: string; config?: { minutes?: number } | null }[]).some((s: { type: string; config?: { minutes?: number } | null }) => s.type === "wait" && s.config?.minutes === 15), { timeout: 8000 }).toBe(true);
+  // The wait after the invitation has no minutes: its floor is three hours.
+  await expect(page.getByLabel("Wait unit").first().locator("option")).toHaveText(["hours", "days"]);
+  // Move the second follow-up above the first.
+  await page.getByRole("button", { name: "Move this follow-up earlier" }).nth(1).click();
+  await expect(texts.nth(0)).toHaveValue("Second follow-up");
+  await expect(texts.nth(1)).toHaveValue("First follow-up");
+  await expect(page.getByRole("button", { name: "Move this follow-up earlier" }).first()).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Move this follow-up later" }).last()).toBeDisabled();
+  await page.getByRole("button", { name: "Move this follow-up later" }).first().click();
+  await expect(texts.nth(0)).toHaveValue("First follow-up");
 });

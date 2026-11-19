@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from sqlalchemy.orm import Session
@@ -90,3 +90,51 @@ def dry_run(campaign_id: str, db: Session = Depends(get_db), user: models.User =
     now = datetime.now(timezone.utc)
     actions = [PlannedActionOut(**{k: getattr(a, k) for k in PlannedActionOut.model_fields}) for a in planner.plan_campaign(db, campaign, now)]
     return DryRunOut(campaign_id=campaign.id, generated_at=now, actions=actions)
+
+
+# ---- safety information: the hard ceilings and the audit log ----------------------------------------------------------------
+
+RESULT_REASONS = {
+    "sent": "Done.", "visited": "Done.", "followed": "Done.", "liked": "Done.", "withdrawn": "Done.", "already_connected": "Already connected, so nothing was needed.",
+    "already_pending": "An invitation was already waiting.", "already_following": "Already following.", "already_liked": "Already liked.",
+    "weekly_limit_reached": "LinkedIn's weekly invitation limit was reached, so the action waits a day.", "not_connected": "Not connected yet, so the message waits.",
+    "profile_unavailable": "The profile could not be opened, so the person was skipped.", "needs_review": "LinkedIn showed a warning after the click, so everything stopped for review.",
+    "logged_out": "LinkedIn signed the account out.", "checkpoint": "LinkedIn asked for a security check.", "restricted": "LinkedIn restricted the account.",
+    "no_credits": "No InMail credits were left.", "not_free": "The profile does not offer a free message.", "no_posts": "The person has no recent post to like.",
+    "not_pending": "The invitation was not pending any more.",
+}
+
+
+@router.get("/outreach/ceilings")
+def ceilings(user: models.User = Depends(get_data_user)):
+    """The hard limits no setting can raise, and the test profile."""
+    from .. import account_policy
+    from ..config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS, WEEKLY_INVITE_CEILING
+    return {"daily": [{"action": a, "label": account_policy.LABELS.get(a, a.replace("_", " ").capitalize()), "ceiling": c} for a, c in DAILY_TYPE_CEILINGS.items()],
+            "dailyTotal": DAILY_ACTION_CEILING, "weeklyInvites": WEEKLY_INVITE_CEILING, "newAccountDailyLimit": 0,
+            "testProfile": {a: v["dailyLimit"] for a, v in account_policy.test_profile_actions().items()}}
+
+
+@router.get("/outreach/audit")
+def audit(limit: int = 50, offset: int = 0, account_id: str | None = Query(None, alias="accountId"), db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """Every action Synex took on LinkedIn for this workspace, newest first, with the account, the person, the campaign and why it ended as it did."""
+    limit, offset = max(1, min(limit, 200)), max(0, offset)
+    query = db.query(models.AgentActivity).filter(models.AgentActivity.user_id == user.id, models.AgentActivity.scope == "task")
+    if account_id:
+        query = query.filter(models.AgentActivity.account_id == account_id)
+    total = query.count()
+    rows = query.order_by(models.AgentActivity.created_at.desc()).offset(offset).limit(limit).all()
+    task_ids = [r.task_id for r in rows if r.task_id]
+    tasks = {t.id: t for t in db.query(models.AgentTask).filter(models.AgentTask.id.in_(task_ids)).all()} if task_ids else {}
+    lead_ids = {(t.payload or {}).get("leadId") for t in tasks.values()} - {None}
+    leads = {l.id: l for l in db.query(models.Lead).filter(models.Lead.id.in_(lead_ids), models.Lead.user_id == user.id).all()} if lead_ids else {}
+    campaigns = {c.id: c.name for c in db.query(models.Campaign).filter(models.Campaign.id.in_({r.campaign_id for r in rows if r.campaign_id}), models.Campaign.user_id == user.id).all()} if rows else {}
+    accounts = {a.id: a.name for a in db.query(models.LinkedInAccount).filter(models.LinkedInAccount.user_id == user.id).all()}
+    items = []
+    for r in rows:
+        lead = leads.get((tasks[r.task_id].payload or {}).get("leadId")) if r.task_id in tasks else None
+        items.append({"id": r.id, "at": r.created_at.isoformat(), "account": accounts.get(r.account_id, "A removed account"), "action": r.step, "result": r.result, "status": r.status,
+                      "reason": RESULT_REASONS.get(r.result or "", (r.result or "").replace("_", " ").capitalize() or None), "person": f"{lead.first_name} {lead.last_name}".strip() if lead else None,
+                      "campaign": campaigns.get(r.campaign_id)})
+    return {"items": items, "total": total, "limit": limit, "offset": offset,
+            "note": "Synex keeps the most recent actions of each account; older rows are removed to keep the log small."}

@@ -10,7 +10,7 @@ import { MessageField } from "./MessageField";
 import { SmartGraph } from "./SmartGraph";
 import { lostInClassic, toClassic } from "./graph";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { defaultAi, newStep, type AiConfig, type BuilderState, type BuilderStep } from "./model";
+import { MIN_WAIT_MINUTES, defaultAi, newStep, type AiConfig, type BuilderState, type BuilderStep } from "./model";
 
 const TITLES: Record<string, string> = { connection_request: "Connection request", message: "Message", follow_up: "Follow-up message" };
 
@@ -33,6 +33,18 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
     const at = end === -1 ? steps.length : end;
     const wait = { ...newStep("wait"), delayHours: 48 };
     set({ steps: [...steps.slice(0, at), wait, newStep("follow_up"), ...steps.slice(at)] });
+  };
+  // A follow-up is its wait plus its message. Moving it swaps that pair with the neighbouring follow-up, so waits keep their place in front.
+  const followUps = steps.map((s, i) => ({ s, i })).filter((x) => x.s.type === "follow_up");
+  const moveFollowUp = (index: number, direction: -1 | 1) => {
+    const at = followUps.findIndex((f) => f.i === index);
+    const other = followUps[at + direction];
+    if (at < 0 || !other) return;
+    const block = (i: number) => (steps[i - 1]?.type === "wait" ? [steps[i - 1], steps[i]] : [steps[i]]);
+    const [first, second] = direction === -1 ? [other.i, index] : [index, other.i];
+    const start = steps[first - 1]?.type === "wait" ? first - 1 : first;
+    const end = second + 1;
+    set({ steps: [...steps.slice(0, start), ...block(second), ...block(first), ...steps.slice(end)] });
   };
   const removeFollowUp = (index: number) => set({ steps: steps.filter((_, i) => i !== index && !(i === index - 1 && steps[i].type === "wait")) });
   const smart = state.mode === "smart";
@@ -79,24 +91,33 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
         {steps.map((step, index) => {
           if (step.type === "end") return <li key={step.key} className="text-center text-xs text-muted-foreground">End of sequence</li>;
           if (step.type === "wait") {
-            const days = step.delayHours % 24 === 0 && step.delayHours >= 24;
             const before = steps[index - 1]?.type;
+            const inMinutes = typeof step.config.minutes === "number";
+            const days = !inMinutes && step.delayHours % 24 === 0 && step.delayHours >= 24;
             const minimum = before === "connection_request" ? 3 : 1;
-            const unit = days ? "days" : "hours";
-            const shown = days ? step.delayHours / 24 : step.delayHours;
+            const unit = inMinutes ? "minutes" : days ? "days" : "hours";
+            const shown = inMinutes ? Number(step.config.minutes) : days ? step.delayHours / 24 : step.delayHours;
             const chip = before === "connection_request" ? "If connected" : "If not replied";
+            const setMinutes = (minutes: number) => { const m = Math.max(MIN_WAIT_MINUTES, Math.floor(minutes) || MIN_WAIT_MINUTES); patch(step.key, { delayHours: Math.max(1, Math.ceil(m / 60)), config: { ...step.config, minutes: m } }); };
+            const setHours = (hours: number) => { const { minutes: _gone, ...rest } = step.config; patch(step.key, { delayHours: Math.max(minimum, hours), config: rest }); };
             return (
               <li key={step.key} className="grid gap-2 rounded-lg border border-dashed border-border p-3">
                 <span className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground">{chip}</span>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <label htmlFor={`wait-${step.key}`}>Wait</label>
                   <Input id={`wait-${step.key}`} type="number" min={1} className="w-20" value={shown}
-                    onChange={(e) => patch(step.key, { delayHours: Math.max(minimum, Math.floor(Number(e.target.value) || 1) * (unit === "days" ? 24 : 1)) })} />
-                  <NativeSelect aria-label="Wait unit" className="w-auto" value={unit} onChange={(e) => patch(step.key, { delayHours: Math.max(minimum, (e.target.value === "days" ? Math.max(1, Math.round(step.delayHours / 24)) * 24 : Math.max(minimum, step.delayHours))) })}>
+                    onChange={(e) => { const n = Math.floor(Number(e.target.value) || 1); if (unit === "minutes") setMinutes(n); else setHours(n * (unit === "days" ? 24 : 1)); }} />
+                  <NativeSelect aria-label="Wait unit" className="w-auto" value={unit} onChange={(e) => {
+                    const next = e.target.value;
+                    if (next === "minutes") setMinutes(Math.max(MIN_WAIT_MINUTES, step.delayHours * 60));
+                    else if (next === "days") setHours(Math.max(1, Math.round(step.delayHours / 24)) * 24);
+                    else setHours(Math.max(minimum, step.delayHours));
+                  }}>
+                    {before !== "connection_request" && <option value="minutes">minutes</option>}
                     <option value="hours">hours</option>
                     <option value="days">days</option>
                   </NativeSelect>
-                  <span className="text-xs text-muted-foreground">at least {minimum} {minimum === 1 ? "hour" : "hours"}{before === "connection_request" ? " after the invitation is accepted" : ""}</span>
+                  <span className="text-xs text-muted-foreground">{unit === "minutes" ? `at least ${MIN_WAIT_MINUTES} minutes` : `at least ${minimum} ${minimum === 1 ? "hour" : "hours"}`}{before === "connection_request" ? " after the invitation is accepted" : ""}</span>
                 </div>
               </li>
             );
@@ -107,7 +128,13 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
             <li key={step.key} className="grid gap-3 rounded-lg border border-border bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-base font-semibold">{step.type === "connection_request" ? "View profile and send connection request" : step.type === "message" && index === firstMessageIndex ? "Message 1" : TITLES[step.type]}</h3>
-                {isFollowUp && <Button size="sm" variant="ghost" className="text-danger" onClick={() => removeFollowUp(index)}>Remove</Button>}
+                {isFollowUp && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button size="sm" variant="ghost" aria-label="Move this follow-up earlier" disabled={followUps[0]?.i === index} onClick={() => moveFollowUp(index, -1)}>Move up</Button>
+                    <Button size="sm" variant="ghost" aria-label="Move this follow-up later" disabled={followUps[followUps.length - 1]?.i === index} onClick={() => moveFollowUp(index, 1)}>Move down</Button>
+                    <Button size="sm" variant="ghost" className="text-danger" onClick={() => removeFollowUp(index)}>Remove</Button>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
                 {step.type === "connection_request" ? "A note is optional. LinkedIn allows up to 200 characters, and may send requests without a personalised note on some accounts." : isFollowUp ? "Sent only if the person has not replied." : "Sent after the connection is accepted."}

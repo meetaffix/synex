@@ -1,3 +1,4 @@
+import { startRecording as startWav, toBase64 } from "@/lib/recorder";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -143,6 +144,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const voiceUnavailable = support.ok ? null : support.reason;
 
   const settingsQuery = useQuery({ queryKey: ["assistant", "settings"], queryFn: assistantService.settings, enabled: open, staleTime: 5_000 });
+  // When the workspace chose local models the panel talks to the local endpoints instead of opening a Deepgram session.
+  const localMode = settingsQuery.data?.provider === "local";
+  const providersQuery = useQuery({ queryKey: ["assistant", "providers"], queryFn: assistantService.providers, enabled: open && localMode, staleTime: 15_000 });
+  const localParts = useMemo(() => Object.fromEntries((providersQuery.data?.providers.find((p) => p.id === "local")?.parts ?? []).map((p) => [p.id, p.ready])) as Record<string, boolean>, [providersQuery.data]);
+  const wavRecorder = useRef<{ stop: () => Promise<File> } | null>(null);
+  const mutedRef = useRef(speakerMuted);
+  mutedRef.current = speakerMuted;
 
   // ---- what the user is looking at -------------------------------------------------------------------------
   const params = useMemo(() => new URLSearchParams(search), [search]);
@@ -385,6 +393,68 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     [teardown],
   );
 
+  // ---- local models (Ollama, Whisper, Piper) ----------------------------------------------------------------
+  const speakReply = useCallback(async (text: string) => {
+    if (mutedRef.current || !localParts.tts) return;
+    try {
+      const url = URL.createObjectURL(await assistantService.speak(text));
+      const audio = new Audio(url);
+      setAgentSpeaking(true);
+      audio.onended = audio.onerror = () => { setAgentSpeaking(false); URL.revokeObjectURL(url); };
+      await audio.play();
+    } catch {
+      setAgentSpeaking(false);
+    }
+  }, [localParts.tts]);
+
+  const sendLocal = useCallback(async (text: string) => {
+    const history = itemsRef.current.flatMap((i) => (i.kind === "user" ? [{ role: "user", content: i.text }] : i.kind === "assistant" ? [{ role: "assistant", content: i.text }] : []));
+    push({ id: nextId(), kind: "user", text });
+    setThinking(true);
+    try {
+      const reply = await assistantService.localChat(text, history, pageRef.current);
+      push({ id: nextId(), kind: "assistant", text: reply.reply });
+      for (const card of reply.cards) {
+        if (card.type === "proposal" && card.proposal) push({ id: nextId(), kind: "proposal", proposal: card.proposal });
+        else if (card.type === "draft") push({ id: nextId(), kind: "draft", text: String(card.text ?? ""), label: String(card.label ?? "message"), warnings: card.warnings ?? [] });
+      }
+      void speakReply(reply.reply);
+    } catch (error) {
+      notice(error instanceof ApiError ? error.message : "The local assistant could not answer.", "danger");
+    } finally {
+      setThinking(false);
+    }
+  }, [notice, push, speakReply]);
+
+  const toggleLocalMic = useCallback(async () => {
+    if (wavRecorder.current) {
+      const handle = wavRecorder.current;
+      wavRecorder.current = null;
+      setMicState("off");
+      try {
+        const file = await handle.stop();
+        const heard = await assistantService.transcribe(toBase64(await file.arrayBuffer()));
+        await sendLocal(heard.text);
+      } catch (error) {
+        notice(error instanceof ApiError ? error.message : "The recording could not be used. You can keep typing.", "danger");
+      }
+      return;
+    }
+    if (!localParts.stt) {
+      notice("Speech to text (Whisper) is not set up on this computer, so the microphone cannot be used. Type instead, or see Settings, Assistant.", "info");
+      return;
+    }
+    setMicState("requesting");
+    try {
+      wavRecorder.current = await startWav();
+      setMicState("on");
+    } catch (error) {
+      const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
+      setMicState(denied ? "denied" : "off");
+      if (!denied) notice("The microphone could not be started. You can keep typing.", "danger");
+    }
+  }, [localParts.stt, notice, sendLocal]);
+
   // ---- typing ----------------------------------------------------------------------------------------------
   const sendText = useCallback(
     async (raw: string) => {
@@ -394,6 +464,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         notice("You are offline. Reconnect to use the assistant.", "danger");
         return;
       }
+      if (localMode) return sendLocal(text);
       try {
         await connect(sessionMode.current ?? (mic.current?.active ? "voice" : "text"));
       } catch {
@@ -402,7 +473,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       wsRef.current?.send(JSON.stringify({ type: "user_text", text }));
       setThinking(true);
     },
-    [connect, notice],
+    [connect, localMode, notice, sendLocal],
   );
 
   // ---- voice -----------------------------------------------------------------------------------------------
@@ -434,6 +505,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   }, [connect, notice, stopMic, support.ok]);
 
   const pressMic = useCallback(() => {
+    if (localMode) { void toggleLocalMic(); return; }
     if (!support.ok) return;
     if (micState === "on" || micState === "requesting") {
       if (voiceModeRef.current === "hands-free") stopMic();
@@ -444,11 +516,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       return;
     }
     void startRecording();
-  }, [micState, startRecording, stopMic, support.ok]);
+  }, [localMode, micState, startRecording, stopMic, support.ok, toggleLocalMic]);
 
   const releaseMic = useCallback(() => {
+    if (localMode) return;
     if (voiceModeRef.current === "push" && mic.current?.active) stopMic();
-  }, [stopMic]);
+  }, [localMode, stopMic]);
 
   const allowMic = useCallback(() => {
     write(MIC_EXPLAINED, "1");
@@ -529,7 +602,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     recording: micState === "on",
     voiceMode,
     setVoiceMode,
-    voiceUnavailable,
+    voiceUnavailable: localMode ? (typeof MediaRecorder === "undefined" ? "This browser cannot record audio." : null) : voiceUnavailable,
     speakerMuted,
     toggleMute,
     online,

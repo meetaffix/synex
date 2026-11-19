@@ -237,6 +237,27 @@ def step_types_depth():
     return campaigns.MAX_DEPTH
 
 
+class MinutesWaitTest(GraphCase):
+    def test_a_wait_can_be_set_in_minutes_with_a_floor_of_fifteen(self):
+        spec = [("w", "wait", None, None, {"delay_hours": 1, "config": {"minutes": 15}}), ("m", "message", None, None, {"message": "Hi"})]
+        self.graph_campaign(spec, status="connected")
+        before = datetime.now(timezone.utc)
+        self.tick()
+        run = self.run_of("ann")
+        wait = (run.next_action_at.replace(tzinfo=timezone.utc) - before).total_seconds() / 60
+        self.assertTrue(14.5 <= wait <= 15.6, wait)  # fifteen minutes, not the one hour in delay_hours
+        self.assertEqual(step_types.wait_minutes(models.CampaignStep(type="wait", delay_hours=2)), 120)
+        self.assertEqual(step_types.wait_minutes(models.CampaignStep(type="wait", delay_hours=2, config={"minutes": 20})), 20)
+
+    def test_minutes_below_the_floor_or_beyond_the_ceiling_are_refused(self):
+        for minutes in (14, 0, 60 * 24 * 90 + 1, "x", True):
+            r = self.client.post("/campaigns", json={"action": "create", "name": "W", "steps": [{"id": "a", "type": "wait", "order": 0, "config": {"minutes": minutes}}]})
+            self.assertEqual(r.status_code, 422, minutes)
+        ok = self.client.post("/campaigns", json={"action": "create", "name": "W", "steps": [{"id": "a", "type": "wait", "order": 0, "delayHours": 1, "config": {"minutes": 15}}]})
+        self.assertEqual(ok.status_code, 200, ok.text)
+        self.assertEqual(ok.json()["steps"][0]["config"], {"minutes": 15})
+
+
 class PlanAndCeilingTest(GraphCase):
     def test_the_dry_run_follows_the_branch_the_lead_would_take(self):
         campaign_id, ids = self.graph_campaign(CONNECT_THEN_BRANCH, users=("ann", "bob"))

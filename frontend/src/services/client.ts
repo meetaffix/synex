@@ -81,6 +81,23 @@ export async function fetchBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+/** A POST whose answer is a file (a spoken reply). */
+export async function postForBlob(path: string, body: unknown): Promise<Blob> {
+  const token = tokenGetter ? await tokenGetter() : null;
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  } catch {
+    throw new ApiError(0, "Cannot reach the API. Is the backend running on " + API_URL + "?");
+  }
+  if (!res.ok) {
+    let message = res.statusText;
+    try { const data = await res.json(); if (typeof data.detail === "string") message = data.detail; } catch { /* not json */ }
+    throw new ApiError(res.status, message);
+  }
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   getText: (path: string) => request<string>("GET", path, undefined, true),

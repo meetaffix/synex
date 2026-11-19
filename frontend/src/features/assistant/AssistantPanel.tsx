@@ -191,7 +191,7 @@ export function AssistantPanel() {
       document.getElementById("assistant-button")?.focus();
     }
   };
-  const micLabel = a.voiceMode === "push" ? "Hold to talk" : a.recording ? "Stop listening" : "Start listening";
+  const micLabel = a.settings?.provider === "local" ? (a.recording ? "Stop and send" : "Speak") : a.voiceMode === "push" ? "Hold to talk" : a.recording ? "Stop listening" : "Start listening";
 
   return (
     <aside

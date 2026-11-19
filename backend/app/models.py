@@ -48,6 +48,8 @@ class User(Base):
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     company = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    designation = Column(String, nullable=True)  # job title shown on the profile
     role = Column(String, default="Member")
     plan = Column(String, default="free")  # free | pro | scale
     avatar_url = Column(String, nullable=True)

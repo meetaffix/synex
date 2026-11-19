@@ -31,8 +31,15 @@ STEP_TYPES: dict[str, tuple[str, str, str | None]] = {
 
 ACTION_TASKS = {t: spec[2] for t, spec in STEP_TYPES.items() if spec[1] == "action"}
 MESSAGE_TYPES = tuple(t for t, spec in STEP_TYPES.items() if spec[1] == "message")
+MIN_WAIT_MINUTES = 15
 DEFAULT_CONNECTION_WAIT_DAYS = 15
 DEFAULT_ACTIVE_DAYS = 30
+
+
+def wait_minutes(step) -> int:
+    """How long a wait step waits, in minutes: the exact figure when one was set, otherwise its hours."""
+    minutes = (getattr(step, "config", None) or {}).get("minutes")
+    return int(minutes) if minutes else int(step.delay_hours or 0) * 60
 
 
 def known(step_type: str) -> bool:
@@ -63,6 +70,13 @@ def check_config(step_type: str, config: dict | None) -> dict | None:
         if len(subject) > 200:
             raise ValueError("An InMail subject can be up to 200 characters.")
         return {"subject": subject} if subject else {}
+    if step_type == "wait":
+        minutes = config.get("minutes")
+        if minutes is None:
+            return None
+        if not isinstance(minutes, int) or isinstance(minutes, bool) or not 15 <= minutes <= 60 * 24 * 90:
+            raise ValueError("A wait in minutes is at least 15 minutes and at most 90 days.")
+        return {"minutes": minutes}
     if step_type == "if_connected":
         days = config.get("waitDays", DEFAULT_CONNECTION_WAIT_DAYS)
         if not isinstance(days, int) or isinstance(days, bool) or not 1 <= days <= 30:

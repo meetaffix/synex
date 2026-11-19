@@ -11,6 +11,8 @@ export interface User {
   fullName: string;
   avatarUrl?: string | null;
   company?: string | null;
+  phone?: string | null;
+  designation?: string | null;
   role: string;
   plan: "free" | "pro" | "scale";
   /** True when role is Admin — full access, no subscription prompts. */

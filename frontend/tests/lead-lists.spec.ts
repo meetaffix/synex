@@ -40,6 +40,7 @@ test("a list exports as a CSV file and opens its leads", async ({ page }) => {
   const download = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "Export CSV" }).click();
   expect((await download).suggestedFilename()).toBe("synex-list-Spring-prospects.csv");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.getByRole("button", { name: "Actions for Conference" }).click();
   await page.getByRole("menuitem", { name: "View leads" }).click();
   await expect(page).toHaveURL(/\/leads\?listId=L3/);
@@ -52,12 +53,13 @@ test("deleting a list asks first, says the leads stay, and removes only that lis
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Leads in this list won't be deleted");
   await dialog.getByRole("button", { name: "Cancel" }).click();
-  expect(callsTo(api, "DELETE", /lead-lists/)).toHaveLength(0);
+  const deletes = () => callsTo(api, "POST", /^\/lead-lists$/).filter((c) => (c.body as { action?: string })?.action === "delete");
+  expect(deletes()).toHaveLength(0);
   await page.getByRole("button", { name: "Actions for Empty list" }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("heading", { level: 3, name: "Empty list" })).toHaveCount(0);
-  expect(callsTo(api, "DELETE", /lead-lists\/L2$/)).toHaveLength(1);
+  expect(deletes().map((c) => (c.body as { id: string }).id)).toEqual(["L2"]);
 });
 
 test("no lists shows the empty state, and a failed load shows a retry", async ({ page }) => {

@@ -19,6 +19,7 @@ const toSmart = async (page: Page) => {
 const add = async (page: Page, where: string, item: string) => {
   await page.getByRole("button", { name: where }).click();
   await page.getByRole("menuitem", { name: new RegExp(item) }).click();
+  await expect(page.getByRole("menu")).toHaveCount(0); // the closing menu is gone before the next one opens
 };
 const lastUpdate = (api: Api) => callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { action?: string })?.action === "update").at(-1)?.body as { sequenceMode: string; steps: { id: string; type: string; parentStepId: string | null; branchCondition: { branch: string } | null; config: Record<string, unknown> | null }[] };
 
@@ -50,6 +51,7 @@ test("the Add action menu lists every node type and says why one cannot be added
   await expect(menu.getByText("A sequence has one connection request.")).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /Send voice note/ })).not.toHaveAttribute("aria-disabled", "true"); // a message precedes it in this list
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.getByRole("button", { name: "Clear all" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Clear all" }).click();
   await page.getByRole("button", { name: "Add action to the sequence" }).click();
@@ -61,7 +63,7 @@ test("an If step splits into two branches, each with its own Add action and a cl
   const api = await open(page);
   await toSmart(page);
   await add(page, "Add action to the sequence", "If connection");
-  await expect(page.getByRole("heading", { name: "Connected", level: 4 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connected", level: 4, exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Not connected", level: 4 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add action to the sequence" })).toHaveCount(0); // the main list now ends in the condition
   await add(page, "Add action to the yes branch", "Send message");
@@ -91,8 +93,8 @@ test("Next stays off while a node is not ready, says which and why, and comes ba
   await expect(page.getByRole("note").filter({ hasText: "not ready" })).toContainText("Send InMail: write the message.");
   const nodes = page.getByRole("article", { name: "Send InMail" });
   await nodes.getByLabel("InMail subject").fill("Quick question");
-  await nodes.getByLabel("Send InMail text").fill("Hello {{first_name}}");
-  await page.getByRole("article", { name: "Send message" }).getByLabel("Send message text").fill("Thanks for connecting");
+  await nodes.getByRole("textbox", { name: "Send InMail text", exact: true }).fill("Hello {{first_name}}");
+  await page.getByRole("article", { name: "Send message" }).getByRole("textbox", { name: "Send message text", exact: true }).fill("Thanks for connecting");
   await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
   await expect(page.getByText(/Next is off/)).toHaveCount(0);
 });
@@ -155,7 +157,7 @@ test("an AI voice note: the script is counted, the estimate is free, and the eng
   await add(page, "Add action to the yes branch", "Send voice note");
   const node = page.getByRole("article", { name: "Send voice note" });
   await node.getByLabel("AI assisted: write a script and let a voice read it").check();
-  await node.getByLabel("Script").fill("Hi, it is Sam. Thank you for connecting.");
+  await node.getByRole("textbox", { name: "Script" }).fill("Hi, it is Sam. Thank you for connecting.");
   await expect(node.getByTestId("voice-estimate")).toContainText("Free: made on this computer. About 12 seconds. Cost: $0.");
   await expect(node.getByText(/The voice engine is not set up for English \(US\)/)).toBeVisible();
   await expect(node.getByText(/Missing: the piper program/)).toBeVisible();
@@ -170,11 +172,11 @@ test("with the engine installed the audio is made from the script, and editing t
   await add(page, "Add action to the yes branch", "Send voice note");
   const node = page.getByRole("article", { name: "Send voice note" });
   await node.getByLabel("AI assisted: write a script and let a voice read it").check();
-  await node.getByLabel("Script").fill("Hello there");
+  await node.getByRole("textbox", { name: "Script" }).fill("Hello there");
   await node.getByRole("button", { name: "Make the audio" }).click();
   await expect(node.getByText(/voice-note\.wav, 12 seconds/)).toBeVisible();
   await expect(node.getByText("Ada Lovelace:")).toContainText("ready, 20 left today");
-  await node.getByLabel("Script").fill("Hello there again");
+  await node.getByRole("textbox", { name: "Script" }).fill("Hello there again");
   await expect(node.getByText("No audio yet.")).toBeVisible();
   await expect(page.getByText(/Send voice note: make the audio from the script/).first()).toBeVisible();
 });

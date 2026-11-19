@@ -374,6 +374,12 @@ def update_me(
 
         user.company = data["company"]
 
+    for field in ("phone", "designation"):
+
+        if field in data:
+
+            setattr(user, field, (data[field] or "").strip() or None)
+
 
 
     if "avatar_url" in data:

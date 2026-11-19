@@ -19,6 +19,7 @@ export function AssistantSettings() {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["assistant", "settings"], queryFn: assistantService.settings });
   const [cap, setCap] = useState<string | null>(null);
+  const choices = useQuery({ queryKey: ["assistant", "providers"], queryFn: assistantService.providers, staleTime: 15_000 });
   const save = useMutation({
     mutationFn: assistantService.updateSettings,
     onSuccess: (next) => {
@@ -79,6 +80,26 @@ export function AssistantSettings() {
           </div>
           <Switch aria-labelledby="assistant-enabled-label" checked={s.enabled} disabled={readOnly || save.isPending} onCheckedChange={(enabled) => save.mutate({ enabled })} />
         </div>
+
+        <fieldset className="grid gap-2" data-testid="provider-choice" disabled={readOnly || save.isPending}>
+          <legend className="text-sm font-medium">What answers in the assistant panel</legend>
+          {choices.isError && <p role="status" className="text-sm text-muted-foreground">The list of providers could not be loaded.</p>}
+          {(choices.data?.providers ?? []).map((p) => (
+            <div key={p.id} className="grid gap-1 rounded-lg border border-border p-3 text-sm has-[:checked]:border-primary">
+              <span className="flex items-center gap-2 font-medium">
+                <input id={`prov-${p.id}-radio`} type="radio" name="assistant-provider" aria-labelledby={`prov-${p.id}`} aria-describedby={`prov-${p.id}-info`} checked={s.provider === p.id} onChange={() => save.mutate({ provider: p.id })} />
+                <label id={`prov-${p.id}`} htmlFor={`prov-${p.id}-radio`}>{p.label}</label>
+              </span>
+              <span id={`prov-${p.id}-info`} className="grid gap-1"><span className="text-muted-foreground">{p.cost}. Runs on {p.runs}. Licence: {p.licence}.</span>
+              <span>{p.detail}</span></span>
+              {p.parts.length > 0 && (
+                <ul className="grid gap-0.5 pl-6 text-muted-foreground" aria-label={`${p.label} parts`}>
+                  {p.parts.map((part) => <li key={part.id}>{part.label}: {part.ready ? "ready" : "not ready"}. {part.detail}</li>)}
+                </ul>
+              )}
+            </div>
+          ))}
+        </fieldset>
 
         <div className="grid gap-2" data-testid="usage-meter">
           <div className="flex items-baseline justify-between gap-3">

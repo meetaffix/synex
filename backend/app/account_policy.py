@@ -119,3 +119,14 @@ def usage_rows(db, account, now: datetime) -> list[dict]:
                      "used": rolling_usage(db, account.id, now, action), "low": low, "high": high,
                      "budget": budget, "ceiling": ceiling})
     return rows
+
+
+# The profile for a test sender (the "Meet Affix" account): at most 5 profile views, 5 connection requests and 5 messages a day. Everything else that reaches LinkedIn
+# is off, except the small reads needed to see replies and acceptances. The pacing between actions is always randomised by the engine (GAP_JITTER).
+TEST_PROFILE = {"visit_profile": 5, "send_invite": 5, "send_message": 5, "check_connection": 5, "sync_inbox": 12}
+
+
+def test_profile_actions() -> dict:
+    """The per-action policy of the test profile: a hard 5 where it matters, a stop at the same number, a stopped action (0) for the rest."""
+    return {action: {"dailyLimit": TEST_PROFILE.get(action, 0), "increaseBy": 0, "stopAt": TEST_PROFILE.get(action, 0), "intervalDays": 7, "dynamicInterval": False}
+            for action in DAILY_TYPE_CEILINGS}

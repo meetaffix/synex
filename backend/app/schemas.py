@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from . import campaign_settings
@@ -52,7 +52,9 @@ class PasswordResetIn(CamelIn):
 class ProfileUpdateIn(CamelIn):
     full_name: str | None = None
     email: EmailStr | None = None
-    company: str | None = None
+    company: str | None = Field(None, max_length=160)
+    phone: str | None = Field(None, max_length=40)
+    designation: str | None = Field(None, max_length=120)
     role: str | None = None
     avatar_url: str | None = None
 

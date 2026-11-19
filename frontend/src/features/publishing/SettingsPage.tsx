@@ -15,6 +15,8 @@ export function SettingsPage() {
     refresh = useRefresh();
   const [name, setName] = useState(user?.fullName ?? ""),
     [company, setCompany] = useState(user?.company ?? ""),
+    [phone, setPhone] = useState(user?.phone ?? ""),
+    [designation, setDesignation] = useState(user?.designation ?? ""),
     [zone, setZone] = useState("UTC"),
     [zoneEdited, setZoneEdited] = useState(false),
     [busy, setBusy] = useState(false),
@@ -86,6 +88,8 @@ export function SettingsPage() {
       const u = await api.put<typeof user>("/auth/me", {
         fullName: name,
         company,
+        phone,
+        designation,
       });
       await api.put("/publishing/preferences", { timezone: zone });
       if (u) updateUser(u);
@@ -147,6 +151,14 @@ export function SettingsPage() {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
+          </label>
+          <label className="field">
+            Designation
+            <input maxLength={120} value={designation} placeholder="For example, Founder" onChange={(e) => setDesignation(e.target.value)} />
+          </label>
+          <label className="field">
+            Phone
+            <input type="tel" maxLength={40} value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
           <label className="field">
             Time zone

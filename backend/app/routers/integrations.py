@@ -358,3 +358,23 @@ def hubspot_import(db: Session = Depends(get_db), user: models.User = Depends(ge
             break
     db.commit()
     return {"seen": seen, "created": created, "withoutLinkedinAddress": skipped}
+
+
+# ---- what's new ---------------------------------------------------------------------------------------------------------
+
+@router.get("/whats-new")
+def whats_new(db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """The change list and whether this person has opened it since the newest entry."""
+    from .. import whats_new as news
+    row = db.get(models.WorkspaceSetting, (user.id, "whats_new_seen"))
+    return {"items": news.ENTRIES, "latestId": news.LATEST, "unread": (row.value if row else {}).get("id") != news.LATEST}
+
+
+@router.post("/whats-new/seen")
+def whats_new_seen(db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    from .. import whats_new as news
+    row = db.get(models.WorkspaceSetting, (user.id, "whats_new_seen")) or models.WorkspaceSetting(user_id=user.id, key="whats_new_seen")
+    row.value = {"id": news.LATEST}
+    db.add(row)
+    db.commit()
+    return {"ok": True}

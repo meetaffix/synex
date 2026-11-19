@@ -90,6 +90,9 @@ def save_session(*, workspace_id: str, target_account_id: str | None, identifier
         account.reconnect_token_failures = 0
         account.paused_reason = None
         apply_status(account, "connected")
+        db.flush()
+        from .. import integrations_core  # a webhook or an email tells the workspace the sender is connected (never raises into the login)
+        integrations_core.emit(db, workspace_id, "account_connected", {"name": account.name, "account": account.name})
         db.commit()
         return account.id
 

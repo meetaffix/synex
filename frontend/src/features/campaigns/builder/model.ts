@@ -36,6 +36,7 @@ export type StepType =
   | "connection_request" | "wait" | "message" | "follow_up" | "end"
   | "voice_note" | "inmail" | "free_inmail" | "profile_visit" | "follow" | "like_post" | "withdraw_invite" | "if_connected" | "if_active";
 export type Branch = "yes" | "no";
+export const MIN_WAIT_MINUTES = 15;
 export interface BuilderStep {
   key: number;
   id?: string;
@@ -130,7 +131,7 @@ function stepsFromServer(items: ServerCampaign["steps"]): BuilderStep[] {
 }
 
 const WRITES: StepType[] = ["connection_request", "message", "follow_up", "inmail", "free_inmail"];
-const CONFIGURED: StepType[] = ["voice_note", "inmail", "free_inmail", "if_connected", "if_active"];
+const CONFIGURED: StepType[] = ["wait", "voice_note", "inmail", "free_inmail", "if_connected", "if_active"];
 const tempId = (k: number) => `new-${k}`;
 
 /** The body the server takes on save. Step ids are kept so drafts and runs stay attached to their step. */

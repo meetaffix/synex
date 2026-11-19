@@ -32,6 +32,8 @@ def user_out(u: models.User) -> dict:
         "fullName": u.full_name,
         "avatarUrl": u.avatar_url,
         "company": u.company,
+        "phone": u.phone,
+        "designation": u.designation,
         "role": u.role,
         "plan": "scale" if is_admin else u.plan,
         "isAdmin": is_admin,

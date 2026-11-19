@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from . import campaign_settings, dnc, engine, models
+from . import step_types, campaign_settings, dnc, engine, models
 from .providers import render_sender_variables
 
 MAX_ACTIONS = 50
@@ -84,7 +84,7 @@ def _first_action(campaign: models.Campaign, steps: list[models.CampaignStep], l
         if step.type == "end":
             return None
         if step.type == "wait":
-            waited += step.delay_hours or 0
+            waited += step_types.wait_minutes(step) / 60
         elif step.type == "connection_request":
             if (campaign.audience_source or {}).get("type") != "connections" and lead.status not in engine.ACCEPTED_STATES:
                 return step, "send_invite", waited

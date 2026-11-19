@@ -549,10 +549,11 @@ def message_for(db: Session, campaign: models.Campaign, step: models.CampaignSte
     return render_variables(step.message, lead), False
 
 
-def _schedule_after(campaign: models.Campaign, now: datetime, hours: int | None) -> datetime:
-    base = now + timedelta(hours=hours or 0)
+def _schedule_after(campaign: models.Campaign, now: datetime, hours: int | None, minutes: int | None = None) -> datetime:
+    total = minutes if minutes else (hours or 0) * 60
+    base = now + timedelta(minutes=total)
     if campaign.random_delay:
-        base += timedelta(minutes=random.randint(0, 30))  # human-like jitter
+        base += timedelta(minutes=random.randint(0, min(30, total // 4)))  # human-like jitter, never larger than the wait itself
     return base
 
 
@@ -626,7 +627,7 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
 
     if step.type == "wait":
         move_past(steps, run, step, now)
-        run.next_action_at = _schedule_after(campaign, now, step.delay_hours)
+        run.next_action_at = _schedule_after(campaign, now, step.delay_hours, step_types.wait_minutes(step))
         return
 
     if step.type == "if_connected":
