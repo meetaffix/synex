@@ -321,5 +321,48 @@ class BrowserCheckTest(unittest.TestCase):
                 self.assertEqual(errors(findings(base())), {"BROWSER"})
 
 
+class BrowserCheckInsideTheServerTest(unittest.TestCase):
+    """Railway deploys #10 to #14: the API's own startup runs inside an asyncio loop, where Playwright's sync API refuses to start, so a working
+    browser was reported as broken and the server stopped before /health answered. These fail if the check runs on the loop's thread again."""
+
+    def test_inside_a_running_loop_the_launch_happens_on_a_thread_without_one(self):
+        import asyncio
+        seen = {}
+
+        def launch():
+            try:
+                asyncio.get_running_loop()
+                seen["loop"] = True
+            except RuntimeError:
+                seen["loop"] = False
+            return None
+
+        async def from_the_server():
+            return check_env.browser_finding()
+        with patch.object(check_env, "_launch_browser", launch):
+            self.assertIsNone(asyncio.run(from_the_server()))
+        self.assertIs(seen["loop"], False)
+        with patch.object(check_env, "_launch_browser", launch):
+            check_env.browser_finding()  # outside a loop it runs where it is called
+        self.assertIs(seen["loop"], False)
+
+    def test_the_real_browser_starts_from_inside_a_running_loop(self):
+        import asyncio
+        if check_env.browser_finding() is not None:
+            self.skipTest("Chromium is not installed for this Playwright")
+
+        async def from_the_server():
+            return check_env.browser_finding()
+        self.assertIsNone(asyncio.run(from_the_server()))
+
+    def test_the_api_starts_with_the_browser_check_on(self):
+        from fastapi.testclient import TestClient
+        from app import main
+        browser_on = patch.dict(os.environ, {"SYNEX_CHECK_BROWSER": "1"})
+        with browser_on, patch.object(check_env, "_launch_browser", lambda: None), patch.object(main, "migrate", lambda: None):
+            with TestClient(main.app) as client:  # runs the app's startup (lifespan) inside its event loop
+                self.assertEqual(client.get("/health").json(), {"status": "ok"})
+
+
 if __name__ == "__main__":
     unittest.main()

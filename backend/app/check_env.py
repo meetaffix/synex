@@ -185,7 +185,22 @@ def validate(s: Settings = default_settings, a: AssistantConfig = assistant_conf
 
 def browser_finding() -> Finding | None:
     """Start the Chromium that this Playwright version drives, against about:blank. None when it works. Needed because
-    LinkedIn sign-in and every worker action run a real browser, and the browser build must match the pinned Playwright."""
+    LinkedIn sign-in and every worker action run a real browser, and the browser build must match the pinned Playwright.
+
+    Playwright's sync API refuses to run on a thread that has a running asyncio loop, which is where the API's FastAPI
+    startup calls this. Run there, it reported a working browser as broken and stopped the server (Railway deploys
+    #10 to #14). So inside a running loop the launch moves to its own thread, which has no loop."""
+    import asyncio
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _launch_browser()
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser-check") as pool:
+        return pool.submit(_launch_browser).result(timeout=120)
+
+
+def _launch_browser() -> Finding | None:
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
