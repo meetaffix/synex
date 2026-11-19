@@ -43,7 +43,7 @@ export interface Api {
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
   integ: unknown;
-  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean; admin: boolean; killed: boolean; audit: (Record<string, unknown> & { accountId: string })[]; reviews: { links: { id: string; reviewer: string; state: string; expiresAt: string; lastSeenAt: string | null }[]; thread: { id: string; author: string; decision: string; body: string; postVersion: number; createdAt: string; fromReviewer: boolean }[] } };
+  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean; admin: boolean; killed: boolean; audit: (Record<string, unknown> & { accountId: string })[]; engagements: { id: string; account: string; postUrl: string; reaction: string | null; comment: string | null; status: string; detail: string | null; createdAt: string }[]; reviews: { links: { id: string; reviewer: string; state: string; expiresAt: string; lastSeenAt: string | null }[]; thread: { id: string; author: string; decision: string; body: string; postVersion: number; createdAt: string; fromReviewer: boolean }[] } };
   voice: { ttsReady: boolean; made: Record<string, unknown> | null; readiness: unknown[] };
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
@@ -131,6 +131,7 @@ export const CEILINGS: Record<string, [string, number]> = {
   like_post: ["Post likes", 30],
   send_inmail: ["InMails", 15],
   send_voice_note: ["Voice notes", 20],
+  engage_post: ["Manual reactions and comments", 25],
 };
 
 export const emptyPolicy = () => ({ preset: "off", range: 1, actions: {}, autoWithdraw: false, staleInviteDays: 30, inboxHistoryDays: 90 });
@@ -222,7 +223,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
-    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false, admin: false, killed: false, audit: [], reviews: { links: [], thread: [] } },
+    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false, admin: false, killed: false, audit: [], engagements: [], reviews: { links: [], thread: [] } },
     voice: { ttsReady: false, made: null, readiness: [{ accountId: "a1", name: "Ada Lovelace", ready: false, reasons: ["Its daily voice-note limit is 0. Set a limit on the account's Sender limits tab."], roomToday: 0 }] },
     integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
@@ -371,6 +372,16 @@ export async function mockApi(page: Page, api: Api) {
         if (reviewer[2]) { const b = body as { decision: string; body: string }; const item = { id: `f${r.thread.length + 1}`, author: "Priya", decision: b.decision, body: b.body, postVersion: 1, createdAt: "2026-11-16T10:00:00Z", fromReviewer: true }; r.thread.push(item); return json(201, item); }
         return json(200, { reviewer: "Priya", post: { title: "Launch week", body: "We shipped it.", status: "draft", version: 1, scheduledAt: null }, thread: r.thread, expiresAt: "2026-11-30T00:00:00Z" });
       }
+      if (path === "/engagement" && method === "GET") return json(200, { items: api.assistant.engagements, reactions: ["like", "celebrate", "support", "love", "insightful", "funny"], maxComment: 1250 });
+      if (path === "/engagement" && method === "POST") {
+        const b = body as { accountId: string; postUrl: string; reaction: string | null; comment: string | null };
+        if (!b.postUrl.includes("linkedin.com/feed/update/") && !b.postUrl.includes("linkedin.com/posts/")) return json(422, { detail: "Paste the address of one LinkedIn post (it contains linkedin.com/feed/update/ or linkedin.com/posts/)." });
+        const item = { id: `e${api.assistant.engagements.length + 1}`, account: "Ada Lovelace", postUrl: b.postUrl, reaction: b.reaction, comment: b.comment, status: "queued", detail: null, createdAt: "2026-11-16T10:00:00Z" };
+        api.assistant.engagements.unshift(item);
+        return json(201, item);
+      }
+      const engageOne = path.match(/^\/engagement\/([^/]+)$/);
+      if (engageOne && method === "DELETE") { const it = api.assistant.engagements.find((e) => e.id === engageOne[1]); if (it) { it.status = "cancelled"; it.detail = "Cancelled by you."; } return empty(); }
       if (path === "/outreach/ceilings") return json(200, { daily: Object.entries(CEILINGS).map(([action, [label, ceiling]]) => ({ action, label, ceiling })), dailyTotal: 200, weeklyInvites: 150, newAccountDailyLimit: 0,
         testProfile: Object.fromEntries(Object.keys(CEILINGS).map((a) => [a, ({ visit_profile: 5, send_invite: 5, send_message: 5, check_connection: 5, sync_inbox: 12 } as Record<string, number>)[a] ?? 0])) });
       if (path === "/outreach/status") return api.assistant.admin ? json(200, { killSwitch: api.assistant.killed, forcedBySetting: false, workersActive: 1 }) : json(403, { detail: "Only a platform administrator can use this control." });

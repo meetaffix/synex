@@ -21,6 +21,7 @@ DAILY_TYPE_CEILINGS = {             # per action type, on one account in its day
     "like_post": 30,                # reacting to one post of a lead: opens their activity page, so it is counted like a visit
     "send_inmail": 15,              # an InMail or a free InMail (open profile) to someone not connected
     "send_voice_note": 20,          # a prepared voice note sent in a conversation
+    "engage_post": 25,              # a reaction or a comment made by hand on one post
 }
 WEEKLY_INVITE_CEILING = 150         # connection requests on one account in any seven days
 

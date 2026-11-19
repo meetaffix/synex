@@ -22,7 +22,7 @@ const PAGE = 25;
 const ACTION_NAMES: Record<string, string> = {
   send_invite: "Connection request", send_message: "Message", visit_profile: "Profile view", follow_profile: "Follow", check_connection: "Connection check",
   sync_inbox: "Inbox read", withdraw_invite: "Invitation withdrawn", sync_connections: "Connection list read", collect_leads: "Lead collection",
-  like_post: "Post like", send_inmail: "InMail", send_voice_note: "Voice note",
+  like_post: "Post like", send_inmail: "InMail", send_voice_note: "Voice note", engage_post: "Reaction or comment",
 };
 
 /** Everything that keeps senders safe, in one place: the stop button, the limits nothing can raise, and a record of every action taken. */

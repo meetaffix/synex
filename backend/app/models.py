@@ -553,6 +553,23 @@ class VoiceAudio(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
 
 
+class Engagement(Base):
+    """A reaction or a comment on a LinkedIn post, made by hand from one sender account, then done by the worker within that account's limits."""
+    __tablename__ = "engagements"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String, ForeignKey("linkedin_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_url = Column(String, nullable=False)
+    reaction = Column(String, nullable=True)  # like | celebrate | support | love | insightful | funny
+    comment = Column(Text, nullable=True)
+    status = Column(String, default="queued")  # queued | done | failed | cancelled
+    detail = Column(String, nullable=True)
+    task_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    done_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class AgentTask(Base):
     """A unit of work the browser extension executes against LinkedIn.
 

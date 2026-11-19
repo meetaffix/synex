@@ -29,6 +29,7 @@ import { LocalAssistantCard } from "@/features/assistant/LocalAssistantCard";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { SafetyPage } from "@/features/safety/SafetyPage";
 import { ReviewPage } from "@/features/publishing/ReviewPage";
+import { EngagementPage } from "@/features/publishing/EngagementPage";
 import { PrivacyPage } from "@/features/assistant/PrivacyPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
@@ -93,6 +94,7 @@ export function App() {
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="queue" element={<AutomationPage />} />
               <Route path="activity" element={<ActivityPage />} />
+              <Route path="engagement" element={<EngagementPage />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="connections" element={<AccountsPage />} />
             </Route>

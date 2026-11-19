@@ -24,7 +24,7 @@ test("someone who is not an administrator sees why the kill switch is not theirs
   const table = page.getByRole("table", { name: "Hard daily limit and test profile for each action" });
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("405");
   await expect(table.getByRole("row", { name: /Profile follows/ })).toContainText("50stopped");
-  await expect(table.getByRole("row")).toHaveCount(13);
+  await expect(table.getByRole("row")).toHaveCount(14);
 });
 
 test("an administrator stops and resumes all sending, each after a confirmation", async ({ page }) => {

@@ -237,6 +237,9 @@ class OutreachWorker:
             return await actions.follow_profile(session, task.profile_url)
         if task.type == "withdraw_invite":
             return await actions.withdraw_invite(session, task.profile_url)
+        if task.type == "engage_post":
+            payload = task.payload or {}
+            return await actions.engage_post(session, task.profile_url, payload.get("reaction"), payload.get("comment"))
         if task.type == "like_post":
             return await actions.like_post(session, task.profile_url)
         if task.type == "send_inmail":

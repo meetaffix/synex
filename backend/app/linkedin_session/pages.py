@@ -263,6 +263,11 @@ class ProfileSelectors:
     inmail_no_credits_marker: str = ""
     attach_input: str = ""  # the file input of the conversation composer
     attach_send: str = ""
+    reaction_open: str = ""  # the Like control that opens the reaction picker on a post page
+    reaction_choice: str = ""  # one reaction in the picker; {name} is replaced by its label, for example Celebrate
+    reacted_marker: str = ""
+    comment_box: str = ""
+    comment_submit: str = ""
 
 
 # UNVERIFIED against the live site.
@@ -294,6 +299,11 @@ REAL_PROFILE_SELECTORS = ProfileSelectors(
     inmail_no_credits_marker=":text('out of InMail credits'), :text('no InMail credits')",
     attach_input="input[type='file']",
     attach_send="button.msg-form__send-button",
+    reaction_open="button[aria-label^='React Like']",
+    reaction_choice="button[aria-label='{name}']",
+    reacted_marker="button[aria-pressed='true'][aria-label*='React']",
+    comment_box="div.comments-comment-box__form div[contenteditable='true'], div.ql-editor[contenteditable='true']",
+    comment_submit="button.comments-comment-box__submit-button, button.comments-comment-box__submit-button--cr",
 )
 
 NOTE_LIMIT = 300
@@ -413,6 +423,21 @@ class ProfilePages:
     async def attach_and_send_audio(self, page: Page, path: str) -> None:
         await page.set_input_files(self.sel.attach_input, path)
         await self._click_and_settle(page, self.sel.attach_send)
+
+    async def react(self, page: Page, reaction: str) -> None:
+        """Open the reaction picker and choose one. For Like, the Like control itself is the reaction."""
+        if reaction == "Like":
+            await self._click_and_settle(page, self.sel.reaction_open)
+            return
+        await page.hover(self.sel.reaction_open)
+        await self._click_and_settle(page, self.sel.reaction_choice.replace("{name}", reaction))
+
+    async def has_reacted(self, page: Page) -> bool:
+        return await _visible(page, self.sel.reacted_marker)
+
+    async def comment(self, page: Page, text: str) -> None:
+        await page.fill(self.sel.comment_box, text)
+        await self._click_and_settle(page, self.sel.comment_submit)
 
     async def withdraw_invite(self, page: Page) -> None:
         """Open the pending invitation and confirm the withdrawal. UNVERIFIED on the real site: the Pending button is clicked, then the last

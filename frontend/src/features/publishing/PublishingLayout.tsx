@@ -7,6 +7,7 @@ const sections = [
   { label: "Calendar", to: "/others/publishing/calendar" },
   { label: "Queue", to: "/others/publishing/queue" },
   { label: "Activity", to: "/others/publishing/activity" },
+  { label: "Engagement", to: "/others/publishing/engagement" },
   { label: "Analytics", to: "/others/publishing/analytics" },
   { label: "Connections", to: "/others/publishing/connections" },
 ];

@@ -411,7 +411,19 @@ def _voice(ctx: TaskContext, result: str) -> str | None:
     return None
 
 
-HANDLERS = {"like_post": _like, "send_inmail": _inmail, "send_voice_note": _voice, "withdraw_invite": _withdraw, "send_invite": _invite, "send_message": _message, "visit_profile": _visit,
+def _engage(ctx: TaskContext, result: str) -> str | None:
+    """A reaction or comment made by hand: the engagement row says what happened."""
+    row = ctx.db.query(models.Engagement).filter_by(task_id=ctx.task.id).first()
+    if row is not None:
+        row.status = "done" if result in ("done", "already_reacted") else "failed"
+        row.detail = {"done": None, "already_reacted": "You had already reacted to this post.", "post_unavailable": "The post could not be opened."}.get(result, result)
+        row.done_at = ctx.now
+    if result != "done":
+        engine.refund_daily(ctx.account)
+    return "post_engaged" if result == "done" else None
+
+
+HANDLERS = {"engage_post": _engage, "like_post": _like, "send_inmail": _inmail, "send_voice_note": _voice, "withdraw_invite": _withdraw, "send_invite": _invite, "send_message": _message, "visit_profile": _visit,
             "follow_profile": _follow, "check_connection": _check,
             "collect_leads": lambda ctx, result: None, "sync_connections": lambda ctx, result: None}
 

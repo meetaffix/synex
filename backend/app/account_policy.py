@@ -21,7 +21,7 @@ LABELS = {
     "check_connection": "Connection checks", "sync_inbox": "Inbox reads",
     "sync_connections": "Connection list reads",
     "collect_leads": "Lead collection pages", "withdraw_invite": "Invitation withdrawals",
-    "like_post": "Post likes", "send_inmail": "InMails", "send_voice_note": "Voice notes",
+    "like_post": "Post likes", "send_inmail": "InMails", "send_voice_note": "Voice notes", "engage_post": "Manual reactions and comments",
 }
 
 

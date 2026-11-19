@@ -37,8 +37,8 @@ test("a new account is offered recommended limits; applying them saves a policy 
   await expect(page.getByText("Limits saved.")).toBeVisible();
   const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { preset: string; actions: Record<string, { dailyLimit: number; stopAt: number }> };
   expect(saved.preset).toBe("conservative");
-  expect(Object.keys(saved.actions)).toHaveLength(12);
-  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20, withdraw_invite: 20, like_post: 30, send_inmail: 15, send_voice_note: 20 };
+  expect(Object.keys(saved.actions)).toHaveLength(13);
+  const ceilings: Record<string, number> = { send_invite: 40, send_message: 100, visit_profile: 80, follow_profile: 50, check_connection: 80, sync_inbox: 48, sync_connections: 12, collect_leads: 20, withdraw_invite: 20, like_post: 30, send_inmail: 15, send_voice_note: 20, engage_post: 25 };
   for (const [action, policy] of Object.entries(saved.actions)) {
     expect(policy.stopAt).toBeLessThanOrEqual(ceilings[action]);
     expect(policy.dailyLimit).toBeLessThanOrEqual(policy.stopAt);
@@ -50,7 +50,7 @@ test("the limits table shows what was used, today's limit with its range, and th
   await open(page);
   const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
   await expect(table.getByRole("columnheader")).toHaveText(["Action", "Used", "Today's limit", "Range", "Hard maximum"]);
-  await expect(table.getByRole("row")).toHaveCount(13);
+  await expect(table.getByRole("row")).toHaveCount(14);
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
   await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
 });

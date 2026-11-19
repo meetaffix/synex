@@ -346,4 +346,6 @@ export const states: State[] = [
     await expect(page.getByRole("heading", { name: "Not connected", level: 4 })).toBeVisible();
   } },
   { name: "settings-providers", path: "/settings", api: () => newApi({ accounts: accounts() }) },
+  { name: "engagement", path: "/others/publishing/engagement", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.engagements = [{ id: "e1", account: "Ada Lovelace", postUrl: "https://www.linkedin.com/feed/update/urn:li:activity:1/", reaction: "like", comment: "Great point", status: "done", detail: null, createdAt: "2026-11-16T10:00:00Z" }]; return api; } },
+  { name: "review-page", path: "/review/TOKEN123", api: () => newApi({ signedOut: true }) },
 ];

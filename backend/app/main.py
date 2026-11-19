@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .errors import sanitize_errors
 from .migrations import migrate
-from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts, dashboard, lead_collections, do_not_contact, company_lists, inbox, integrations, public_api, voice_notes, post_reviews
+from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts, dashboard, lead_collections, do_not_contact, company_lists, inbox, integrations, public_api, voice_notes, post_reviews, engagement
 from .linkedin_session import shutdown_manager
 from . import linkedin, publishing, images
 
@@ -72,7 +72,7 @@ async def safeguards(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store"
     return response
 
-for router in (post_reviews.router, voice_notes.router, auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router, dashboard.router, lead_collections.router, do_not_contact.router, company_lists.router, inbox.router, integrations.router, public_api.router):
+for router in (engagement.router, post_reviews.router, voice_notes.router, auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router, dashboard.router, lead_collections.router, do_not_contact.router, company_lists.router, inbox.router, integrations.router, public_api.router):
     app.include_router(router)
 
 @app.get("/health")

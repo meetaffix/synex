@@ -71,6 +71,12 @@ class VoiceResult(str, Enum):
     PROFILE_UNAVAILABLE = "profile_unavailable"
 
 
+class EngageResult(str, Enum):
+    DONE = "done"
+    ALREADY_REACTED = "already_reacted"
+    POST_UNAVAILABLE = "post_unavailable"
+
+
 class FollowResult(str, Enum):
     FOLLOWED = "followed"
     ALREADY_FOLLOWING = "already_following"
@@ -238,6 +244,23 @@ async def send_voice_note(session: ActionSession, profile_url: str, audio_path: 
     await session.pages.attach_and_send_audio(session.page, audio_path)
     await _guard(session)
     return VoiceResult.SENT
+
+
+async def engage_post(session: ActionSession, post_url: str, reaction: str | None, comment: str | None) -> EngageResult:
+    """React to a post and, or, comment on it, as the person asked by hand. UNVERIFIED on the real site (selectors are guesses)."""
+    if not await _open(session, post_url):
+        return EngageResult.POST_UNAVAILABLE
+    already = await session.pages.has_reacted(session.page)
+    if reaction and already and not comment:
+        return EngageResult.ALREADY_REACTED
+    await session.before_commit()
+    if reaction and not already:
+        await session.pages.react(session.page, reaction)
+        await _guard(session)
+    if comment:
+        await session.pages.comment(session.page, comment)
+        await _guard(session)
+    return EngageResult.DONE
 
 
 async def follow_profile(session: ActionSession, profile_url: str) -> FollowResult:

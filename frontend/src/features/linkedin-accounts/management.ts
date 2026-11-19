@@ -141,6 +141,7 @@ const RECOMMENDED: Record<string, { daily: number; stop: number }> = {
   like_post: { daily: 5, stop: 30 },
   send_inmail: { daily: 2, stop: 15 },
   send_voice_note: { daily: 2, stop: 20 },
+  engage_post: { daily: 3, stop: 25 },
 };
 
 export function recommendedActions(usage: UsageRow[]): Record<string, ActionPolicy> {

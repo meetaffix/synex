@@ -38,7 +38,9 @@ MOCK_PROFILE_SELECTORS = ProfileSelectors(
     composer_send="button#composer-send", conversation_item="li.conv", conversation_profile_link="a.conv-link",
     thread_message=".msg", like_button="button#like", liked_marker="#liked", no_posts_marker="#no-posts",
     inmail_button="#inmail", inmail_subject="input#subject", inmail_body="textarea#inmail-body", inmail_send="button#inmail-send",
-    inmail_free_marker="#inmail-free", inmail_no_credits_marker="#no-credits", attach_input="input#attach", attach_send="button#attach-send")
+    inmail_free_marker="#inmail-free", inmail_no_credits_marker="#no-credits", attach_input="input#attach", attach_send="button#attach-send",
+    reaction_open="button[aria-label^='React Like']", reaction_choice="button[aria-label='{name}']", reacted_marker="button[aria-pressed='true']",
+    comment_box="textarea#comment", comment_submit="button#comment-post")
 
 _REAL_FIELDS = """<div data-copy="{n}"><label for="{n}a"><div>Email or phone</div></label><div><input type="email" id="{n}a" autocomplete="username" value=""/></div>
 <label for="{n}b"><div>Password</div></label><div><input type="password" id="{n}b" autocomplete="current-password" value=""/><button type="button" aria-label="Show password"><span>eye</span></button></div>
@@ -82,6 +84,7 @@ class MockLinkedIn:
         self.inmails: list[tuple[str, str, str]] = []
         self.voice_notes: list[tuple[str, str, int]] = []
         self.inmail_credits = 5
+        self.posts: dict[str, dict] = {}
         self.sent_messages: list[tuple[str, str]] = []
         self._event = 0
         self._lock = threading.Lock()
@@ -110,12 +113,19 @@ class MockLinkedIn:
         self.inmails.clear()
         self.voice_notes.clear()
         self.inmail_credits = 5
+        self.posts.clear()
         self.sent_messages.clear()
 
     # ---- simulation helpers ------------------------------------------------------------
 
     def profile_url(self, user: str) -> str:
         return f"{self.base_url}/in/{user}/"
+
+    def post(self, post_id: str) -> dict:
+        return self.posts.setdefault(post_id, {"reaction": None, "comments": [], "available": post_id != "0"})
+
+    def post_url(self, post_id: str) -> str:
+        return f"{self.base_url}/feed/update/urn:li:activity:{post_id}/"
 
     def profile(self, user: str) -> dict:
         return self.profiles.setdefault(user, {"state": "not_connected", "following": False, "available": user != "gone", "posts": 1, "liked": False, "inmail": "none"})
@@ -262,6 +272,19 @@ class MockLinkedIn:
                     if profile["liked"]:
                         return self._send(body='<button id="liked" aria-pressed="true" aria-label="Like">Liked</button>')
                     return self._send(body=f'<form method="post" action="/in/{parts[1]}/like/"><button id="like" aria-label="React Like">Like</button></form>')
+                if parts[:2] == ["feed", "update"] and len(parts) == 3 and parts[2].startswith("urn:li:activity:"):
+                    post_id = parts[2].rsplit(":", 1)[1]
+                    state = mock.post(post_id)
+                    if not state["available"]:
+                        return self._send(404, '<div id="unavailable">This post is not available</div>')
+                    action = f"/feed/update/{parts[2]}/"
+                    reactions = "".join(
+                        f'<form method="post" action="{action}react/"><input type="hidden" name="reaction" value="{name}">'
+                        f'<button aria-label="{"React Like" if name == "Like" else name}"{" aria-pressed=\"true\"" if state["reaction"] == name else ""}>{name}</button></form>'
+                        for name in ("Like", "Celebrate", "Support", "Love", "Insightful", "Funny"))
+                    comments = "".join(f'<p class="comment">{escape(c)}</p>' for c in state["comments"])
+                    return self._send(body=f'<article>A post</article>{reactions}{comments}<form method="post" action="{action}comment/">'
+                                           '<textarea id="comment" name="text"></textarea><button id="comment-post">Post</button></form>')
                 if parts[:2] == ["messaging", "inmail"] and len(parts) == 3:
                     profile = mock.profile(parts[2])
                     free = '<div id="inmail-free">Free message</div>' if profile["inmail"] == "free" else ""
@@ -327,6 +350,15 @@ class MockLinkedIn:
                     mock.withdrawals.append(parts[1])
                     mock.profile(parts[1])["state"] = "not_connected"
                     return self._redirect(f"/in/{parts[1]}/")
+                if parts[:2] == ["feed", "update"] and len(parts) == 4 and parts[3] in ("react", "comment"):
+                    if self._consume_fault():
+                        return
+                    state = mock.post(parts[2].rsplit(":", 1)[1])
+                    if parts[3] == "react":
+                        state["reaction"] = field("reaction")
+                    else:
+                        state["comments"].append(field("text"))
+                    return self._redirect(f"/feed/update/{parts[2]}/")
                 if parts[:1] == ["in"] and len(parts) == 3 and parts[2] == "like":
                     if self._consume_fault():
                         return
