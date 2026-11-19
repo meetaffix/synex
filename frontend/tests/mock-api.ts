@@ -48,6 +48,8 @@ export interface Api {
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
   builder: Record<string, unknown> | null;
+  /** The builder campaign starts with no sender and no list (the first-run state). Otherwise it has sender a1 and list L1, so every step opens. */
+  builderEmpty: boolean;
   launchProblems: { kind: string; field: string; message: string; step: string }[];
   draftCount: number;
   draftsMade: boolean;
@@ -229,6 +231,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     inbox: [],
     scheduledList: [],
     builder: null,
+    builderEmpty: false,
     launchProblems: [],
     draftCount: 2,
     draftsMade: false,
@@ -287,7 +290,7 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/campaigns" && (method === "POST" || url.searchParams.has("id"))) {
         const make = () => ({
-          id: "cb1", name: "Untitled campaign", status: "draft", accountId: null, accountIds: [], leadListId: null, leadListName: "", dailyConnectionLimit: 20, dailyMessageLimit: 40,
+          id: "cb1", name: "Untitled campaign", status: "draft", accountId: api.builderEmpty ? null : "a1", accountIds: [], leadListId: api.builderEmpty ? null : "L1", leadListName: api.builderEmpty ? "" : "Prospects", dailyConnectionLimit: 20, dailyMessageLimit: 40,
           schedule: { timezone: "UTC" }, weekSchedule: null, exclusions: { other_campaigns: false, reached_other_campaigns: false, reached_same_sender: false, messaged_other_senders: false, existing_connections: false },
           allocation: {}, aiContext: {}, launchSummary: null,
           steps: [
@@ -496,7 +499,7 @@ export async function mockApi(page: Page, api: Api) {
         return json(200, { campaigns: [], events: [{ type: "imported", detail: "From a CSV", createdAt: "2026-11-15T10:00:00Z", campaign: null }], doNotContact: api.syncStatus === "blocked" ? "person" : null });
       }
       if (path === "/leads" && method === "POST") return json(200, { id: "new1", tags: [], listIds: [], status: "new", createdAt: "2026-11-16T10:00:00Z", updatedAt: "2026-11-16T10:00:00Z", ...(body ?? {}) });
-      if (path === "/lead-lists" && method === "GET") return json(200, api.lists);
+      if (path === "/lead-lists" && method === "GET") return json(200, api.lists.length || api.builderEmpty ? api.lists : [{ id: "L1", name: "Prospects", leadCount: 2, description: null, color: "primary", createdAt: "2026-11-01T00:00:00Z" }]);
       if (path === "/lead-lists" && method === "POST" && (body as { action?: string })?.action === "delete") { api.lists = api.lists.filter((l) => l.id !== (body as { id: string }).id); return json(200, { ok: true }); }
       const listExport = path.match(/^\/lead-lists\/([^/]+)\/export$/);
       if (listExport && method === "GET") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/csv" }, body: "first_name,last_name\nAda,L\n" });

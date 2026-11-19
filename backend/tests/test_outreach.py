@@ -1018,23 +1018,27 @@ class LeadTimezoneTest(OutreachCase):
 
 class BranchColumnTest(OutreachCase):
     def test_branch_columns_are_persisted_returned_and_kept_on_update(self):
+        # A branch hangs under an If step that is in the sequence; a new step is named by a temporary id the server replaces.
         steps = [{"type": "connection_request", "order": 0, "message": "Hi"},
-                 {"type": "message", "order": 1, "message": "Hello", "parentStepId": "parent-1", "branchCondition": {"when": "accepted", "within_days": 3}},
-                 {"type": "end", "order": 2}]
+                 {"id": "new-1", "type": "if_connected", "order": 1},
+                 {"type": "message", "order": 2, "message": "Hello", "parentStepId": "new-1", "branchCondition": {"branch": "yes"}}]
         created = self.client.post("/campaigns", json={"action": "create", "name": "Branches", "steps": steps})
         self.assertEqual(created.status_code, 200, created.text)
         returned = {s["order"]: s for s in created.json()["steps"]}
-        self.assertEqual((returned[1]["parentStepId"], returned[1]["branchCondition"]), ("parent-1", {"when": "accepted", "within_days": 3}))
+        parent = returned[1]["id"]
+        self.assertNotEqual(parent, "new-1")
+        self.assertEqual((returned[2]["parentStepId"], returned[2]["branchCondition"]), (parent, {"branch": "yes"}))
         self.assertEqual((returned[0]["parentStepId"], returned[0]["branchCondition"]), (None, None))
         with SessionLocal() as db:
             row = db.query(models.CampaignStep).filter_by(message="Hello").one()
-            self.assertEqual((row.parent_step_id, row.branch_condition), ("parent-1", {"when": "accepted", "within_days": 3}))
+            self.assertEqual((row.parent_step_id, row.branch_condition), (parent, {"branch": "yes"}))
         listed = self.client.get("/campaigns").json()[0]["steps"]
-        self.assertEqual(sorted(s["parentStepId"] or "" for s in listed), ["", "", "parent-1"])
+        self.assertEqual(sorted(s["parentStepId"] or "" for s in listed), sorted(["", "", parent]))
 
         again = self.client.post("/campaigns", json={"action": "update", "id": created.json()["id"], "steps": [
             {**s, "id": s["id"], "delay_hours": None} for s in created.json()["steps"]]})
-        self.assertEqual({s["order"]: s["parentStepId"] for s in again.json()["steps"]}[1], "parent-1")
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertEqual({s["order"]: s["parentStepId"] for s in again.json()["steps"]}[2], parent)
 
     def test_branch_columns_do_not_change_how_a_run_executes(self):
         campaign_id = self.make_campaign(["ann"], [{"type": "connection_request", "message": "Hi"}, {"type": "end"}])

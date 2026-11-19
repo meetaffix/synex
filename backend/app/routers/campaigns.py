@@ -268,7 +268,7 @@ def _create(payload: CampaignIn, db: Session, user: models.User):
         pause_on_failure=payload.pause_on_failure if payload.pause_on_failure is not None else False,
         audience_source=payload.audience_source,
         week_schedule=payload.week_schedule, exclusions=payload.exclusions, allocation=payload.allocation,
-        ai_context=payload.ai_context, sequence_mode=payload.sequence_mode or "classic", graph=payload.graph,
+        webhook=payload.webhook, ai_context=payload.ai_context, sequence_mode=payload.sequence_mode or "classic", graph=payload.graph,
     )
     db.add(campaign)
     db.flush()
@@ -288,7 +288,7 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
         "timezone", "start_hour", "end_hour", "working_days",
         "random_delay", "stop_when_replied", "stop_when_accepted",
         "ai_personalization", "pause_on_failure", "audience_source",
-        "week_schedule", "exclusions", "allocation", "ai_context", "sequence_mode", "graph",
+        "week_schedule", "exclusions", "allocation", "ai_context", "webhook", "sequence_mode", "graph",
     ):
         if key in data and data[key] is not None:
             setattr(campaign, key, data[key])
@@ -304,10 +304,10 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
             campaign.launched_at = datetime.now(timezone.utc)
         engine.launch_campaign(db, campaign)
         if first_launch:
-            integrations_core.emit(db, campaign.user_id, "campaign_launched", {"name": campaign.name, "campaign": campaign.name})
+            integrations_core.emit(db, campaign.user_id, "campaign_launched", {"name": campaign.name, "campaign": campaign.name}, campaign_id=campaign.id)
 
     if data.get("status") == "paused" and not was_paused:
-        integrations_core.emit(db, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": "Paused by you."})
+        integrations_core.emit(db, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": "Paused by you."}, campaign_id=campaign.id)
     db.commit()
     db.refresh(campaign)
     return campaign_out(campaign)

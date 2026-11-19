@@ -223,3 +223,25 @@ test("a follow-up wait can be set in minutes with a floor of 15, and follow-ups 
   await page.getByRole("button", { name: "Move this follow-up later" }).first().click();
   await expect(texts.nth(0)).toHaveValue("First follow-up");
 });
+
+test("the sequence has a webhook setting: with no webhook it points to Integrations, with one it saves the chosen events on the campaign", async ({ page }) => {
+  const api = await open(page);
+  await page.goto("/campaigns/cb1/edit?step=2");
+  await page.getByRole("button", { name: /Sequence settings: configure webhook/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Configure webhook" });
+  await expect(dialog.getByText("You have no enabled webhook yet.")).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Add one in Integrations" })).toHaveAttribute("href", /settings\/integrations/);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
+
+  (api as unknown as { integ: { hooks: unknown[] } }).integ.hooks.push({ id: "h1", kind: "webhook", url: "https://hooks.example.com/in", events: [], enabled: true });
+  await page.getByRole("button", { name: /Sequence settings: configure webhook/ }).click();
+  const again = page.getByRole("dialog", { name: "Configure webhook" });
+  await again.getByLabel("Webhook").selectOption("h1");
+  await again.getByLabel("A lead replied").check();
+  await again.getByLabel("This campaign was paused").check();
+  await again.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("button", { name: /Sequence settings: configure webhook/ })).toContainText("Webhook on");
+  await expect.poll(() => (lastUpdate(api)?.webhook as { webhookId: string; events: string[] })?.events?.sort()).toEqual(["campaign_paused", "reply_received"]);
+  expect((lastUpdate(api).webhook as { webhookId: string }).webhookId).toBe("h1");
+});

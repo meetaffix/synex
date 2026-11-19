@@ -11,7 +11,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         /** The one primary action on a view: a filled teal pill. */
-        default: "rounded-full bg-primary font-semibold text-primary-foreground hover:bg-primary-hover",
+        default: "rounded-full bg-gradient-to-b from-primary to-primary-hover font-semibold text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_10px_20px_-10px_rgb(var(--primary)/0.7)] hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:brightness-95",
         /** Quieter actions. "outline" is the same look, kept for existing callers. */
         secondary: "border border-border-strong bg-surface text-foreground hover:bg-surface-muted",
         outline: "border border-border-strong bg-surface text-foreground hover:bg-surface-muted",

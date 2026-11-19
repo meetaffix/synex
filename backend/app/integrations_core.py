@@ -233,13 +233,24 @@ def deliver(hook_id: str, event: str, data: dict) -> None:
             return
 
 
-def emit(db: Session, user_id: str, event: str, data: dict) -> int:
+def emit(db: Session, user_id: str, event: str, data: dict, campaign_id: str | None = None) -> int:
     """Queue an event for every enabled webhook of the workspace that listens to it, and note it for notification emails. Never raises into the caller."""
     started = 0
     try:
+        sent: set[str] = set()
         for hook in db.query(models.Webhook).filter_by(user_id=user_id, enabled=True).all():
             if event in (hook.events or []):
                 threading.Thread(target=deliver, args=(hook.id, event, data), daemon=True, name="webhook").start()
+                sent.add(hook.id)
+                started += 1
+        # A campaign can also send its own events to one chosen workspace webhook, whatever that webhook's own event list says.
+        campaign = db.get(models.Campaign, campaign_id) if campaign_id else None
+        chosen = (campaign.webhook or {}) if campaign is not None and campaign.user_id == user_id else {}
+        hook_id = chosen.get("webhookId")
+        if hook_id and hook_id not in sent and event in (chosen.get("events") or []):
+            hook = db.get(models.Webhook, hook_id)
+            if hook is not None and hook.user_id == user_id and hook.enabled:
+                threading.Thread(target=deliver, args=(hook.id, event, {**data, "campaignId": campaign_id}), daemon=True, name="webhook").start()
                 started += 1
         notify(db, user_id, event, data)
     except Exception:  # noqa: BLE001

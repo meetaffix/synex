@@ -199,7 +199,7 @@ export const states: State[] = [
   { name: "connect-succeeded", path: "/linkedin-accounts", api: () => newApi({ script: [attempt("succeeded", { accountId: "a1" })] }), prepare: connectAt("Account connected") },
   {
     name: "edit-account",
-    path: "/linkedin-accounts",
+    path: "/linkedin-accounts?view=cards",
     api: () => newApi({ accounts: [account("a1", "Ada Lovelace", { proxyConfigured: true })] }),
     prepare: async (page) => {
       await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -208,7 +208,7 @@ export const states: State[] = [
   },
   {
     name: "edit-account-read-only-sync",
-    path: "/linkedin-accounts",
+    path: "/linkedin-accounts?view=cards",
     api: () => newApi({ accounts: [account("a1", "Ada Lovelace", { canChangeSyncMode: false, syncMode: "all" })] }),
     prepare: async (page) => {
       await page.getByRole("button", { name: "Edit", exact: true }).click();

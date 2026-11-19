@@ -46,6 +46,9 @@ class Profile:
     headline: str | None
     url: str
     avatar_url: str | None
+    # Read from the top card; unverified on real LinkedIn (selectors are best guesses until a read test is approved).
+    location: str | None = None
+    company: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,8 @@ class Selectors:
     profile_name: str
     profile_headline: str
     profile_avatar: str
+    profile_location: str = ".text-body-small.inline.t-black--light.break-words"
+    profile_company: str = "button[aria-label^='Current company' i] span, .pv-text-details__right-panel li button span"
 
 
 # Checked on 15 Nov 2026 against LinkedIn's public sign-in page (no login): fields have generated ids, so they are
@@ -173,7 +178,9 @@ class Site:
         avatar = await _optional_attribute(page, self.sel.profile_avatar, "src")
         parts = urlsplit(page.url)
         return Profile(name=name, headline=await _optional_text(page, self.sel.profile_headline),
-                       url=f"{parts.scheme}://{parts.netloc}{parts.path}", avatar_url=avatar)
+                       url=f"{parts.scheme}://{parts.netloc}{parts.path}", avatar_url=avatar,
+                       location=await _optional_text(page, self.sel.profile_location),
+                       company=await _optional_text(page, self.sel.profile_company))
 
     def is_proxy_error(self, exc: BaseException) -> bool:
         return isinstance(exc, PlaywrightError) and any(marker in str(exc) for marker in PROXY_ERROR_MARKERS)

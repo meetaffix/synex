@@ -45,7 +45,7 @@ ORIGIN = {"Origin": "http://localhost:5173"}
 MOCK = shared_mock()
 PROXY = shared_proxy()
 PASSWORD, CODE = MOCK.password, MOCK.code
-ACCOUNT_KEYS = {"id", "name", "headline", "profileUrl", "avatarUrl", "status", "dailyActionLimit",
+ACCOUNT_KEYS = {"id", "name", "headline", "location", "company", "profileUrl", "avatarUrl", "status", "dailyActionLimit",
                 "dailyActionsUsed", "ceilings", "proxyConfigured", "syncMode", "canChangeSyncMode", "pausedReason", "lastCheckedAt", "connectedAt"}
 
 

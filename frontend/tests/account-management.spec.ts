@@ -272,3 +272,18 @@ test("keyboard only: tabs by arrow keys, a limit changed and saved, and the dele
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+test("the account header shows the name, headline, company and location read from the profile, and leaves them out when LinkedIn gave none", async ({ page }) => {
+  await open(page, { company: "Analytical Engines", location: "London, United Kingdom" });
+  await expect(page.getByRole("heading", { name: "Ada Lovelace", level: 1 })).toBeVisible();
+  await expect(page.getByText("Engineer at Analytical Engines").first()).toBeVisible();
+  await expect(page.getByTestId("account-place")).toHaveText("Analytical Engines · London, United Kingdom");
+  await page.goto("/linkedin-accounts");
+  await page.getByRole("link", { name: /Manage Ada Lovelace/ }).first().click();
+});
+
+test("with no company or location the header shows no empty place line", async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole("heading", { name: "Ada Lovelace", level: 1 })).toBeVisible();
+  await expect(page.getByTestId("account-place")).toHaveCount(0);
+});

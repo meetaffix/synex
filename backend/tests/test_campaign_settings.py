@@ -179,3 +179,49 @@ class ExclusionTest(SettingsCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CampaignWebhookTest(SettingsCase):
+    """A campaign can send its own events to one chosen workspace webhook, even when that webhook's own list does not include them."""
+
+    def make_hook(self, events=None, enabled=True):
+        with SessionLocal() as db:
+            hook = models.Webhook(user_id=self.owner_id, url="https://example.com/hook", events=events or [], secret="s", enabled=enabled)
+            db.add(hook)
+            db.commit()
+            return hook.id
+
+    def test_the_choice_is_saved_returned_and_bad_events_are_refused(self):
+        hook = self.make_hook()
+        r = self.create(webhook={"webhookId": hook, "events": ["reply_received", "campaign_paused", "reply_received"]})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["webhook"], {"webhookId": hook, "events": ["campaign_paused", "reply_received"]})
+        self.assertEqual(self.create().json()["webhook"], {"webhookId": None, "events": []})
+        bad = self.create(webhook={"webhookId": hook, "events": ["account_connected"]})
+        self.assertEqual(bad.status_code, 422, bad.text)
+
+    def test_a_chosen_event_reaches_the_chosen_webhook_once_and_others_do_not(self):
+        from unittest.mock import patch
+        from app import integrations_core as core
+        hook = self.make_hook(events=[])
+        cid = self.create(webhook={"webhookId": hook, "events": ["reply_received"]}).json()["id"]
+        sent = []
+        with patch.object(core, "deliver", lambda hook_id, event, data: sent.append((hook_id, event, data.get("campaignId")))), SessionLocal() as db:
+            core.emit(db, self.owner_id, "reply_received", {"name": "Ada"}, campaign_id=cid)
+            core.emit(db, self.owner_id, "campaign_paused", {"name": "C"}, campaign_id=cid)
+            core.emit(db, self.owner_id, "reply_received", {"name": "Ada"})  # no campaign: nothing
+        import time
+        time.sleep(0.3)
+        self.assertEqual(sent, [(hook, "reply_received", cid)])
+
+    def test_a_disabled_or_foreign_webhook_gets_nothing(self):
+        from unittest.mock import patch
+        from app import integrations_core as core
+        hook = self.make_hook(enabled=False)
+        cid = self.create(webhook={"webhookId": hook, "events": ["reply_received"]}).json()["id"]
+        sent = []
+        with patch.object(core, "deliver", lambda *a: sent.append(a)), SessionLocal() as db:
+            core.emit(db, self.owner_id, "reply_received", {"name": "Ada"}, campaign_id=cid)
+        import time
+        time.sleep(0.3)
+        self.assertEqual(sent, [])

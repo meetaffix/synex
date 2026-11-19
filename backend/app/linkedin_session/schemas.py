@@ -135,6 +135,8 @@ class AccountOut(CamelModel):
     id: str
     name: str
     headline: str | None
+    location: str | None = None
+    company: str | None = None
     profile_url: str | None
     avatar_url: str | None
     status: AccountStatus
@@ -153,7 +155,8 @@ class AccountOut(CamelModel):
         # The engine rolls the daily counters over at midnight in the account's own timezone; so does this.
         today = _local(now or datetime.now(timezone.utc), account_tz(account)).date().isoformat()
         return cls(
-            id=account.id, name=account.name, headline=account.headline, profile_url=account.linkedin_url,
+            id=account.id, name=account.name, headline=account.headline, location=account.location, company=account.company,
+            profile_url=account.linkedin_url,
             avatar_url=account.avatar_url,
             status="paused" if account.status in ("paused", "deactivated", "archived") else (account.session_status or "disconnected"),
             daily_action_limit=configured_daily_limit(account),

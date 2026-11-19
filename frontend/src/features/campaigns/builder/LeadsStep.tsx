@@ -8,7 +8,7 @@ import { AddLeadsDialog } from "@/features/leads/components/AddLeadsDialog";
 import { leadListsService } from "@/services/resources";
 import type { BuilderState } from "./model";
 
-/** Step 2. Moving on with no leads is allowed; the launch checklist says so. */
+/** Step 2. The list the campaign contacts; Next stays off until one with leads is chosen. Leads added here are chosen for the campaign at once. */
 export function LeadsStep({ state, set }: { state: BuilderState; set: (change: Partial<BuilderState>) => void }) {
   const lists = useQuery({ queryKey: ["lead-lists"], queryFn: leadListsService.list });
   const [adding, setAdding] = useState(false);
@@ -34,11 +34,11 @@ export function LeadsStep({ state, set }: { state: BuilderState; set: (change: P
       {!chosen && (
         <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">Add leads to begin</p>
-          <p>Import from a CSV, a LinkedIn search, or your saved lists. You can carry on without them, but the campaign cannot launch until it has at least one lead.</p>
+          <p>Add leads, or choose a saved list. The next step opens once the campaign has leads.</p>
         </div>
       )}
       {chosen && <p role="status" className="rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">{chosen.name}: {chosen.leadCount} {chosen.leadCount === 1 ? "lead" : "leads"}.</p>}
-      <AddLeadsDialog open={adding} onOpenChange={(open) => { setAdding(open); if (!open) void lists.refetch(); }} />
+      <AddLeadsDialog open={adding} onOpenChange={(open) => { setAdding(open); if (!open) void lists.refetch(); }} onCompleted={(listId) => { set({ leadListId: listId }); void lists.refetch(); }} />
     </section>
   );
 }

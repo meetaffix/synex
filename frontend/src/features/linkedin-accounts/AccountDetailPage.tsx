@@ -94,11 +94,16 @@ export function AccountDetailPage() {
       <div aria-hidden className="h-20 rounded-lg bg-gradient-to-r from-primary to-primary-soft" />
       <div className="-mt-10 flex items-center gap-3 px-4">
         <UserAvatar name={account.name} src={account.avatarUrl} className="size-16 ring-4 ring-background" />
-        <p className="min-w-0 text-sm text-muted-foreground">
+        <div className="min-w-0 text-sm text-muted-foreground">
+          {(account.company || account.location) && (
+            <p data-testid="account-place" className="mb-1 text-foreground">{[account.company, account.location].filter(Boolean).join(" · ")}</p>
+          )}
+          <p>
           {account.profileUrl && <a className="underline-offset-2 hover:underline" href={account.profileUrl} target="_blank" rel="noreferrer noopener">View LinkedIn profile</a>}
           {account.profileUrl && " · "}
           {account.connectedAt ? `Connected since ${formatDate(account.connectedAt, "PP")}` : "Not connected yet"}
-        </p>
+          </p>
+        </div>
       </div>
       <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
         <div><dt className="text-muted-foreground">Active campaigns</dt><dd className="font-medium">{data.activeCampaigns}</dd></div>

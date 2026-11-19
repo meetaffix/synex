@@ -95,7 +95,7 @@ export function SenderAccountsPage() {
   });
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title="Sender accounts"
         description="The LinkedIn profiles Synex sends connection requests and messages from."
@@ -148,7 +148,7 @@ export function SenderAccountsPage() {
       )}
       {!!accounts.data?.length && shown.length === 0 && <p role="status" className="text-sm text-muted-foreground">No accounts match.</p>}
       {!!shown.length && view === "table" && (
-        <div className="hidden md:block"><AccountsTable accounts={shown} summaries={overview.data?.accounts} actionsFor={rowActions} checkingId={actions.check.isPending ? (actions.check.variables as string) : undefined} errors={rowErrors} /></div>
+        <div className="hidden min-w-0 max-w-full md:block"><AccountsTable accounts={shown} summaries={overview.data?.accounts} actionsFor={rowActions} checkingId={actions.check.isPending ? (actions.check.variables as string) : undefined} errors={rowErrors} /></div>
       )}
       {!!shown.length && (
         <ul aria-label="Connected accounts" className={`${view === "table" ? "md:hidden " : ""}grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]`}>

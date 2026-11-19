@@ -72,6 +72,7 @@ def save_session(*, workspace_id: str, target_account_id: str | None, identifier
             db.add(account)
         now = datetime.now(timezone.utc)
         account.name, account.headline, account.linkedin_url = profile.name, profile.headline, url
+        account.location, account.company = profile.location, profile.company
         account.avatar_url, account.login_identifier = profile.avatar_url, identifier.lower()
         if "@" in identifier:
             account.email = identifier.lower()

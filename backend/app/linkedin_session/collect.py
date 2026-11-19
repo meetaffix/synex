@@ -182,7 +182,7 @@ async def collect_connections(page: Page, filters: dict, limit: int, progress: P
     await _wait_for_people(page)
     found: dict[str, dict] = {}
     word = lambda key: (filters.get(key) or "").strip().lower()  # noqa: E731
-    for _ in range(25):
+    for _ in range(max(25, limit // 8)):  # every connection: keep scrolling until the list stops growing (LinkedIn allows 30,000)
         if await should_stop() or len(found) >= limit:
             break
         fresh = []

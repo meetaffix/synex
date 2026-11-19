@@ -285,7 +285,7 @@ Written 2026-11-16. Counts per area are at the end of this file.
 
 ### 5.L Quality for area 5
 - [x] 5.L01 Backend tests for engine, graph branches, exclusions (test_graph; test_campaign_settings; test_launch_check)
-- [ ] 5.L02 Flaky draft-generation test fixed and run 20 times in a row
+- [x] 5.L02 Flaky draft-generation test fixed (per-thread connection count; ConnectionCountingTest shows the old count was wrong) and run 20 times in a row the CI way, 20 of 20 passed (tools/flaky-loop.sh, 2026-11-19)
 - [~] 5.L03 Axe, 360/768/1280, both themes for every screen (axe and 360 px for every builder state and the list (pass); 768 and screenshots not yet viewed for area 5)
 - [x] 5.L04 Keyboard path through the builder (campaign-smart.spec 'keyboard'; campaign-builder.spec)
 

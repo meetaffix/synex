@@ -38,7 +38,7 @@ SOURCES: dict[str, dict] = {
               "note": "Coming soon: LinkedIn only shows a group's member list to its members, and the page has not been captured yet."},
 }
 COMPANY_SOURCES = {k for k, v in SOURCES.items() if v.get("produces") == "companies"}
-MAX_LEADS = {"post": 200, "search": 100, "connections": 500, "urls": 1000, "csv": 5000, "lists": 5000, "inbox": 5000,
+MAX_LEADS = {"post": 200, "search": 100, "connections": 30000, "urls": 1000, "csv": 5000, "lists": 5000, "inbox": 5000,
              "event": 500, "own_posts": 200, "sales_navigator": 2500, "recruiter": 2500, "companies": 500, "sales_nav_accounts": 500}
 
 _POST_RE = re.compile(r"linkedin\.com/(feed/update/urn:li:(activity|ugcPost|share):\d+|posts/[^\s?]+)", re.I)

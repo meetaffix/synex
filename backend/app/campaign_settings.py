@@ -93,6 +93,22 @@ def check_allocation(value: dict | None) -> dict | None:
     return out
 
 
+CAMPAIGN_WEBHOOK_EVENTS = ("reply_received", "connection_accepted", "campaign_launched", "campaign_paused", "lead_interested")
+
+
+def check_webhook(value: dict | None) -> dict | None:
+    """Which workspace webhook gets this campaign's events, and which events. The webhook itself (address, signing, safety checks) is the workspace one."""
+    if value is None:
+        return None
+    hook_id = value.get("webhookId")
+    events = value.get("events") or []
+    if hook_id is not None and (not isinstance(hook_id, str) or not hook_id):
+        raise ValueError("Webhook: choose one of your workspace webhooks.")
+    if not isinstance(events, list) or any(e not in CAMPAIGN_WEBHOOK_EVENTS for e in events):
+        raise ValueError("Webhook events: choose from " + ", ".join(CAMPAIGN_WEBHOOK_EVENTS) + ".")
+    return {"webhookId": hook_id, "events": sorted(set(events))}
+
+
 def check_ai_context(value: dict | None) -> dict | None:
     """Shared knowledge for every AI message and reply in this campaign. Text fields are capped; lists are lists of short strings."""
     if value is None:

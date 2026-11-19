@@ -173,7 +173,7 @@ def register_failure(campaign: models.Campaign | None) -> None:
         campaign.paused_reason = f"Paused automatically after {campaign.consecutive_failures} failed actions in a row."
         session = object_session(campaign)
         if session is not None:
-            integrations.emit(session, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": campaign.paused_reason})
+            integrations.emit(session, campaign.user_id, "campaign_paused", {"name": campaign.name, "campaign": campaign.name, "reason": campaign.paused_reason}, campaign_id=campaign.id)
 
 
 def _register_success(campaign: models.Campaign | None) -> None:
@@ -561,7 +561,8 @@ def _store_thread(db: Session, account: models.LinkedInAccount, lead: models.Lea
                     lead.status = "replied"
                 engine.record_event(db, lead, "replied", raw.text[:140], campaign=lead.campaign, account=account)
                 integrations.emit(db, account.user_id, "reply_received", {"name": f"{lead.first_name} {lead.last_name}".strip(), "lead": f"{lead.first_name} {lead.last_name}".strip(),
-                                                                          "campaign": lead.campaign.name if lead.campaign else ""})
+                                                                          "campaign": lead.campaign.name if lead.campaign else ""},
+                                  campaign_id=lead.campaign.id if lead.campaign else None)
                 _stop_runs_on_reply(db, lead, now)
 
 

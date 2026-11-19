@@ -94,6 +94,8 @@ class LinkedInAccount(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=True)
     headline = Column(String, nullable=True)
+    location = Column(String, nullable=True)  # read from the profile top card when the account connects
+    company = Column(String, nullable=True)
     linkedin_url = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     # Lifecycle intent: pending (awaiting extension pairing) | active | paused.
@@ -266,6 +268,8 @@ class Campaign(Base):
     allocation = Column(JSON, nullable=True)
     # Shared knowledge for AI messages and replies (see campaign_settings.check_ai_context).
     ai_context = Column(JSON, nullable=True)
+    # Send this campaign's events to one of the workspace's webhooks: {"webhookId": str | None, "events": [str]}.
+    webhook = Column(JSON, nullable=True)
     # classic (linear steps) or smart (a graph of nodes in `graph`).
     sequence_mode = Column(String, default="classic")
     graph = Column(JSON, nullable=True)

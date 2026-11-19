@@ -7,7 +7,7 @@ const list = (id: string, name: string, leadCount: number, over: Record<string, 
 const LISTS = [list("L1", "Spring prospects", 12, { description: "Founders" }), list("L2", "Empty list", 0), list("L3", "Conference", 40)];
 
 const open = async (page: Page, lists = LISTS) => {
-  const api = newApi({ lists: lists as never });
+  const api = newApi({ lists: lists as never, builderEmpty: lists.length === 0 });
   await mockApi(page, api);
   await page.goto("/leads?tab=lists");
   await page.waitForLoadState("networkidle");

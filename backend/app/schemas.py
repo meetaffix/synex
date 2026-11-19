@@ -214,6 +214,7 @@ class CampaignSettingsIn(CamelIn):
     exclusions: dict | None = None
     allocation: dict | None = None
     ai_context: dict | None = None
+    webhook: dict | None = None
     sequence_mode: str | None = None
     graph: dict | None = None
 
@@ -226,6 +227,11 @@ class CampaignSettingsIn(CamelIn):
     @classmethod
     def _exclusions(cls, value):
         return campaign_settings.check_exclusions(value)
+
+    @field_validator("webhook")
+    @classmethod
+    def _webhook(cls, value):
+        return campaign_settings.check_webhook(value)
 
     @field_validator("allocation")
     @classmethod

@@ -40,7 +40,7 @@ test.describe("dialog behaviour", () => {
 
   test("focus stays inside the connect dialog, forwards and backwards, and returns on close", async ({ page }) => {
     await mockApi(page, newApi());
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     const opener = page.getByRole("button", { name: "Connect LinkedIn account" });
     await opener.click();
     const dialog = page.getByRole("dialog");
@@ -61,7 +61,7 @@ test.describe("dialog behaviour", () => {
 
   test("focus stays inside the edit dialog and the disconnect confirmation", async ({ page }) => {
     await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
-    await page.goto("/linkedin-accounts");
+    await page.goto("/linkedin-accounts?view=cards");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const insideDialog = () => page.evaluate(() => !!document.activeElement?.closest("[role=dialog]"));
     for (let press = 0; press < 20; press++) {
@@ -102,7 +102,7 @@ test.describe("dropdown menus (not modal)", () => {
     test(`Escape closes and returns focus to the trigger; an outside click closes (${theme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: theme });
       await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
-      await page.goto("/linkedin-accounts");
+      await page.goto("/linkedin-accounts?view=cards");
       const trigger = page.getByRole("button", { name: "More actions for Ada Lovelace" });
 
       await trigger.focus();

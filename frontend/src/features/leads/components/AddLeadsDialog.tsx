@@ -33,6 +33,7 @@ interface Collection {
   id: string;
   status: string;
   listName: string;
+  listId?: string | null;
   limit: number;
   fetched: number;
   created: number;
@@ -46,7 +47,7 @@ interface Collection {
 const HINTS: Record<string, string> = {
   post: "Paste one or more LinkedIn post links, one per line.",
   search: "Paste a LinkedIn people-search results address.",
-  connections: "Reads your own 1st-degree connections. Filters are optional.",
+  connections: "Adds every person you are connected to on LinkedIn. Nothing to choose: Synex reads the whole list, paced, from the sender account.",
   urls: "Paste LinkedIn profile links, one per line or separated by commas.",
   csv: "Upload a CSV, paste its text, or paste a Google Sheets link (shared so anyone with the link can view).",
   lists: "Pick one or more of your existing lists.",
@@ -89,7 +90,7 @@ const MAPPING_FIELDS: [string, string][] = [
 const stamp = () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const failure = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong. Try again.");
 
-export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: boolean; onOpenChange: (open: boolean) => void; onCompleted?: (listId: string) => void }) {
   const client = useQueryClient();
   const sources = useQuery({ queryKey: ["lead-sources"], queryFn: () => api.get<Source[]>("/lead-collections/sources"), enabled: open });
   const accounts = useSenderAccounts();
@@ -169,7 +170,7 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         setCollection(next);
         if (["preview_ready", "completed", "failed", "stopped"].includes(next.status)) {
           window.clearInterval(poll.current);
-          if (next.status === "completed") void client.invalidateQueries();
+          if (next.status === "completed") { void client.invalidateQueries(); if (next.listId) onCompleted?.(next.listId); }
         }
       } catch {
         window.clearInterval(poll.current);
@@ -200,6 +201,23 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         watch(made.id);
       }
       setCollection(made);
+    } catch (e) {
+      setError(failure(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** My connections: one click adds every connection. No filters, limits, degrees or preview: they are all 1st degree and all wanted. */
+  const addAllConnections = async () => {
+    if (!source) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const made = await api.post<Collection>("/lead-collections", { source: "connections", accountId, listName: "My connections", limit: source.maxLeads ?? 30000, params: { filters: {} }, options: {} });
+      const started = await api.post<Collection>(`/lead-collections/${made.id}/run`, {});
+      setCollection(started);
+      watch(started.id);
     } catch (e) {
       setError(failure(e));
     } finally {
@@ -260,7 +278,33 @@ export function AddLeadsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           </div>
         )}
 
-        {source && !collection?.preview && !collection?.needsMapping && (
+        {source?.id === "connections" && !collection && (
+          <div className="grid gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">{source.label}</h3>
+              <Button size="sm" variant="ghost" onClick={reset}>Change source</Button>
+            </div>
+            <p className="text-sm text-muted-foreground">{HINTS.connections}</p>
+            {connected.length > 1 ? (
+              <div className="grid gap-1">
+                <Label htmlFor="al-sender">Whose connections</Label>
+                <NativeSelect id="al-sender" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                  {connected.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </NativeSelect>
+              </div>
+            ) : connected.length === 1 ? (
+              <p className="text-sm">From <span className="font-medium">{connected[0].name}</span></p>
+            ) : (
+              <p role="note" className="text-sm">Connect a LinkedIn account first, under Sender accounts.</p>
+            )}
+            {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+            <div className="flex justify-end">
+              <Button loading={busy} onClick={addAllConnections} disabled={!accountId}>Add all my connections</Button>
+            </div>
+          </div>
+        )}
+
+        {source && source.id !== "connections" && !collection?.preview && !collection?.needsMapping && (
           <div className="grid gap-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">{source.label}</h3>

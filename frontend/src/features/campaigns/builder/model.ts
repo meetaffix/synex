@@ -78,6 +78,7 @@ const campaignSchema = z.object({
   exclusions: z.record(z.string(), z.boolean()),
   allocation: z.record(z.string(), z.record(z.string(), z.number())),
   aiContext: z.record(z.string(), z.unknown()),
+  webhook: z.object({ webhookId: z.string().nullable(), events: z.array(z.string()) }).nullable().optional(),
   launchSummary: z.object({ enrolled: z.number(), excluded: z.record(z.string(), z.number()) }).nullable().optional(),
   sequenceMode: z.string().optional(),
   steps: z.array(stepSchema),
@@ -93,6 +94,7 @@ export interface BuilderState {
   exclusions: Record<string, boolean>;
   allocation: Record<string, Record<string, number>>;
   context: Record<string, unknown>;
+  webhook: { webhookId: string | null; events: string[] };
   mode: "classic" | "smart";
   steps: BuilderStep[];
 }
@@ -117,6 +119,7 @@ export const fromServer = (c: ServerCampaign): BuilderState => ({
   exclusions: c.exclusions,
   allocation: c.allocation,
   context: c.aiContext,
+  webhook: c.webhook ?? { webhookId: null, events: [] },
   mode: c.sequenceMode === "smart" ? "smart" : "classic",
   steps: stepsFromServer(c.steps),
 });
@@ -145,6 +148,7 @@ export const toPayload = (s: BuilderState) => ({
   exclusions: s.exclusions,
   allocation: s.allocation,
   aiContext: s.context,
+  webhook: s.webhook,
   sequenceMode: s.mode,
   steps: s.steps.map((st, order) => {
     const parent = st.parentKey === null ? undefined : s.steps.find((p) => p.key === st.parentKey);

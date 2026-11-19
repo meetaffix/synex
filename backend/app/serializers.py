@@ -211,6 +211,7 @@ def campaign_out(c: models.Campaign) -> dict:
         "exclusions": {**campaign_settings.DEFAULT_EXCLUSIONS, **(c.exclusions or {})},
         "allocation": c.allocation or {},
         "aiContext": c.ai_context or {},
+        "webhook": c.webhook or {"webhookId": None, "events": []},
         "sequenceMode": c.sequence_mode or "classic",
         "graph": c.graph,
         "launchSummary": c.launch_summary,

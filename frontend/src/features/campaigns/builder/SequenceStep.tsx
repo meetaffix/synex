@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -8,6 +8,7 @@ import { AiDrawer } from "./AiDrawer";
 import { SequenceTemplates } from "./SequenceTemplates";
 import { MessageField } from "./MessageField";
 import { SmartGraph } from "./SmartGraph";
+import { WebhookDialog } from "./WebhookDialog";
 import { lostInClassic, toClassic } from "./graph";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MIN_WAIT_MINUTES, defaultAi, newStep, type AiConfig, type BuilderState, type BuilderStep } from "./model";
@@ -25,6 +26,7 @@ interface Props {
 export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
   const [aiFor, setAiFor] = useState<BuilderStep | null>(null);
   const [templates, setTemplates] = useState(false);
+  const [hook, setHook] = useState(false);
   const [switching, setSwitching] = useState<"smart" | "classic" | null>(null);
   const steps = state.steps;
   const patch = (key: number, change: Partial<BuilderStep>) => set({ steps: steps.map((s) => (s.key === key ? { ...s, ...change } : s)) });
@@ -66,12 +68,14 @@ export function SequenceStep({ state, set, campaignId, onOpenContext }: Props) {
         </div>
         <div role="group" aria-label="Sequence mode" className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setTemplates(true)}>Templates</Button>
+          <Button size="sm" variant="outline" aria-label="Sequence settings: configure webhook" onClick={() => setHook(true)}><Settings aria-hidden /> Webhook{state.webhook.webhookId ? " on" : ""}</Button>
           <Button size="sm" variant={smart ? "outline" : "default"} aria-pressed={!smart} onClick={() => switchTo("classic")}>Classic</Button>
           <Button size="sm" variant={smart ? "default" : "outline"} aria-pressed={smart} onClick={() => switchTo("smart")}>Smart</Button>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{smart ? "Smart: add any action, and split the sequence with If steps. Each branch ends when it runs out of steps." : "Classic runs a straight sequence. Switch to Smart for branches and more actions."}</p>
       {smart && <SmartGraph state={state} set={set} campaignId={campaignId} onOpenContext={onOpenContext} />}
+      {hook && <WebhookDialog value={state.webhook} onSave={(webhook) => set({ webhook })} onClose={() => setHook(false)} />}
       <Dialog open={switching !== null} onOpenChange={(open) => !open && setSwitching(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>

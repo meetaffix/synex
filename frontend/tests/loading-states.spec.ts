@@ -7,7 +7,7 @@ test("the edit dialog shows that it is saving, locks its fields, then closes whe
   const save = gate();
   const api = newApi({ accounts: [account("a1", "Ada Lovelace")], hold: { patch: save.promise } });
   await mockApi(page, api);
-  await page.goto("/linkedin-accounts");
+  await page.goto("/linkedin-accounts?view=cards");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   const dialog = page.getByRole("dialog");
   const limit = dialog.getByLabel("Daily action limit");
@@ -29,7 +29,7 @@ test("the edit dialog shows that it is saving, locks its fields, then closes whe
 test("the proxy test shows that it is running, then its result", async ({ page }) => {
   const check = gate();
   await mockApi(page, newApi({ hold: { proxyTest: check.promise } }));
-  await page.goto("/linkedin-accounts");
+  await page.goto("/linkedin-accounts?view=cards");
   await page.getByRole("button", { name: "Connect LinkedIn account" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByText("Advanced: proxy").click();

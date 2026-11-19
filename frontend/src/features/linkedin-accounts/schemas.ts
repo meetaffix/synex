@@ -24,6 +24,8 @@ export const accountSchema = z.object({
   id: z.string(),
   name: z.string(),
   headline: z.string().nullable(),
+  location: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
   profileUrl: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   status: accountStatusSchema,
