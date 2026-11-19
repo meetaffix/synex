@@ -1,6 +1,6 @@
 #!/bin/sh
 # The flaky draft test, run the way CI runs it: one process, unittest discover, CI placeholder env.
-cd "$(dirname "$0")/backend"
+cd "$(dirname "$0")/../backend"
 pass=0
 for i in $(seq 1 20); do
   if SECRET_KEY=ci-placeholder-secret-key-0123456789-abcdef ENCRYPTION_KEY=ci-placeholder-encryption-key-0123456789 AUTH_PROVIDER=local \
