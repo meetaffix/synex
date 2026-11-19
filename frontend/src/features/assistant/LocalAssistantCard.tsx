@@ -43,7 +43,7 @@ export function LocalAssistantCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="text-sm">Looking for webhooks, API keys, notifications or exports? <Link className="underline underline-offset-2" to="/settings/integrations">Open Integrations</Link>.</p>
+        <p className="text-sm">Looking for webhooks, API keys, notifications or exports? <Link className="underline underline-offset-2" to="/settings/integrations">Open Integrations</Link>. Kill switch, hard limits and the audit log are under <Link className="underline underline-offset-2" to="/settings/safety">Safety</Link>.</p>
         <p role="status" className="text-sm">
           {status.isLoading ? "Checking the local model." : ready ? `Ready: ${status.data?.model} is running.` : status.data?.reachable ? `Ollama is running but the model ${status.data.model} is not installed. Run: ollama pull ${status.data.model}` : "Ollama is not running. Install it from ollama.com, start it, then set OLLAMA_URL and OLLAMA_MODEL if you changed them."}
         </p>

@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { api } from "@/services/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -44,6 +46,9 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
   const dirty = JSON.stringify(draft) !== JSON.stringify(details.policy);
   const unconfigured = Object.keys(details.policy.actions).length === 0;
   const suggestions = useMemo(() => recommendedActions(details.usage), [details.usage]);
+  const testProfile = useQuery({ queryKey: ["safety", "ceilings"], queryFn: () => api.get<{ testProfile: Record<string, number> }>("/outreach/ceilings"), retry: false, staleTime: 60_000 });
+  const testActions = useMemo(() => Object.fromEntries(Object.entries(testProfile.data?.testProfile ?? {}).map(([action, n]) =>
+    [action, { dailyLimit: n, increaseBy: 0, stopAt: n, intervalDays: 7, dynamicInterval: false }])) as Record<string, ActionPolicy>, [testProfile.data]);
 
   const setAction = (action: string, change: Partial<ActionPolicy>) =>
     setDraft((current) => {
@@ -87,6 +92,14 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
               ))}
             </ul>
           )}
+        </section>
+      )}
+
+      {testProfile.data && (
+        <section aria-labelledby={`${id}-test`} className="grid gap-2 rounded-lg border border-dashed border-border p-4">
+          <h2 id={`${id}-test`} className="text-base font-semibold">Test account profile</h2>
+          <p className="text-sm text-muted-foreground">For a test sender: at most 5 profile views, 5 connection requests and 5 messages a day, with random gaps between actions. Everything else is stopped, except the few reads needed to see replies and acceptances.</p>
+          <div><Button size="sm" variant="outline" loading={savePolicy.isPending} onClick={() => save({ ...draft, preset: "off", range: 1, actions: testActions })}>Apply the test profile</Button></div>
         </section>
       )}
 

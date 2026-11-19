@@ -336,4 +336,14 @@ export const states: State[] = [
   { name: "auth-reset", path: "/reset-password?token=abc", api: () => newApi({ signedOut: true }) },
   { name: "not-found", path: "/no-such-page", api: withAccount() },
   { name: "design", path: "/design", api: withAccount() },
+  { name: "safety", path: "/settings/safety", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.audit = [{ id: "r1", accountId: "a1", at: "2026-11-16T10:00:00Z", account: "Ada Lovelace", action: "send_invite", result: "sent", status: "ok", reason: "Done.", person: "Grace Hopper", campaign: "Autumn" }]; return api; } },
+  { name: "safety-admin", path: "/settings/safety", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.admin = true; return api; } },
+  { name: "campaign-smart", path: "/campaigns/cb1/edit?step=2", api: () => { const api = newApi({ accounts: accounts() }); return api; }, prepare: async (page) => {
+    await page.getByRole("button", { name: "Smart", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Switch to Smart" }).click();
+    await page.getByRole("button", { name: "Add action to the sequence" }).click();
+    await page.getByRole("menuitem", { name: /If connection/ }).click();
+    await expect(page.getByRole("heading", { name: "Not connected", level: 4 })).toBeVisible();
+  } },
+  { name: "settings-providers", path: "/settings", api: () => newApi({ accounts: accounts() }) },
 ];

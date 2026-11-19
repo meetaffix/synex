@@ -43,7 +43,7 @@ export interface Api {
   connections: Record<string, Record<string, { id: string; name: string; headline: string; location: string; profileUrl: string; source: string }[]>>;
   syncStatus: string;
   integ: unknown;
-  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean };
+  assistant: { provider: string; sttReady: boolean; ttsReady: boolean; unreadNews: boolean; admin: boolean; killed: boolean; audit: (Record<string, unknown> & { accountId: string })[] };
   voice: { ttsReady: boolean; made: Record<string, unknown> | null; readiness: unknown[] };
   inbox: Record<string, unknown>[];
   scheduledList: { id: string; body: string; sendAt: string; status: string; error: string | null }[];
@@ -222,7 +222,7 @@ export function newApi(over: Partial<Api> = {}): Api {
     management: {},
     connections: {},
     syncStatus: "idle",
-    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false },
+    assistant: { provider: "deepgram", sttReady: false, ttsReady: false, unreadNews: false, admin: false, killed: false, audit: [] },
     voice: { ttsReady: false, made: null, readiness: [{ accountId: "a1", name: "Ada Lovelace", ready: false, reasons: ["Its daily voice-note limit is 0. Set a limit on the account's Sender limits tab."], roomToday: 0 }] },
     integ: { notify: { emails: ["boss@example.com"], account_connected: true, account_disconnected: true, reply_received: false, campaign_paused: true, campaign_launched: false }, outbox: [], keys: [], hooks: [], hubspot: false },
     inbox: [],
@@ -265,7 +265,7 @@ export async function mockApi(page: Page, api: Api) {
       const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
       const empty = () => route.fulfill({ status: 204, headers: cors });
 
-      if (path === "/auth/me") return api.signedOut ? json(401, { detail: "Not signed in" }) : json(200, USER);
+      if (path === "/auth/me") return api.signedOut ? json(401, { detail: "Not signed in" }) : json(200, api.assistant.admin ? { ...USER, role: "admin", isAdmin: true } : USER);
       if (path === "/publishing/posts" && method === "GET") return json(200, api.publishing.posts);
       if (path === "/linkedin/accounts" && method === "GET") return json(200, api.publishing.accounts);
       if (path === "/publishing/activity") return json(200, api.publishing.activity);
@@ -355,6 +355,16 @@ export async function mockApi(page: Page, api: Api) {
       }
       if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
+      if (path === "/outreach/ceilings") return json(200, { daily: Object.entries(CEILINGS).map(([action, [label, ceiling]]) => ({ action, label, ceiling })), dailyTotal: 200, weeklyInvites: 150, newAccountDailyLimit: 0,
+        testProfile: Object.fromEntries(Object.keys(CEILINGS).map((a) => [a, ({ visit_profile: 5, send_invite: 5, send_message: 5, check_connection: 5, sync_inbox: 12 } as Record<string, number>)[a] ?? 0])) });
+      if (path === "/outreach/status") return api.assistant.admin ? json(200, { killSwitch: api.assistant.killed, forcedBySetting: false, workersActive: 1 }) : json(403, { detail: "Only a platform administrator can use this control." });
+      if (path === "/outreach/kill-switch") { api.assistant.killed = (body as { enabled: boolean }).enabled; return json(200, { killSwitch: api.assistant.killed, forcedBySetting: false, workersActive: 1 }); }
+      if (path === "/outreach/audit") {
+        const all = api.assistant.audit;
+        const offset = Number(url.searchParams.get("offset") ?? 0), limit = Number(url.searchParams.get("limit") ?? 50), acc = url.searchParams.get("accountId");
+        const rows = acc ? all.filter((r) => r.accountId === acc) : all;
+        return json(200, { items: rows.slice(offset, offset + limit), total: rows.length, limit, offset, note: "Synex keeps the most recent actions of each account; older rows are removed to keep the log small." });
+      }
       if (path === "/integrations/whats-new") return json(200, { items: [{ id: "n1", date: "2026-11-16", title: "Smart sequences", body: "Build a sequence as a graph." }, { id: "n0", date: "2026-11-10", title: "Earlier change", body: "Something older." }], latestId: "n1", unread: api.assistant.unreadNews });
       if (path === "/integrations/whats-new/seen") { api.assistant.unreadNews = false; return json(200, { ok: true }); }
       if (path === "/assistant/settings") {

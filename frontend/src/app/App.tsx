@@ -27,6 +27,7 @@ import { DesignPage } from "@/features/design/DesignPage";
 import { AssistantSettings } from "@/features/assistant/AssistantSettings";
 import { LocalAssistantCard } from "@/features/assistant/LocalAssistantCard";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
+import { SafetyPage } from "@/features/safety/SafetyPage";
 import { PrivacyPage } from "@/features/assistant/PrivacyPage";
 import { NotFoundPage } from "@/components/shared/NotFoundPage";
 import { PublishingLayout } from "@/features/publishing/PublishingLayout";
@@ -95,6 +96,7 @@ export function App() {
               <Route path="connections" element={<AccountsPage />} />
             </Route>
             <Route path="/settings/integrations" element={<IntegrationsPage />} />
+            <Route path="/settings/safety" element={<SafetyPage />} />
             <Route path="/settings" element={<Stack><AssistantSettings /><LocalAssistantCard /><SettingsPage /></Stack>} />
             <Route path="/help" element={<HelpPage />} />
             {redirects.map(([from, to]) => (
