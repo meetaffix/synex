@@ -342,7 +342,7 @@ export function LeadsPage() {
           placeholder="Search leads"
           className="sm:max-w-xs"
         />
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Select
             value={status}
             onValueChange={(v) => {

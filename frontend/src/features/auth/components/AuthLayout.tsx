@@ -61,10 +61,10 @@ export function AuthLayout({ children, title, subtitle }: { children: ReactNode;
         <p className="mt-2 text-sm text-brand-text-muted">Reach the right people on LinkedIn, safely.</p>
       </header>
 
-      <main className="flex items-start justify-center px-4 py-8 sm:px-8 sm:py-12 lg:items-center">
-        <div className="grid w-full max-w-sm gap-6">
+      <main className="flex items-start justify-center bg-surface-muted/50 px-4 py-8 sm:px-8 sm:py-12 lg:items-center">
+        <div className="grid w-full max-w-sm gap-6 rounded-xl border border-border bg-surface p-6 shadow-float sm:p-8">
           <div className="grid gap-2">
-            <h1 className="text-2xl font-semibold">{title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
           {children}
@@ -73,14 +73,14 @@ export function AuthLayout({ children, title, subtitle }: { children: ReactNode;
 
       {/* Desktop: the brand panel. */}
       <aside aria-label="About Synex" className="relative hidden overflow-hidden bg-brand p-12 text-brand-text lg:flex lg:flex-col lg:justify-between">
-        <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-brand-accent/10" />
+        <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-brand-accent/15 blur-2xl" />
         <span aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 size-96 rounded-full bg-brand-text/5" />
         <Link to="/" aria-label="Synex home" className="relative w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-text">
           <Logo size={32} />
         </Link>
         <div className="relative grid gap-10">
           <div className="grid max-w-md gap-3">
-            <p className="text-2xl font-semibold">Reach the right people on LinkedIn, safely.</p>
+            <p className="text-2xl font-semibold leading-tight">Reach the right people on LinkedIn, safely.</p>
             <p className="text-base text-brand-text-muted">
               Connect your accounts, run campaigns inside daily limits, and answer every reply from one inbox.
             </p>
