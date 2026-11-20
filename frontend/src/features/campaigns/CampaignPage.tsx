@@ -15,7 +15,7 @@ import { formatNumber, formatPercent, formatRelative } from "@/utils/format";
 import { outline } from "./builder/graph";
 import { fromServer, type ServerCampaign } from "./builder/model";
 
-type Detail = ServerCampaign & { displayStatus?: string };
+type Detail = ServerCampaign & { displayStatus?: string; accountName?: string; stats?: { totalLeads?: number } };
 interface Task { id: string; runId: string; type: string; status: string; leadName: string; error: string | null; updatedAt: string | null }
 interface Monitor {
   status: string; health: "ok" | "attention" | "failed"; runCounts: Record<string, number>; currentActions: Task[]; lastExecuted: Task | null; failures: Task[];
@@ -84,7 +84,7 @@ export function CampaignPage() {
       {back}
       <PageHeader
         title={c.name}
-        description={`${c.leadListName || "No list"} · ${(c.stats as unknown as { totalLeads: number }).totalLeads} leads`}
+        description={`${c.leadListName || "No list"} · ${c.stats?.totalLeads ?? 0} leads`}
         actions={
           <>
             <Badge variant={status.variant}>{status.label}</Badge>
