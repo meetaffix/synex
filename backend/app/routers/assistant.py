@@ -48,11 +48,18 @@ def get_assistant_settings(db: Session = Depends(get_db), actor: models.User = D
 def update_assistant_settings(body: SettingsIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
     owner = require_role(db, actor, "admin")
     row = service.get_settings_row(db, owner.id)
+    limit = service.plan_limit(db, owner.id)
+    if body.monthly_minute_cap is not None and body.monthly_minute_cap > limit:
+        raise HTTPException(422, f"Your {(owner.plan or 'free').capitalize()} plan includes up to {limit} assistant minutes a month, so the limit cannot be higher than {limit}.")
     if body.provider == "local":
         from ..assistant import local
         ready = local.available()
         if not (ready["reachable"] and ready["installed"]):
             raise HTTPException(409, "The local language model is not ready, so the assistant cannot switch to it. Start Ollama and pull the model first (see the Local models card).")
+    changed = sorted(k for k, v in body.model_dump(exclude_none=True).items())
+    if changed:
+        from .audit import record
+        record(db, owner.id, actor.id, "assistant_settings_changed", {"fields": changed})
     for field, value in (("enabled", body.enabled), ("monthly_minute_cap", body.monthly_minute_cap), ("idle_timeout_seconds", body.idle_timeout_seconds),
                          ("history_enabled", body.history_enabled), ("language", body.language), ("provider", body.provider)):
         if value is not None:

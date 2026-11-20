@@ -77,6 +77,8 @@ export interface LeadList {
   description?: string | null;
   color: string;
   leadCount: number;
+  /** Every lead on the list is already a 1st-degree connection, so no connection request is needed. */
+  allConnections?: boolean;
   createdAt: string;
 }
 

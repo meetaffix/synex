@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Check, Lock, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { ApiError } from "@/services/client";
-import { ContextPanel } from "./ContextPanel";
+import { useAssistantPage } from "@/features/assistant/AssistantProvider";
 import { LeadsStep } from "./LeadsStep";
 import { ReviewStep } from "./ReviewStep";
 import { SendersStep } from "./SendersStep";
@@ -31,13 +31,15 @@ export function BuilderPage() {
   const [state, setState] = useState<BuilderState | null>(null);
   const [saving, setSaving] = useState<Saving>("saved");
   const [version, setVersion] = useState(0);
-  const [context, setContext] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const live = useRef(false);
+  live.current = campaign.data?.status === "active";
   const latest = useRef<BuilderState | null>(null);
   const dirty = useRef(false);
   const timer = useRef<number | undefined>(undefined);
   const check = useLaunchCheck(campaignId, version);
   const lists = useQuery({ queryKey: ["lead-lists"], queryFn: leadListsService.list });
+  useAssistantPage(campaignId ? { campaignId } : null);
   const requested = Math.min(3, Math.max(0, Number(params.get("step") ?? 0) || 0));
 
   useEffect(() => {
@@ -47,6 +49,19 @@ export function BuilderPage() {
       latest.current = initial;
     }
   }, [campaign.data, state]);
+
+  // When the assistant writes into this campaign, the server copy changes. Take it unless there are unsaved edits here.
+  const seen = useRef(0);
+  useEffect(() => {
+    if (!campaign.data || !campaign.dataUpdatedAt) return;
+    if (seen.current === 0) { seen.current = campaign.dataUpdatedAt; return; }
+    if (seen.current === campaign.dataUpdatedAt || dirty.current) return;
+    seen.current = campaign.dataUpdatedAt;
+    const fresh = fromServer(campaign.data);
+    latest.current = fresh;
+    setState(fresh);
+    setVersion((v) => v + 1);
+  }, [campaign.data, campaign.dataUpdatedAt]);
 
   const persist = useCallback(async () => {
     window.clearTimeout(timer.current);
@@ -63,7 +78,7 @@ export function BuilderPage() {
     } catch (error) {
       dirty.current = true;
       setSaving("failed");
-      toast.error(`Could not save. ${requestFailureMessage(error)}`);
+      toast.error(`Could not save. ${error instanceof ApiError && error.message ? error.message : requestFailureMessage(error)}`);
     }
   }, [save]);
 
@@ -77,7 +92,8 @@ export function BuilderPage() {
     dirty.current = true;
     setSaving("dirty");
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => void persist(), 1500);
+    // A running campaign is never saved by itself: its changes go live, so they are saved on purpose.
+    if (!live.current) timer.current = window.setTimeout(() => void persist(), 1500);
   }, [persist]);
 
   useEffect(() => {
@@ -108,23 +124,54 @@ export function BuilderPage() {
       </div>
     );
   }
-  if (!["draft", "paused"].includes(campaign.data.status)) {
+  if (!["draft", "paused", "active"].includes(campaign.data.status)) {
     return (
       <div className="grid gap-4">
         {back}
-        <p role="note" className="rounded-lg border border-border p-4 text-sm">This campaign has {campaign.data.status === "active" ? "launched and is running" : "finished"}. Pause it from the campaigns list before changing its sequence. <Link className="underline underline-offset-2" to="/campaigns">Back to campaigns</Link></p>
+        <p role="note" className="rounded-lg border border-border p-4 text-sm">This campaign has finished, so its sequence can no longer be changed. <Link className="underline underline-offset-2" to={`/campaigns/${campaignId}`}>Back to the campaign</Link></p>
       </div>
     );
   }
 
-  const smartIssues = state.mode === "smart" ? nodeProblems(state.steps) : [];
+  const audienceConnections = !!lists.data?.find((l) => l.id === state.leadListId)?.allConnections;
+  const smartIssues = state.mode === "smart" ? nodeProblems(state.steps, audienceConnections) : [];
   // Like OutFlo: a step opens only when the one before it is done. No sender, no step 2; no leads, no step 3.
   const hasLeads = !!state.leadListId && (lists.data?.find((l) => l.id === state.leadListId)?.leadCount ?? 0) > 0;
-  const reachable = state.accountIds.length === 0 ? 0 : !hasLeads ? 1 : state.mode === "smart" && nodeProblems(state.steps).length > 0 ? 2 : 3;
+  const reachable = state.accountIds.length === 0 ? 0 : !hasLeads ? 1 : state.mode === "smart" && nodeProblems(state.steps, audienceConnections).length > 0 ? 2 : 3;
   const step = Math.min(requested, reachable);
   const blocked = step === 0 && reachable === 0 ? "Choose a sender account."
     : step === 1 && reachable === 1 ? "Choose a lead list with at least one lead, or add leads."
     : step === 2 && smartIssues.length > 0 ? smartIssues[0].message : null;
+  if (campaign.data.status === "active") {
+    const unready = nodeProblems(state.steps, audienceConnections);
+    const saveChanges = async () => { await persist(); if (!dirty.current) { toast.success("Changes saved. They apply to people who have not reached those steps yet."); navigate(`/campaigns/${campaignId}`); } };
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+        <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}><ArrowLeft aria-hidden /> Back to the campaign</Button>
+        <header className="grid gap-1">
+          <h1 className="text-2xl font-semibold">Edit sequence: {state.name}</h1>
+          <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">This campaign is running. Your changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
+        </header>
+        <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button variant="outline" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}>Cancel</Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {unready.length > 0 && <p id="save-blocked" className="text-sm text-danger">Save is off: {unready[0].message}</p>}
+            <Button disabled={saving !== "dirty" && saving !== "failed" || unready.length > 0} aria-describedby={unready.length > 0 ? "save-blocked" : undefined} loading={saving === "saving"} onClick={() => void saveChanges()}>Save changes</Button>
+          </div>
+        </div>
+        <Dialog open={leaving} onOpenChange={setLeaving}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Discard unsaved changes?</DialogTitle><DialogDescription>Your changes to the running sequence are not saved. Nothing has changed for the campaign yet.</DialogDescription></DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLeaving(false)}>Keep editing</Button>
+              <Button onClick={() => { dirty.current = false; navigate(`/campaigns/${campaignId}`); }}>Discard changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
   const indicator = { saved: "Saved", dirty: "Unsaved changes", saving: "Saving", failed: "Not saved: will retry" }[saving];
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -137,7 +184,6 @@ export function BuilderPage() {
         <div className="flex flex-wrap items-center gap-2">
           <span role="status" aria-live="polite" className="text-sm text-muted-foreground">{indicator}</span>
           <Button variant="outline" disabled={saving === "saved" || saving === "saving"} onClick={() => void persist()}>Save draft</Button>
-          <Button variant="outline" onClick={() => setContext(true)}><Sparkles aria-hidden /> AI campaign context</Button>
         </div>
       </header>
 
@@ -165,10 +211,10 @@ export function BuilderPage() {
       <div className="min-w-0">
         {step === 0 && <SendersStep state={state} set={change} />}
         {step === 1 && <LeadsStep state={state} set={change} />}
-        {step === 2 && <SequenceStep state={state} set={change} campaignId={campaignId} onOpenContext={() => setContext(true)} />}
+        {step === 2 && <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />}
         {step === 3 && (
           <ReviewStep state={state} set={change} campaignId={campaignId} problems={check.data?.problems} checking={check.isFetching} goTo={goTo}
-            flush={persist} onLaunched={() => navigate("/campaigns")} />
+            flush={persist} onLaunched={() => navigate(`/campaigns/${campaignId}`)} />
         )}
       </div>
 
@@ -182,7 +228,6 @@ export function BuilderPage() {
         )}
       </div>
 
-      {context && <ContextPanel value={state.context} onSave={(value) => change({ context: value })} onClose={() => setContext(false)} />}
       <Dialog open={leaving} onOpenChange={setLeaving}>
         <DialogContent className="max-w-md">
           <DialogHeader>

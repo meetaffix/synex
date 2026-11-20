@@ -34,7 +34,8 @@ MAX_CODE_REJECTIONS = 3
 MANUAL_VERIFICATION_POLLS = 3
 # A page that stays unrecognisable this long is not "still loading": stop instead of waiting out the whole attempt.
 PENDING_LIMIT_SECONDS = 90
-CHECK_TIMEOUT_SECONDS = 60
+CHECK_TIMEOUT_SECONDS = 90  # the feed check (up to ~60 s) plus the profile refresh below
+PROFILE_REFRESH_SECONDS = 25
 RETENTION_SECONDS = 900
 STEP_TIMEOUT_MS = 30_000
 
@@ -106,6 +107,7 @@ class SignedIn:
 class CheckResult:
     status: str
     storage_state: dict | None
+    profile: "Profile | None" = None  # the sender's profile as read during a connected check; None when it could not be read
 
 
 class SessionManager:
@@ -410,7 +412,7 @@ class SessionManager:
                     await self.site.open_feed(page)
                     state = await self._settled_state(page)
                     if state is PageState.LOGGED_IN:
-                        return CheckResult("connected", await context.storage_state())
+                        return CheckResult("connected", await context.storage_state(), await self._refresh_profile(page))
                     if state is PageState.RESTRICTED:
                         return CheckResult("restricted", None)
                     if state is PageState.PENDING:
@@ -427,6 +429,15 @@ class SessionManager:
             if self.site.is_proxy_error(exc):
                 raise CheckFailed("The proxy could not be reached. Check the proxy settings.") from None
             raise CheckFailed("LinkedIn could not be reached. Try again shortly.") from None
+
+    async def _refresh_profile(self, page: Page) -> "Profile | None":
+        """The sender's profile, read from their own profile page. A page that cannot be read never fails the check: the login
+        is proven, so the profile is simply left as it was."""
+        try:
+            return await asyncio.wait_for(self.site.read_profile(page), PROFILE_REFRESH_SECONDS)
+        except Exception as exc:  # noqa: BLE001 - includes timeouts; cancellation is not an Exception and still propagates
+            log.info("linkedin profile refresh skipped: %s", type(exc).__name__)
+            return None
 
     async def _settled_state(self, page: Page) -> PageState:
         for _ in range(20):

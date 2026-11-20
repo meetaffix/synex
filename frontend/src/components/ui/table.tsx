@@ -10,7 +10,7 @@ const Table = React.forwardRef<
     role="region"
     aria-label={regionLabel}
     tabIndex={0}
-    className="relative max-h-[70dvh] w-full overflow-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="scroll-x-shadow relative max-h-[70dvh] w-full overflow-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
   >
     <table
       ref={ref}
@@ -63,7 +63,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-4 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}

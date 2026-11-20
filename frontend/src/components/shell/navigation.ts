@@ -3,7 +3,7 @@ import {
   FileText,
   Inbox,
   LayoutDashboard,
-  LayoutGrid,
+  Shapes,
   Linkedin,
   Send,
   Settings,
@@ -25,7 +25,7 @@ export const primaryNav: NavItem[] = [
   { label: "Sender accounts", to: "/linkedin-accounts", icon: Linkedin },
   { label: "Leads", to: "/leads", icon: Users },
   { label: "Templates", to: "/templates", icon: FileText },
-  { label: "Others", to: "/others", icon: LayoutGrid },
+  { label: "Others", to: "/others", icon: Shapes },
 ];
 
 export const footerNav: NavItem[] = [

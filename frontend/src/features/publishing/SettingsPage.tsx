@@ -136,6 +136,8 @@ export function SettingsPage() {
             <input
               required
               maxLength={120}
+              pattern=".*\S.*"
+              title="Enter your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -158,7 +160,7 @@ export function SettingsPage() {
           </label>
           <label className="field">
             Phone
-            <input type="tel" maxLength={40} value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input type="tel" maxLength={40} pattern="[0-9+\(\)\-.\s]{3,40}" title="Digits, spaces, + ( ) - or ." value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
           <label className="field">
             Time zone

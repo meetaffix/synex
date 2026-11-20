@@ -44,23 +44,9 @@ test("an administrator stops and resumes all sending, each after a confirmation"
   await expect(page.getByText("Running: senders act within their limits.")).toBeVisible();
 });
 
-test("the audit log lists each action with its outcome, pages through, filters by sender, and has an empty state", async ({ page }) => {
-  await open(page, (a) => { a.assistant.audit = [...Array.from({ length: 30 }, (_, i) => row(i)), row(99, "a2")]; });
-  const table = page.getByRole("table", { name: "Actions taken on LinkedIn" });
-  await expect(table.getByRole("row")).toHaveCount(26);
-  await expect(page.getByRole("status").filter({ hasText: "of 31" })).toHaveText("1 to 25 of 31");
-  await expect(table.getByRole("row", { name: /Person 3/ })).toContainText("The profile could not be opened");
-  await expect(page.getByRole("button", { name: "Newer" })).toBeDisabled();
-  await page.getByRole("button", { name: "Older" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "of 31" })).toHaveText("26 to 31 of 31");
-  await page.getByLabel("Sender").selectOption("a2");
-  await expect(table.getByRole("row")).toHaveCount(2);
-  await expect(table).toContainText("Bo Sender");
-});
-
-test("with no actions yet the log says so", async ({ page }) => {
+test("the Safety page points to the audit log", async ({ page }) => {
   await open(page);
-  await expect(page.getByText("No actions yet. Once a campaign runs, each action appears here.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open the audit log" })).toHaveAttribute("href", "/settings/audit");
 });
 
 test("a sender's limits tab applies the test profile: 5, 5 and 5, everything else stopped", async ({ page }) => {

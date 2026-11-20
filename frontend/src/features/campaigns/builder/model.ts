@@ -120,7 +120,7 @@ export const fromServer = (c: ServerCampaign): BuilderState => ({
   allocation: c.allocation,
   context: c.aiContext,
   webhook: c.webhook ?? { webhookId: null, events: [] },
-  mode: c.sequenceMode === "smart" ? "smart" : "classic",
+  mode: "smart",
   steps: stepsFromServer(c.steps),
 });
 
@@ -149,7 +149,7 @@ export const toPayload = (s: BuilderState) => ({
   allocation: s.allocation,
   aiContext: s.context,
   webhook: s.webhook,
-  sequenceMode: s.mode,
+  sequenceMode: "smart",
   steps: s.steps.map((st, order) => {
     const parent = st.parentKey === null ? undefined : s.steps.find((p) => p.key === st.parentKey);
     return {

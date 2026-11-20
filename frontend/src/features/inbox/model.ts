@@ -32,7 +32,7 @@ const itemSchema = z.object({
 export type InboxItem = z.infer<typeof itemSchema>;
 const listSchema = z.object({ items: z.array(itemSchema), total: z.number() });
 const metaSchema = z.object({
-  accounts: z.array(z.object({ id: z.string(), name: z.string(), lastSyncedAt: z.string().nullable(), live: z.boolean() })),
+  accounts: z.array(z.object({ id: z.string(), name: z.string(), lastSyncedAt: z.string().nullable(), live: z.boolean(), syncMode: z.string().default("all"), lastSkipped: z.number().default(0) })),
   campaigns: z.array(z.object({ id: z.string(), name: z.string() })),
   tags: z.array(z.string()),
   interests: z.array(z.object({ id: z.string(), label: z.string() })),

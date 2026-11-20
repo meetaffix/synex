@@ -29,6 +29,9 @@ def create_tables(attempts: int = 5) -> None:
 def migrate():
     create_tables()
     run_simple_migrations()
+    from . import plans
+    with SessionLocal() as db:
+        plans.ensure_plans(db)
     with SessionLocal() as db:
         if not db.get(p.Migration, "002_official_publishing"):
             # Deliberately remove credentials for the retired private API path.

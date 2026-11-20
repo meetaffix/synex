@@ -130,9 +130,9 @@ export function DashboardPage() {
         <HeroMetric replies={values.replies} contacted={values.leadsContacted} rates={replyRates(points)} unit={unit} loading={summary.isLoading || campaigns.isLoading} />
         <AttentionPanel conversations={conversations.data ?? []} accounts={accounts.data ?? []} campaigns={campaigns.data ?? []} />
       </div>
-      <form aria-label="Filters" className="grid gap-4 sm:grid-cols-3" onSubmit={(event) => event.preventDefault()}>
-        <div className="grid gap-2">
-          <Label htmlFor="filter-range">Date range</Label>
+      <form aria-label="Filters" className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={(event) => event.preventDefault()}>
+        <div className="grid min-w-[10rem] flex-1 gap-1 sm:max-w-[16rem]">
+          <Label htmlFor="filter-range" className="text-xs text-muted-foreground">Date range</Label>
           <NativeSelect id="filter-range" value={filters.range} onChange={(event) => set({ range: event.target.value as DateRange })}>
             {RANGES.map((range) => (
               <option key={range.value} value={range.value}>
@@ -141,8 +141,8 @@ export function DashboardPage() {
             ))}
           </NativeSelect>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="filter-campaign">Campaign</Label>
+        <div className="grid min-w-[10rem] flex-1 gap-1 sm:max-w-[16rem]">
+          <Label htmlFor="filter-campaign" className="text-xs text-muted-foreground">Campaign</Label>
           <NativeSelect id="filter-campaign" value={filters.campaignId} onChange={(event) => set({ campaignId: event.target.value })}>
             <option value="">All campaigns</option>
             {campaigns.data?.map((campaign) => (
@@ -152,8 +152,8 @@ export function DashboardPage() {
             ))}
           </NativeSelect>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="filter-account">Sender account</Label>
+        <div className="grid min-w-[10rem] flex-1 gap-1 sm:max-w-[16rem]">
+          <Label htmlFor="filter-account" className="text-xs text-muted-foreground">Sender account</Label>
           <NativeSelect id="filter-account" value={filters.accountId} onChange={(event) => set({ accountId: event.target.value })}>
             <option value="">All sender accounts</option>
             {accounts.data?.map((account) => (

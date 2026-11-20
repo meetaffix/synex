@@ -129,6 +129,12 @@ export function InboxPage() {
               <Illustration name="inbox" className="h-24" />
               <p className="text-sm font-medium">No conversations yet</p>
               <p className="text-sm text-muted-foreground">Conversations appear here once a lead replies to a campaign message, or after Refresh reads your inboxes.</p>
+              {(meta.data?.accounts ?? []).filter((a) => a.live && a.syncMode === "synex_only").map((a) => (
+                <p key={a.id} role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-left text-sm">
+                  {a.name} keeps only conversations with people Synex has contacted{a.lastSkipped > 0 ? `, so ${a.lastSkipped} other ${a.lastSkipped === 1 ? "conversation" : "conversations"} on LinkedIn ${a.lastSkipped === 1 ? "is" : "are"} not shown` : ""}.
+                  {" "}To see all your LinkedIn chats here, <Link className="underline underline-offset-2" to={`/linkedin-accounts/${a.id}`}>change its conversation sync</Link> to all conversations.
+                </p>
+              ))}
               <Button asChild size="sm" variant="secondary"><Link to="/campaigns">View campaigns</Link></Button>
             </div>
           )}

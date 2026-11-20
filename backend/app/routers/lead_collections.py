@@ -1,7 +1,7 @@
 """Add leads from a source: create a request, preview it, run it, stop it. Sources that read LinkedIn run in the outreach
 worker (``collect_leads`` tasks, counted against their own daily ceiling); the others are resolved here."""
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,6 +12,7 @@ from .. import engine, lead_sources as ls, models
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_data_user, get_manager_user
+from ..publishing_models import WorkerHeartbeat
 
 router = APIRouter(prefix="/lead-collections", tags=["lead-collections"])
 MAX_SHEET_BYTES = 5_000_000
@@ -77,9 +78,17 @@ def recent(db: Session = Depends(get_db), user: models.User = Depends(get_data_u
     return [_out(c) for c in rows]
 
 
+def _worker_running(db: Session) -> bool:
+    """Whether an outreach worker has reported in during the last two minutes. A request that reads LinkedIn waits for one."""
+    fresh = datetime.now(timezone.utc) - timedelta(minutes=2)
+    return any(engine._aware(b.checked_at) >= fresh for b in db.query(WorkerHeartbeat).filter(WorkerHeartbeat.id.like("outreach-%")))
+
+
 @router.get("/{collection_id}")
 def read(collection_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
-    return _out(_owned(db, user, collection_id))
+    out = _out(_owned(db, user, collection_id))
+    out["workerActive"] = _worker_running(db)  # lets the page say "no worker is running" instead of waiting without end
+    return out
 
 
 def _fetch_sheet(link: str) -> str:

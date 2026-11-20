@@ -44,7 +44,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
     onError: (e) => toast.error(requestFailureMessage(e)),
   });
   const approveAll = useMutation({ mutationFn: () => draftsApi.approve(campaignId, true), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["drafts", campaignId] }); await qc.invalidateQueries({ queryKey: ["launch-check"] }); } });
-  const dryRun = useMutation({ mutationFn: async () => { await flush(); return dryRunSchema(await api.post(`/outreach/campaigns/${campaignId}/dry-run`)); }, onSuccess: setDry, onError: (e) => toast.error(requestFailureMessage(e)) });
+  const dryRun = useMutation({ mutationFn: async () => { await flush(); return dryRunSchema(await api.post(`/campaigns/${campaignId}/dry-run`)); }, onSuccess: setDry, onError: (e) => toast.error(requestFailureMessage(e)) });
   const launch = useMutation({
     mutationFn: async () => { await flush(); await api.post("/campaigns", { action: "update", id: campaignId, status: "active" }); },
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["campaigns"] }); toast.success("Campaign launched."); onLaunched(); },
@@ -58,13 +58,15 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
   const zones = (() => { try { return Intl.supportedValuesOf("timeZone"); } catch { return ["UTC"]; } })();
 
   return (
-    <section aria-labelledby="review-h" className="grid grid-cols-1 gap-8">
+    <section aria-labelledby="review-h" className="grid grid-cols-1 gap-6">
       <div>
         <h2 id="review-h" className="text-lg font-semibold">Review and launch</h2>
         <p className="text-sm text-muted-foreground">Check the schedule, who is left out, and what will be sent. Nothing is sent until you launch.</p>
       </div>
 
-      <section aria-labelledby="sched-h" className="grid gap-3">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-6">
+      <section aria-labelledby="sched-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
         <h3 id="sched-h" className="text-base font-semibold">Campaign schedule</h3>
         <div className="grid max-w-sm gap-1">
           <Label htmlFor="tz">Time zone</Label>
@@ -74,27 +76,27 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         <p className="text-xs text-muted-foreground">Daily sending is paced by each account&apos;s safety limits, inside the hours you set here.</p>
         <ul aria-label="Operational hours" className="grid gap-2">
           {DAYS.map((d) => (
-            <li key={d} className="flex flex-wrap items-center gap-3 text-sm">
-              <label className="flex w-32 items-center gap-2"><Checkbox checked={state.week[d].on} onCheckedChange={(v) => setDay(d, { on: v === true })} aria-label={`${DAY_LABEL[d]} on`} /> {DAY_LABEL[d]}</label>
-              <Input aria-label={`${DAY_LABEL[d]} start`} type="time" className="w-28" value={state.week[d].start} disabled={!state.week[d].on} onChange={(e) => setDay(d, { start: e.target.value })} />
+            <li key={d} className="flex flex-wrap items-center gap-2 text-sm sm:flex-nowrap">
+              <label className="flex w-28 shrink-0 items-center gap-2"><Checkbox checked={state.week[d].on} onCheckedChange={(v) => setDay(d, { on: v === true })} aria-label={`${DAY_LABEL[d]} on`} /> {DAY_LABEL[d]}</label>
+              <Input aria-label={`${DAY_LABEL[d]} start`} type="time" className="w-[5.75rem] px-2" value={state.week[d].start} disabled={!state.week[d].on} onChange={(e) => setDay(d, { start: e.target.value })} />
               <span aria-hidden>to</span>
-              <Input aria-label={`${DAY_LABEL[d]} end`} type="time" className="w-28" value={state.week[d].end} disabled={!state.week[d].on} onChange={(e) => setDay(d, { end: e.target.value })} />
-              <Button type="button" size="sm" variant="ghost" onClick={() => applyToAll(d)}>Apply to all</Button>
+              <Input aria-label={`${DAY_LABEL[d]} end`} type="time" className="w-[5.75rem] px-2" value={state.week[d].end} disabled={!state.week[d].on} onChange={(e) => setDay(d, { end: e.target.value })} />
+              <Button type="button" size="sm" variant="ghost" className="ml-auto shrink-0 px-2 text-xs" onClick={() => applyToAll(d)}>Apply to all</Button>
             </li>
           ))}
         </ul>
       </section>
 
-      <section aria-labelledby="list-h" className="grid gap-3">
+      <section aria-labelledby="list-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
         <h3 id="list-h" className="text-base font-semibold">Lead list</h3>
         <p className="text-sm">{list ? `${list.name}: ${list.leadCount} leads.` : "No lead list selected. Please go back and select a lead list."}</p>
-        <ul aria-label="Who is left out" className="grid gap-3">
-          <li className="flex items-center justify-between gap-3 text-sm">
+        <ul aria-label="Who is left out" className="grid divide-y divide-border">
+          <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <span>Do not contact list <Link className="underline underline-offset-2" to="/leads?tab=dnc">Manage list</Link></span>
             <Switch checked disabled onCheckedChange={() => undefined} aria-label="Do not contact list (always on)" />
           </li>
           {EXCLUSIONS.map((e) => (
-            <li key={e.key} className="flex items-center justify-between gap-3 text-sm">
+            <li key={e.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <span id={`ex-${e.key}`}>{e.label}</span>
               <Switch aria-labelledby={`ex-${e.key}`} checked={!!state.exclusions[e.key]} onCheckedChange={(v) => set({ exclusions: { ...state.exclusions, [e.key]: v } })} />
             </li>
@@ -103,12 +105,14 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         <p className="text-xs text-muted-foreground">Existing connections are matched by LinkedIn profile against the connection list Synex has read for each sender. <Link className="underline underline-offset-2" to="/linkedin-accounts">Manage connections</Link></p>
       </section>
 
-      <section aria-labelledby="send-h" className="grid gap-2">
+      </div>
+      <div className="grid min-w-0 gap-6">
+      <section aria-labelledby="send-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
         <h3 id="send-h" className="text-base font-semibold">Sender accounts</h3>
         <p className="text-sm">{chosen.length ? chosen.map((a) => a.name).join(", ") : "No sender selected."} <Button type="button" variant="link" className="h-auto p-0" onClick={() => goTo(0)}>Edit senders</Button></p>
       </section>
 
-      <section aria-labelledby="seq-sum" className="grid gap-2">
+      <section aria-labelledby="seq-sum" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
         <h3 id="seq-sum" className="text-base font-semibold">Campaign sequence</h3>
         <ol className="grid list-decimal gap-1 pl-5 text-sm">
           {state.steps.filter((s) => s.type !== "end").map((s) => (
@@ -119,7 +123,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
       </section>
 
       {hasAi && (
-        <section aria-labelledby="ai-h" className="grid gap-3">
+        <section aria-labelledby="ai-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
           <h3 id="ai-h" className="text-base font-semibold">AI messages</h3>
           {estimate.data && (
             <p className="rounded-lg border border-border bg-surface-muted p-3 text-sm" data-testid="ai-estimate">
@@ -138,7 +142,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         </section>
       )}
 
-      <section aria-labelledby="check-h" className="grid gap-3">
+      <section aria-labelledby="check-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
         <h3 id="check-h" className="text-base font-semibold">Launch checklist</h3>
         {checking && <p role="status" className="text-sm text-muted-foreground">Checking.</p>}
         {problems && problems.length === 0 && <p role="status" className="rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">Everything needed to launch is in place.</p>}
@@ -179,11 +183,13 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         )}
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={confirmed} disabled={blocked} onCheckedChange={(v) => setConfirmed(v === true)} /> I confirm all details are correct and ready to launch</label>
         <div>
-          <Button disabled={blocked || !confirmed} loading={launch.isPending} onClick={() => launch.mutate()}>
+          <Button size="lg" className="w-full sm:w-auto" disabled={blocked || !confirmed} loading={launch.isPending} onClick={() => launch.mutate()}>
             {blocked ? (problems && problems.length > 0 ? `Fix ${problems.length} thing${problems.length === 1 ? "" : "s"} to launch` : "Checking") : "Launch campaign"}
           </Button>
         </div>
       </section>
+      </div>
+      </div>
     </section>
   );
 }

@@ -130,4 +130,4 @@ def _run_check(manager: SessionManager, account: models.LinkedInAccount) -> None
                                        proxy_url=store.load_proxy(account))
     except CheckFailed as exc:
         raise HTTPException(502, str(exc)) from None
-    store.record_check(account.id, result.status, result.storage_state)
+    store.record_check(account.id, result.status, result.storage_state, result.profile)

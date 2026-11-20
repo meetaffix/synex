@@ -147,7 +147,12 @@ def meta(db: Session = Depends(get_db), user: models.User = Depends(get_data_use
     accounts = db.query(models.LinkedInAccount).filter(models.LinkedInAccount.user_id == user.id, models.LinkedInAccount.status != "deleted").all()
     campaigns = db.query(models.Campaign).filter_by(user_id=user.id).order_by(models.Campaign.name).all()
     tags = sorted({t for (row,) in db.query(models.Conversation.tags).filter_by(user_id=user.id) for t in (row or [])})
-    return {"accounts": [{"id": a.id, "name": a.name, "lastSyncedAt": a.last_inbox_sync_at.isoformat() if a.last_inbox_sync_at else None, "live": engine.account_is_live(a)} for a in accounts],
+    def last_skipped(a: models.LinkedInAccount) -> int:
+        task = (db.query(models.AgentTask).filter(models.AgentTask.account_id == a.id, models.AgentTask.type == "sync_inbox", models.AgentTask.status == "done")
+                .order_by(models.AgentTask.updated_at.desc()).first())
+        return int((task.result or {}).get("skipped", 0)) if task else 0
+    return {"accounts": [{"id": a.id, "name": a.name, "lastSyncedAt": a.last_inbox_sync_at.isoformat() if a.last_inbox_sync_at else None, "live": engine.account_is_live(a),
+                          "syncMode": a.sync_mode or "synex_only", "lastSkipped": last_skipped(a)} for a in accounts],
             "campaigns": [{"id": c.id, "name": c.name} for c in campaigns], "tags": tags,
             "interests": [{"id": k, "label": v} for k, v in INTEREST_LABEL.items()]}
 

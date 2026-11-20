@@ -98,13 +98,19 @@ def save_session(*, workspace_id: str, target_account_id: str | None, identifier
         return account.id
 
 
-def record_check(account_id: str, status: str, storage_state: dict | None) -> None:
+def record_check(account_id: str, status: str, storage_state: dict | None, profile=None) -> None:
     with SessionLocal() as db:
         account = db.get(models.LinkedInAccount, account_id)
         if account is None:
             return
         apply_status(account, status)
         account.last_checked_at = datetime.now(timezone.utc)
+        if profile is not None and status == "connected":
+            # Fill in what the profile page gave; a value it did not give is never blanked, and the name and address stay as connected.
+            for field, value in (("headline", profile.headline), ("avatar_url", profile.avatar_url),
+                                 ("location", profile.location), ("company", profile.company)):
+                if value:
+                    setattr(account, field, value)
         if storage_state is not None:
             account.session_state_encrypted = encrypt_secret(json.dumps(storage_state))
         db.commit()

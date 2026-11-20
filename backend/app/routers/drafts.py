@@ -183,6 +183,21 @@ def render(campaign_id: str, body: RenderIn, owner: models.User = Depends(get_da
     return {"text": text, "leadName": f"{lead.first_name} {lead.last_name}".strip(), "unresolved": providers.unresolved_variables(text)}
 
 
+class RewriteIn(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
+    max_length: int | None = Field(default=None, alias="maxLength", ge=1, le=5000)
+    model_config = {"populate_by_name": True}
+
+
+@router.post("/rewrite")
+def rewrite(campaign_id: str, body: RewriteIn, owner: models.User = Depends(get_manager_user), db: Session = Depends(get_db)):
+    """A humanized rewrite of the text the user wrote. A user action while writing; never part of sending. Variables are kept."""
+    from .. import rewrite as rewriter
+    _campaign(db, owner, campaign_id)
+    db.rollback()  # nothing stays open while the provider is called
+    return rewriter.humanize(body.text, body.max_length)
+
+
 class _Shuffled:
     """The lead with a different spintax seed, so the preview can show another choice."""
 

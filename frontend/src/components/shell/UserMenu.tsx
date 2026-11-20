@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown } from "lucide-react";
 import { useThemeChoice } from "@/app/ThemeProvider";
@@ -33,6 +33,7 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
 export function UserMenu({ compact = false, onSidebar = false }: Props) {
   const { user, logout } = useAuth();
   const queries = useQueryClient();
+  const navigate = useNavigate();
   const name = user?.fullName ?? "Account";
   const theme = useThemeChoice();
   return (
@@ -61,12 +62,8 @@ export function UserMenu({ compact = false, onSidebar = false }: Props) {
       <DropdownMenuContent align={onSidebar ? "start" : "end"} side={onSidebar ? "top" : "bottom"} className="w-56">
         <DropdownMenuLabel className="truncate">{user?.email ?? name}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/settings">Account settings</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/help">Help</Link>
-        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/settings")}>Account settings</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/help")}>Help</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme.choice} onValueChange={(value) => theme.setChoice(value as ThemeChoice)}>

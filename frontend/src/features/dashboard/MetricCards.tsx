@@ -94,14 +94,14 @@ export function MetricCards({ values, loading, source, series, unit = "weekly" }
                   <Icon className="size-4" />
                 </span>
               </dt>
-              <dd className="flex items-end justify-between gap-3">
-                <span className="grid gap-1">
-                  <span className="text-2xl font-semibold">
+              <dd className="grid gap-2">
+                <span className="flex items-end justify-between gap-3">
+                  <span className="text-2xl font-semibold tracking-tight">
                     <Figure metric={key} value={value} loading={loading} />
                   </span>
-                  {!loading && value !== null && <ChangeIndicator values={trend} unit={unit} />}
+                  {!loading && value !== null && trend.length > 1 && <Sparkline values={trend} width={96} height={36} />}
                 </span>
-                {!loading && value !== null && <Sparkline values={trend} width={72} height={32} />}
+                {!loading && value !== null && <span className="min-h-4"><ChangeIndicator values={trend} unit={unit} /></span>}
               </dd>
             </Reveal>
           );

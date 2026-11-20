@@ -8,6 +8,7 @@ const ITEMS = [
   { label: "Notifications", to: "/settings/integrations?tab=notifications", match: (p: string, s: string) => p === "/settings/integrations" && s.includes("tab=notifications") },
   { label: "Usage", to: "/settings/integrations?tab=usage", match: (p: string, s: string) => p === "/settings/integrations" && s.includes("tab=usage") },
   { label: "Safety", to: "/settings/safety", match: (p: string) => p === "/settings/safety" },
+  { label: "Audit log", to: "/settings/audit", match: (p: string) => p === "/settings/audit" },
   { label: "Support", to: "/settings/integrations?tab=support", match: (p: string, s: string) => p === "/settings/integrations" && s.includes("tab=support") },
 ];
 

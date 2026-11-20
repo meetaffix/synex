@@ -42,6 +42,8 @@ interface Collection {
   estimate: { people: number; pages: number; minutes: number; reads_linkedin: boolean };
   preview: { people: Person[]; total: number; degrees: Record<string, number> } | null;
   needsMapping?: { headers: string[]; suggested: Record<string, string>; rows: number };
+  /** Whether an outreach worker has reported in lately. A request that reads LinkedIn waits for one. */
+  workerActive?: boolean;
 }
 
 const HINTS: Record<string, string> = {
@@ -111,6 +113,8 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const poll = useRef<number | undefined>(undefined);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   const connected = (accounts.data ?? []).filter((a) => a.status === "connected");
   const estimate = useQuery({
@@ -139,7 +143,8 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
     setText("");
   };
   const close = (next: boolean) => {
-    if (!next) reset();
+    // A request that is still being read keeps being watched after the window closes, so the finished list still reaches the page.
+    if (!next && !working) reset();
     onOpenChange(next);
   };
 
@@ -164,16 +169,26 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
 
   const watch = (id: string) => {
     window.clearInterval(poll.current);
+    let misses = 0;
     poll.current = window.setInterval(async () => {
       try {
         const next = await api.get<Collection>(`/lead-collections/${id}`);
+        misses = 0;
         setCollection(next);
         if (["preview_ready", "completed", "failed", "stopped"].includes(next.status)) {
           window.clearInterval(poll.current);
-          if (next.status === "completed") { void client.invalidateQueries(); if (next.listId) onCompleted?.(next.listId); }
+          if (next.status === "completed") {
+            void client.invalidateQueries();
+            if (next.listId) onCompleted?.(next.listId);
+            if (!openRef.current) toast.success(`${next.created} leads added to ${next.listName}.`);
+          }
         }
       } catch {
-        window.clearInterval(poll.current);
+        // One failed check (a restart, a dropped connection) must not end the watch: stop only after several in a row.
+        if (++misses >= 5) {
+          window.clearInterval(poll.current);
+          setError("Lost touch with Synex while the request was running. Reload the page: the request continues and its list will appear under Leads.");
+        }
       }
     }, 3000);
   };
@@ -214,7 +229,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
     setBusy(true);
     setError(undefined);
     try {
-      const made = await api.post<Collection>("/lead-collections", { source: "connections", accountId, listName: "My connections", limit: source.maxLeads ?? 30000, params: { filters: {} }, options: {} });
+      const made = await api.post<Collection>("/lead-collections", { source: "connections", accountId, listName: listName.trim() || "My connections", limit: source.maxLeads ?? 30000, params: { filters: {} }, options: {} });
       const started = await api.post<Collection>(`/lead-collections/${made.id}/run`, {});
       setCollection(started);
       watch(started.id);
@@ -297,6 +312,10 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
             ) : (
               <p role="note" className="text-sm">Connect a LinkedIn account first, under Sender accounts.</p>
             )}
+            <div className="grid gap-1">
+              <Label htmlFor="al-conn-name">List name</Label>
+              <Input id="al-conn-name" placeholder="My connections" maxLength={120} value={listName} onChange={(e) => setListName(e.target.value)} />
+            </div>
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="flex justify-end">
               <Button loading={busy} onClick={addAllConnections} disabled={!accountId}>Add all my connections</Button>
@@ -432,17 +451,22 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
           </div>
         )}
 
-        {source && collection && !collection.needsMapping && (collection.preview || working) && (
+        {source && collection && !collection.needsMapping && (collection.preview || working || ["completed", "stopped", "failed"].includes(collection.status)) && (
           <div className="grid gap-3" aria-live="polite">
             <p className="text-sm font-medium">
               {collection.status === "previewing" && "Reading the first results…"}
               {collection.status === "preview_ready" && `Preview: ${collection.preview?.total ?? 0} people found so far`}
-              {collection.status === "queued" && "Waiting for the worker…"}
+              {collection.status === "queued" && (collection.workerActive === false ? "No worker is running, so this cannot start yet" : "Waiting for the worker…")}
               {collection.status === "running" && `Collecting: ${collection.fetched} found`}
-              {collection.status === "completed" && `Done: ${collection.created} leads added to “${collection.listName}”`}
+              {collection.status === "completed" && `Done: ${collection.created} new ${collection.created === 1 ? "lead" : "leads"} added to “${collection.listName}”${collection.fetched > collection.created ? `, ${collection.fetched - collection.created} already in Synex and put on the list` : ""}`}
               {collection.status === "stopped" && "Stopped"}
               {collection.status === "failed" && "The read stopped early"}
             </p>
+            {collection.status === "queued" && collection.workerActive === false && (
+              <p role="alert" className="text-sm text-danger">
+                The part of Synex that reads LinkedIn is not running. This request waits and starts by itself as soon as it is running. On your own computer, start it with <code>python -m app.outreach_worker</code> from the backend folder.
+              </p>
+            )}
             {collection.detail && <p className="text-sm text-muted-foreground">{collection.detail}</p>}
             {deg && (
               <p className="text-sm text-muted-foreground" data-testid="degree-counts">

@@ -100,7 +100,7 @@ function ago(value: string): string {
 export function ActivityFeed({ conversations }: { conversations: Conversation[] }) {
   const recent = [...conversations].sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)).slice(0, 5);
   return (
-    <section aria-labelledby="activity-title" className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
+    <section aria-labelledby="activity-title" className="grid min-w-0 self-start grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 id="activity-title" className="text-base font-semibold">
           Recent activity

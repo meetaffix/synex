@@ -270,7 +270,7 @@ export function LeadsPage() {
             return (
               <div
                 key={job.id}
-                className="flex items-center gap-3 rounded-md border border-border bg-surface-muted/30 px-4 py-3 text-sm"
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm shadow-raised"
               >
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
                 <div className="flex-1 min-w-0">
@@ -331,7 +331,7 @@ export function LeadsPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-raised sm:flex-row sm:items-center">
         <SearchInput
           value={search}
           onChange={(v) => {
@@ -409,7 +409,7 @@ export function LeadsPage() {
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-primary-soft px-4 py-3 text-primary-soft-foreground">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary-soft px-4 py-3 text-primary-soft-foreground shadow-raised">
           <span className="text-sm font-medium">
             {selectAllMatching
               ? `All ${total} leads selected`
@@ -458,7 +458,7 @@ export function LeadsPage() {
       )}
 
       {/* Table */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden shadow-raised">
         {isLoading ? (
           <div role="status" aria-label="Loading leads" className="grid gap-2 p-4 sm:p-6">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -621,7 +621,7 @@ export function LeadsPage() {
             </Table>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
+            <div className="flex items-center justify-between border-t border-border bg-surface-muted/40 px-4 py-3 text-sm">
               <p className="text-muted-foreground">
                 Showing {page * PAGE_SIZE + 1}–
                 {Math.min((page + 1) * PAGE_SIZE, total)} of {total}

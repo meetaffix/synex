@@ -109,6 +109,27 @@ class CollectionApiTest(unittest.TestCase):
         third = self.make(source="csv", limit=10, params={"text": messy, "mapping": {"linkedin_url": "Link", "name": "Who"}}).json()
         self.assertEqual((third["fetched"], third["detail"]), (2, "4 rows read: 2 valid, 1 without a LinkedIn profile link, 1 repeated in the file."))
 
+    def test_a_waiting_request_says_whether_a_worker_is_running(self):
+        from datetime import datetime, timedelta, timezone
+        from app.publishing_models import WorkerHeartbeat
+        with SessionLocal() as db:
+            account = models.LinkedInAccount(user_id=self.user_id, name="S", status="active", session_status="connected", daily_action_limit=0)
+            db.add(account)
+            db.commit()
+            account_id = account.id
+        made = self.make(source="connections", limit=10, accountId=account_id, params={"filters": {}}).json()
+        self.client.post(f"/lead-collections/{made['id']}/run")
+        read = lambda: self.client.get(f"/lead-collections/{made['id']}").json()
+        self.assertIs(read()["workerActive"], False)  # no worker has reported in: the request would wait for ever
+        with SessionLocal() as db:
+            db.add(WorkerHeartbeat(id="outreach-test", checked_at=datetime.now(timezone.utc) - timedelta(minutes=10)))
+            db.commit()
+        self.assertIs(read()["workerActive"], False)  # a heartbeat from ten minutes ago is a worker that stopped
+        with SessionLocal() as db:
+            db.get(WorkerHeartbeat, "outreach-test").checked_at = datetime.now(timezone.utc)
+            db.commit()
+        self.assertIs(read()["workerActive"], True)
+
     def test_a_linkedin_source_needs_a_connected_sender_and_a_valid_link(self):
         self.assertEqual(self.make(source="search", limit=10, params={"url": "https://www.linkedin.com/search/results/people/?keywords=x"}).status_code, 422)
         with SessionLocal() as db:

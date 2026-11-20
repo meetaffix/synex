@@ -296,7 +296,7 @@ export async function mockApi(page: Page, api: Api) {
           steps: [
             { id: "s1", type: "connection_request", order: 0, message: "", delayHours: null, aiConfig: null },
             { id: "s2", type: "wait", order: 1, message: null, delayHours: 48, aiConfig: null },
-            { id: "s3", type: "message", order: 2, message: "", delayHours: null, aiConfig: null },
+            { id: "s3", type: "message", order: 2, message: "Thanks for connecting.", delayHours: null, aiConfig: null },
             { id: "s4", type: "end", order: 3, message: null, delayHours: null, aiConfig: null }],
         });
         api.builder ??= make();
@@ -358,7 +358,7 @@ export async function mockApi(page: Page, api: Api) {
         if (cbSub[2] === "render") return json(200, { text: String((body as { text?: string })?.text ?? "").replace("{{first_name}}", "Ada").replace("{{missing}}", "{{missing}}"), leadName: "Ada Lovelace", unresolved: String((body as { text?: string })?.text ?? "").includes("{{missing}}") ? ["missing"] : [] });
         if (!cbSub[2]) return json(200, { counts: { proposed: api.draftsMade && !api.draftsApproved ? 1 : 0, approved: api.draftsApproved ? 1 : 0 }, drafts: api.draftsMade ? [{ id: "d1", leadId: "l1", leadName: "Ada Lovelace", stepId: "s3", stepOrder: 2, stepType: "message", body: "Hi Ada, a prepared note.", status: api.draftsApproved ? "approved" : "proposed", source: "template" }] : [], job: null });
       }
-      if (path === "/outreach/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
+      if (path === "/campaigns/cb1/dry-run") return json(200, { campaignId: "cb1", generatedAt: "2026-11-16T10:00:00Z", actions: [{ leadName: "Ada Lovelace", accountName: "Ada Lovelace", stepType: "connection_request", message: "Hi Ada", earliestAt: "2026-11-17T08:00:00Z", skipReason: null }, { leadName: "Bo B", accountName: null, stepType: null, message: "", earliestAt: null, skipReason: "On the do-not-contact list." }] });
       if (path === "/campaigns") return json(200, api.campaigns);
       const reviews = path.match(/^\/publishing\/posts\/([^/]+)\/(reviews|reviewers|feedback)(?:\/([^/]+))?$/);
       if (reviews) {
@@ -403,7 +403,7 @@ export async function mockApi(page: Page, api: Api) {
           if (want === "local" && api.syncStatus === "ollama-off") return json(409, { detail: "The local language model is not ready, so the assistant cannot switch to it. Start Ollama and pull the model first (see the Local models card)." });
           if (want) api.assistant.provider = want;
         }
-        return json(200, { available: true, enabled: true, monthlyMinuteCap: 60, usedSeconds: 120, remainingSeconds: 3480, capReached: false, idleTimeoutSeconds: 120, historyEnabled: false, language: "en", provider: api.assistant.provider, voice: "aura", model: "gpt", month: "2026-11", canEdit: true });
+        return json(200, { available: true, enabled: true, monthlyMinuteCap: 60, plan: "free", planMinuteLimit: 100, usedSeconds: 120, remainingSeconds: 3480, capReached: false, idleTimeoutSeconds: 120, historyEnabled: false, language: "en", provider: api.assistant.provider, voice: "aura", model: "gpt", month: "2026-11", canEdit: true });
       }
       if (path === "/assistant/providers") return json(200, { selected: api.assistant.provider, providers: [
         { id: "deepgram", label: "Deepgram voice agent", cost: "Paid per minute", runs: "Deepgram's servers", licence: "Commercial service (default)", ready: true, detail: "Voice and text in the assistant panel. The default.", parts: [] },

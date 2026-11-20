@@ -580,10 +580,11 @@ def apply_inbox(task_id: str, conversations: list[InboundConversation]) -> None:
         account, now = task.account, engine._now()
         leads = db.query(models.Lead).filter_by(user_id=account.user_id).all()
         by_path = {_path(lead.linkedin_url): lead for lead in leads if lead.linkedin_url}
-        stored = 0
+        stored = skipped = 0
         for conv in conversations:
             lead = by_path.get(_path(conv.profile_url))
             if account.sync_mode != "all" and (lead is None or not _contacted_by_synex(db, lead)):
+                skipped += 1  # read from LinkedIn but not kept: the account keeps only Synex conversations
                 continue
             if lead is None:
                 slug = _path(conv.profile_url).rsplit("/", 1)[-1].replace("-", " ").title() or "LinkedIn member"
@@ -594,7 +595,7 @@ def apply_inbox(task_id: str, conversations: list[InboundConversation]) -> None:
             _store_thread(db, account, lead, conv, now)
             stored += 1
         account.last_inbox_sync_at = now
-        task.status, task.result = "done", {"result": "synced", "conversations": stored}
+        task.status, task.result = "done", {"result": "synced", "conversations": stored, "skipped": skipped}
         db.add(models.AgentActivity(account_id=account.id, user_id=account.user_id, scope="task", step="sync_inbox",
                                     status="ok", message=f"sync_inbox: {stored} conversations", task_id=task.id,
                                     result=f"synced_{stored}"))

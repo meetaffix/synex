@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .errors import sanitize_errors
 from .migrations import migrate
-from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts, dashboard, lead_collections, do_not_contact, company_lists, inbox, integrations, public_api, voice_notes, post_reviews, engagement
+from .routers import auth, leads, lead_lists, campaigns, conversations, templates, settings as settings_router, ai, team, accounts, reconnect, outreach, assistant, clerk, drafts, dashboard, lead_collections, do_not_contact, company_lists, inbox, integrations, public_api, voice_notes, post_reviews, engagement, plan, audit
 from .linkedin_session import shutdown_manager
 from . import linkedin, publishing, images
 
@@ -33,11 +33,18 @@ class SettingsCORSMiddleware(CORSMiddleware):
 app.add_middleware(SettingsCORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Content-Type", "Authorization"])
 _attempts = defaultdict(deque)
+MAX_BODY_BYTES = 2 * 1024 * 1024
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+UPLOAD_PATHS = ("/voice-notes", "/images", "/leads", "/publishing", "/assistant", "/integrations/import", "/do-not-contact", "/lead-collections")
 
 @app.middleware("http")
 async def safeguards(request: Request, call_next):
     path = request.url.path
     if request.method not in ("GET", "HEAD", "OPTIONS"):
+        # A request is refused before it is read when it claims to be too big. Uploads (pictures, voice notes, CSV files) may be larger.
+        limit = MAX_UPLOAD_BYTES if path.startswith(UPLOAD_PATHS) else MAX_BODY_BYTES
+        if int(request.headers.get("content-length") or 0) > limit:
+            return JSONResponse({"detail": f"That request is too large. The most this endpoint takes is {limit // (1024 * 1024)} MB."}, status_code=413)
         origin = request.headers.get("origin")
         if (origin and not settings.origin_allowed(origin)) or (request.cookies.get("synex_session") and not origin):
             return JSONResponse({"detail": "Request origin is not allowed"}, status_code=403)
@@ -72,7 +79,7 @@ async def safeguards(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store"
     return response
 
-for router in (engagement.router, post_reviews.router, voice_notes.router, auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router, dashboard.router, lead_collections.router, do_not_contact.router, company_lists.router, inbox.router, integrations.router, public_api.router):
+for router in (engagement.router, post_reviews.router, voice_notes.router, auth.router, leads.router, lead_lists.router, campaigns.router, conversations.router, templates.router, settings_router.router, ai.router, team.router, accounts.router, reconnect.router, outreach.router, linkedin.router, publishing.router, images.router, assistant.router, clerk.router, drafts.router, dashboard.router, lead_collections.router, do_not_contact.router, company_lists.router, inbox.router, integrations.router, public_api.router, plan.router, audit.router):
     app.include_router(router)
 
 @app.get("/health")

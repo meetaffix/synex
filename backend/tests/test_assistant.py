@@ -283,6 +283,7 @@ class ConfirmationTest(AssistantCase):
             "create_campaign_draft": {"name": "Demo push", "steps": [{"type": "profile_visit"}, {"type": "connection_request", "message": "Hi"}, {"type": "wait", "delay_hours": 48}, {"type": "message", "message": "Thanks"}],
                                       "lead_list_id": ids["list"], "daily_connection_limit": 15},
             "set_campaign_state": {"campaign_id": ids["campaign"], "action": "pause"},
+            "set_campaign_sequence": {"campaign_id": ids["draft"], "name": "Written by voice", "steps": [{"type": "connection_request", "message": "Hi {{first_name}}"}, {"type": "wait", "delay_hours": 48}, {"type": "message", "message": "Thanks for connecting"}]},
             "set_account_state": {"account_id": ids["account"], "action": "pause"},
             "set_daily_limits": {"target": "account", "id": ids["account"], "daily_action_limit": 30},
             "add_do_not_contact": {"kind": "company", "values": ["Acme Inc"]},
@@ -327,6 +328,10 @@ class ConfirmationTest(AssistantCase):
             self.assertEqual(db.get(models.LinkedInAccount, ids["account"]).daily_action_limit, 30)
             draft = db.query(models.Campaign).filter_by(name="Demo push").one()
             self.assertEqual(draft.status, "draft")
+            voiced = db.get(models.Campaign, ids["draft"])
+            self.assertEqual((voiced.name, voiced.status), ("Written by voice", "draft"))
+            self.assertEqual([(s.type, s.message) for s in sorted(voiced.steps, key=lambda s: s.order) if s.type != "wait"],
+                             [("connection_request", "Hi {{first_name}}"), ("message", "Thanks for connecting"), ("end", None)])
             self.assertEqual([s.type for s in sorted(draft.steps, key=lambda s: s.order)], ["profile_visit", "connection_request", "wait", "message", "end"])
         self.assertEqual({a.status for a in self.audits() if a.kind == "write"}, {"proposed", "applied"})
         again = self.client.post(f"/assistant/proposals/{proposals['create_template']}/confirm")
@@ -348,6 +353,26 @@ class ConfirmationTest(AssistantCase):
             db.get(AssistantProposal, pid).expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
             db.commit()
         self.assertEqual(self.client.post(f"/assistant/proposals/{pid}/confirm").status_code, 409)
+
+    def test_a_running_campaign_sequence_cannot_be_rewritten(self):
+        ids = self.seed()
+        out = self.call(self.owner_id, "set_campaign_sequence", {"campaign_id": ids["campaign"], "steps": [{"type": "message", "message": "x"}]}).result
+        self.assertFalse(out["ok"])
+        self.assertIn("running", out["error"])
+
+    def test_a_connection_request_is_refused_for_a_list_of_people_already_connected(self):
+        ids = self.seed()
+        with SessionLocal() as db:
+            lead = db.get(models.Lead, ids["lead"])
+            lead.connection_degree = 1
+            db.get(models.Campaign, ids["draft"]).lead_list_id = ids["list"]
+            db.commit()
+        steps = [{"type": "connection_request", "message": "Hi"}, {"type": "message", "message": "Hello"}]
+        out = self.call(self.owner_id, "set_campaign_sequence", {"campaign_id": ids["draft"], "steps": steps}).result
+        self.assertFalse(out["ok"])
+        self.assertIn("already a connection", out["error"])
+        ok = self.call(self.owner_id, "set_campaign_sequence", {"campaign_id": ids["draft"], "steps": steps[1:]}).result
+        self.assertTrue(ok["ok"], ok)
 
     def test_resuming_an_unlaunched_campaign_is_not_available(self):
         ids = self.seed()

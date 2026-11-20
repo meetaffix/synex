@@ -65,6 +65,13 @@ const CATEGORY_VARIANT: Record<
   reply: "success",
 };
 
+const EDGE: Record<TemplateCategory, string> = {
+  connection: "border-t-primary",
+  first_message: "border-t-info",
+  follow_up: "border-t-warning",
+  reply: "border-t-success",
+};
+
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string(),
@@ -269,10 +276,10 @@ export function TemplatesPage() {
           }
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {templates.map((t) => (
-            <Card key={t.id} className="group flex flex-col transition-transform duration-200 hover:-translate-y-0.5">
-              <CardContent className="flex flex-1 flex-col p-6">
+            <Card key={t.id} className={`group flex flex-col border-t-4 shadow-raised transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-float ${EDGE[t.category]}`}>
+              <CardContent className="flex flex-1 flex-col p-5">
                 <div className="flex items-start justify-between">
                   <Badge variant={CATEGORY_VARIANT[t.category]}>
                     {CATEGORIES.find((c) => c.value === t.category)?.label}
@@ -308,8 +315,8 @@ export function TemplatesPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <h3 className="mt-3 font-semibold">{t.name}{t.shortcut ? <span className="ml-2 rounded bg-surface-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">/{t.shortcut}</span> : null}</h3>
-                <p className="mt-2 line-clamp-4 flex-1 text-sm text-muted-foreground">
+                <h3 className="mt-3 text-base font-semibold">{t.name}{t.shortcut ? <span className="ml-2 rounded bg-surface-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">/{t.shortcut}</span> : null}</h3>
+                <p className="mt-3 line-clamp-4 flex-1 rounded-md bg-surface-muted px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
                   {t.body}
                 </p>
                 <div className="mt-4 flex items-center gap-3 border-t border-border pt-3">

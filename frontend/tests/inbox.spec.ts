@@ -175,3 +175,12 @@ test("a conversation with no sender account is read-only and says so; with no co
   await empty.goto("/inbox");
   await expect(empty.getByText("No conversations yet")).toBeVisible();
 });
+
+test("an empty inbox on an account that keeps only Synex conversations says so, how many were left out, and where to change it", async ({ page }) => {
+  await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")], inbox: [] }));
+  await page.route(/\/inbox\/meta$/, (route) => route.fulfill({ json: { accounts: [{ id: "a1", name: "Ada Lovelace", lastSyncedAt: "2026-11-20T09:00:00Z", live: true, syncMode: "synex_only", lastSkipped: 4 }], campaigns: [], tags: [], interests: [] } }));
+  await page.goto("/inbox");
+  const note = page.getByRole("note").filter({ hasText: "keeps only conversations with people Synex has contacted" });
+  await expect(note).toContainText("4 other conversations on LinkedIn are not shown");
+  await expect(note.getByRole("link", { name: "change its conversation sync" })).toHaveAttribute("href", "/linkedin-accounts/a1");
+});

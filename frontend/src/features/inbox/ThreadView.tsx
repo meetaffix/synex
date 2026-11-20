@@ -87,20 +87,28 @@ export function ThreadView({ conversation, onBack }: Props) {
           </div>
         )}
         {thread.data?.length === 0 && <p className="text-sm text-muted-foreground">There are no messages in this conversation yet.</p>}
-        <ol className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          {thread.data?.map((message) => {
+        <ol aria-label="Messages" className="grid grid-cols-[minmax(0,1fr)]">
+          {thread.data?.map((message, index) => {
             const day = formatDate(message.sentAt, "EEEE, MMM d");
             const first = !dates.has(day);
             dates.add(day);
+            // A run is consecutive messages from one person within ten minutes: tight together, with the name and time once at the top.
+            const before = thread.data?.[index - 1];
+            const run = !before || first || before.direction !== message.direction || new Date(message.sentAt).getTime() - new Date(before.sentAt).getTime() > 10 * 60_000;
+            const flagged = !!message.deliveryStatus && message.deliveryStatus !== "sent";
+            const out = message.direction === "outbound";
+            const time = formatDate(message.sentAt, "h:mm a");
             return (
-              <li key={message.id} className="grid gap-2">
-                {first && <p className="text-center text-xs text-muted-foreground">{day}</p>}
-                <div className={message.direction === "outbound" ? "max-w-full justify-self-end text-right" : "max-w-full justify-self-start"}>
-                  <p className="text-xs text-muted-foreground">
-                    {message.direction === "outbound" ? "You" : conversation.leadName} · <span className="tabular-nums">{formatDate(message.sentAt, "h:mm a")}</span>
-                    {message.deliveryStatus && message.deliveryStatus !== "sent" ? ` · ${message.deliveryStatus === "queued" ? "Queued" : "Not delivered"}` : ""}
-                  </p>
-                  <p className={cn("mt-1 max-w-prose whitespace-pre-wrap break-words rounded-md px-3 py-2 text-left text-sm", message.direction === "outbound" ? "bg-primary-soft text-primary-soft-foreground" : "border border-border bg-surface")}>{message.body}</p>
+              <li key={message.id} className={cn("grid", index === 0 ? "" : first ? "mt-6" : run ? "mt-4" : "mt-1")}>
+                {first && <p className="mb-3 text-center text-xs text-muted-foreground">{day}</p>}
+                <div className={out ? "max-w-full justify-self-end text-right" : "max-w-full justify-self-start"}>
+                  {(run || flagged) ? (
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      {out ? "You" : conversation.leadName} · <span className="tabular-nums">{time}</span>
+                      {flagged ? ` · ${message.deliveryStatus === "queued" ? "Queued" : "Not delivered"}` : ""}
+                    </p>
+                  ) : <span className="sr-only">{out ? "You" : conversation.leadName}, {time}</span>}
+                  <p title={time} className={cn("max-w-prose whitespace-pre-wrap break-words rounded-md border px-3 py-2 text-left text-sm", out ? "border-transparent bg-primary-soft text-primary-soft-foreground" : "border-border bg-surface")}>{message.body}</p>
                 </div>
               </li>
             );

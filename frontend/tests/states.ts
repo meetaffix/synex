@@ -155,9 +155,8 @@ export const states: State[] = [
   { name: "campaign-builder-senders", path: "/campaigns/cb1/edit?step=0", api: accounts_ },
   { name: "campaign-builder-leads", path: "/campaigns/cb1/edit?step=1", api: accounts_ },
   { name: "campaign-builder-sequence", path: "/campaigns/cb1/edit?step=2", api: accounts_ },
+  { name: "campaign-builder-message-node", path: "/campaigns/cb1/edit?step=2", api: accounts_, prepare: async (page) => { await page.getByRole("button", { name: /^Send message\s/ }).click(); await expect(page.getByRole("dialog", { name: /Configure send message/ })).toBeVisible(); } },
   { name: "campaign-builder-review", path: "/campaigns/cb1/edit?step=3", api: () => { const a = newApi({ accounts: accounts() }); a.launchProblems = [{ kind: "empty_lead_list", field: "leadListId", message: "Add at least one lead to the campaign's list before launching.", step: "leads" }]; return a; } },
-  { name: "campaign-builder-ai-drawer", path: "/campaigns/cb1/edit?step=2", api: accounts_, prepare: async (page) => { await page.getByRole("switch", { name: /Synex AI writing/ }).first().click(); await page.getByRole("dialog").waitFor(); } },
-  { name: "campaign-builder-context", path: "/campaigns/cb1/edit", api: accounts_, prepare: async (page) => { await page.getByRole("button", { name: "AI campaign context" }).click(); await page.getByRole("dialog").waitFor(); } },
   { name: "integrations-notifications", path: "/settings/integrations?tab=notifications", api: () => newApi() },
   { name: "integrations-webhooks", path: "/settings/integrations?tab=webhooks", api: () => newApi() },
   { name: "integrations-api", path: "/settings/integrations?tab=api", api: () => newApi() },
@@ -342,8 +341,6 @@ export const states: State[] = [
   { name: "safety", path: "/settings/safety", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.audit = [{ id: "r1", accountId: "a1", at: "2026-11-16T10:00:00Z", account: "Ada Lovelace", action: "send_invite", result: "sent", status: "ok", reason: "Done.", person: "Grace Hopper", campaign: "Autumn" }]; return api; } },
   { name: "safety-admin", path: "/settings/safety", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.admin = true; return api; } },
   { name: "campaign-smart", path: "/campaigns/cb1/edit?step=2", api: () => { const api = newApi({ accounts: accounts() }); return api; }, prepare: async (page) => {
-    await page.getByRole("button", { name: "Smart", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Switch to Smart" }).click();
     await page.getByRole("button", { name: "Add action to the sequence" }).click();
     await page.getByRole("menuitem", { name: /If connection/ }).click();
     await expect(page.getByText("Not connected", { exact: true })).toBeVisible();

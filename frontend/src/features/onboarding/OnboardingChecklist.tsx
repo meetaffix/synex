@@ -14,6 +14,19 @@ export function OnboardingChecklist() {
   if (dismissed) return null;
   if (loading) return <Skeleton role="status" aria-label="Loading your setup steps" className="h-48 w-full rounded-lg" />;
 
+  if (complete) {
+    return (
+      <section aria-labelledby="onboarding-title" className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-surface p-4 shadow-raised">
+        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-success-soft text-success"><Check className="size-5" /></span>
+        <div className="min-w-[14rem] flex-1">
+          <h2 id="onboarding-title" className="text-base font-semibold">You are set up</h2>
+          <p className="text-sm text-muted-foreground">Every step is done. Your campaigns run inside working hours and daily limits.</p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={dismiss}>Hide this checklist</Button>
+      </section>
+    );
+  }
+
   return (
     <section aria-labelledby="onboarding-title" className="grid gap-6 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto]">
       <div className="grid gap-4">

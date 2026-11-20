@@ -67,8 +67,10 @@ def _update(payload: SettingsUpdateIn, db: Session, user: models.User):
 def _change_password(payload: PasswordChangeIn, db: Session, user: models.User):
     if not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if not 8 <= len(payload.new_password) <= 256:
+        raise HTTPException(status_code=400, detail="New password must be 8 to 256 characters")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=400, detail="Choose a password different from the current one")
     from ..sessions import revoke_sessions
     revoke_sessions(db, user.id)
     user.hashed_password = hash_password(payload.new_password)

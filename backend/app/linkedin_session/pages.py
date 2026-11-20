@@ -124,9 +124,11 @@ class Site:
     """Selector-driven implementation of ``LoginSite``."""
 
     def __init__(self, base_url: str, selectors: Selectors,
-                 login_path: str = "/login", feed_path: str = "/feed/", profile_path: str = "/in/me/") -> None:
+                 login_path: str = "/login", feed_path: str = "/feed/", profile_path: str = "/in/me/",
+                 text_profile: bool = False) -> None:
         self.base_url = base_url.rstrip("/")
         self.sel = selectors
+        self.text_profile = text_profile  # read the profile's top card from its text: the real page has no stable selectors
         self._login_path, self._feed_path, self._profile_path = login_path, feed_path, profile_path
 
     async def open_login(self, page: Page) -> None:
@@ -175,11 +177,12 @@ class Site:
             raise PlaywrightTimeout("the profile page did not open")
         # The real profile page has no <h1> (checked 16 Nov 2026); its title is "<Name> | LinkedIn", sometimes "(3) <Name> | LinkedIn".
         name = name_from_title(await page.title()) or (await page.locator(self.sel.profile_name).first.inner_text(timeout=10_000)).strip()
-        avatar = await _optional_attribute(page, self.sel.profile_avatar, "src")
+        card = await read_top_card(page, name) if self.text_profile else TopCard(None, None, None)
         parts = urlsplit(page.url)
-        return Profile(name=name, headline=await _optional_text(page, self.sel.profile_headline),
-                       url=f"{parts.scheme}://{parts.netloc}{parts.path}", avatar_url=avatar,
-                       location=await _optional_text(page, self.sel.profile_location),
+        return Profile(name=name, headline=card.headline or await _optional_text(page, self.sel.profile_headline),
+                       url=f"{parts.scheme}://{parts.netloc}{parts.path}",
+                       avatar_url=card.avatar_url or await _optional_attribute(page, self.sel.profile_avatar, "src"),
+                       location=card.location or await _optional_text(page, self.sel.profile_location),
                        company=await _optional_text(page, self.sel.profile_company))
 
     def is_proxy_error(self, exc: BaseException) -> bool:
@@ -195,7 +198,7 @@ class Site:
             pass
 
 
-LINKEDIN = Site("https://www.linkedin.com", REAL_SELECTORS)
+LINKEDIN = Site("https://www.linkedin.com", REAL_SELECTORS, text_profile=True)
 
 
 async def _visible(page: Page, selector: str) -> bool:
@@ -203,6 +206,58 @@ async def _visible(page: Page, selector: str) -> bool:
         return await page.locator(selector).first.is_visible()
     except PlaywrightError:
         return False
+
+
+@dataclass(frozen=True)
+class TopCard:
+    headline: str | None
+    location: str | None
+    avatar_url: str | None
+
+
+# The real profile page (read on 20 Nov 2026) has no <h1>, no meta tags and generated class names. Its top card is text, in this
+# order: name, optional pronouns and badges, headline, location, "Contact info". Anchoring on the name and on "Contact info"
+# survives class renames; the lines between them, minus pronouns, badges and separators, are the headline and the location.
+_PRONOUNS = re.compile(r"^(he|she|they|ze|xe|it)\s*/\s*\w+", re.I)
+_BADGE = re.compile(r"^(verify in|premium|verified|open to work|hiring|\d+(st|nd|rd))", re.I)
+
+
+def parse_top_card(lines: list[str], name: str) -> tuple[str | None, str | None]:
+    """(headline, location) from the main text lines of a profile page. (None, None) when this is not a top card."""
+    end = next((i for i, line in enumerate(lines) if line.strip().lower() == "contact info"), None)
+    if end is None:
+        return None, None
+    start = next((i for i, line in enumerate(lines[:end]) if line.strip() == name), -1)
+    body = [line.strip() for line in lines[start + 1:end]
+            if re.search(r"\w", line) and not _PRONOUNS.match(line.strip()) and not _BADGE.match(line.strip())]
+    if not body:
+        return None, None
+    if len(body) == 1:
+        return body[0], None
+    return body[-2], body[-1]
+
+
+_TOP_CARD_JS = r"""() => {
+  const main = document.querySelector('main');
+  if (!main) return null;
+  const photo = [...main.querySelectorAll('img')].map(i => i.currentSrc || i.src).find(s => /profile-displayphoto/i.test(s || ''));
+  return {lines: main.innerText.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 40), photo: photo || null};
+}"""
+
+
+async def read_top_card(page: Page, name: str, wait_ms: int = 15_000) -> TopCard:
+    """Headline, location and profile photo from the top card. Waits for the card to render (the page paints after the
+    document loads); an empty card, never an error, when it does not."""
+    try:
+        await page.wait_for_function("() => { const m = document.querySelector('main'); return !!m && /Contact info/i.test(m.innerText); }",
+                                     timeout=wait_ms)
+        data = await page.evaluate(_TOP_CARD_JS)
+    except (PlaywrightError, PlaywrightTimeout):
+        return TopCard(None, None, None)
+    if not data:
+        return TopCard(None, None, None)
+    headline, location = parse_top_card(data["lines"], name)
+    return TopCard(headline, location, data["photo"])
 
 
 async def _optional_text(page: Page, selector: str) -> str | None:

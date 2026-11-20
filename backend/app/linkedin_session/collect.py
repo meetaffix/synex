@@ -23,8 +23,16 @@ CARD_JS = r"""
   for (const a of document.querySelectorAll('a[href*="/in/"]')) {
     const href = a.href.split('?')[0];
     if (!/linkedin\.com\/in\/[^/]+/.test(href) || seen.has(href)) continue;
+    // The card is a list item that holds this person (a mutual-connection link inside it is another person, but this link comes first),
+    // else the largest ancestor that still holds links to this one person only. A fixed climb reaches a container shared by
+    // several rows, and every row then gets the first person's name (seen on the real connections page, which has no list items).
+    const people = (el) => new Set([...el.querySelectorAll('a[href*="/in/"]')].map((x) => x.href.split('?')[0]));
     let card = a.closest('li, [role="listitem"], article, .entity-result, .artdeco-list__item');
-    if (!card) { card = a; for (let i = 0; i < 4 && card.parentElement && card.parentElement.tagName !== 'BODY'; i++) card = card.parentElement; }
+    if (card && people(card).size > 1 && card.querySelector('a[href*="/in/"]') !== a) card = null;
+    if (!card) {
+      card = a;
+      for (let i = 0; i < 8 && card.parentElement && card.parentElement.tagName !== 'BODY' && people(card.parentElement).size <= 1; i++) card = card.parentElement;
+    }
     const text = (card.innerText || '').trim();
     if (!text) continue;
     seen.add(href);
@@ -35,7 +43,7 @@ CARD_JS = r"""
 """
 
 _NOISE = re.compile(
-    r"^(connect|message|follow|following|pending|view .*profile|status is .*|.*mutual connection.*|.*followers?|.*follows? you|"
+    r"^(connect|message|follow|following|pending|view .*profile|status is .*|connected on .*|.*mutual connection.*|.*followers?|.*follows? you|"
     r"send .*|more|•|\.{3}|see all|show more.*|\d+[km]?)$", re.I)
 _DEGREE = re.compile(r"\b(1st|2nd|3rd)\b\+?", re.I)
 _DEGREE_NUMBER = {"1st": 1, "2nd": 2, "3rd": 3}

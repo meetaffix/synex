@@ -100,12 +100,42 @@ def launch_problems(db: Session, campaign: models.Campaign) -> list[dict]:
     return problems
 
 
+def _guard_steps_in_use(db: Session, campaign: models.Campaign, steps) -> None:
+    """A step that people are on cannot be removed: they would be left with nowhere to go. Add steps, change text or waits, or wait for them to move on."""
+    keep = {(raw if isinstance(raw, dict) else raw.model_dump()).get("id") for raw in steps}
+    for step in campaign.steps:
+        if step.id in keep:
+            continue
+        on_it = db.query(models.SequenceRun).filter(models.SequenceRun.campaign_id == campaign.id, models.SequenceRun.current_step_id == step.id,
+                                                    models.SequenceRun.status.in_(["running", "waiting_connection", "awaiting_agent", "needs_review"])).count()
+        if on_it:
+            raise HTTPException(status_code=409, detail=f"{on_it} {'person is' if on_it == 1 else 'people are'} on the {step.type.replace('_', ' ')} step right now, so it cannot be removed. Change its text instead, or pause the campaign and wait for them to move on.")
+
+
 def _validate_launch(db: Session, campaign: models.Campaign) -> None:
     """Refuse to launch into a state where nothing can execute. Every missing item is
     reported at once, each with its own error type, as a 422."""
     problems = [{"loc": ["body", p["field"]], "msg": p["message"], "type": f"launch.{p['kind']}"} for p in launch_problems(db, campaign)]
     if problems:
         raise HTTPException(status_code=422, detail=problems)
+
+
+@router.get("/{campaign_id}/runs")
+def campaign_runs(campaign_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_data_user)):
+    """Every lead's progress in this campaign: step, status, why it stopped and what happens next. For the campaign page."""
+    campaign = _owned(db, user, campaign_id)
+    steps = engine.sorted_steps(campaign)
+    runs = db.query(models.SequenceRun).filter(models.SequenceRun.campaign_id == campaign.id).order_by(models.SequenceRun.started_at).all()
+    out = []
+    for r in runs:
+        step = engine.current_step(steps, r)
+        lead = r.lead
+        out.append({"runId": r.id, "leadId": r.lead_id, "leadName": _lead_name(lead), "headline": (lead.headline or lead.job_title or "") if lead else "",
+                    "avatarUrl": lead.avatar_url if lead else None, "linkedinUrl": lead.linkedin_url if lead else None,
+                    "status": r.status, "stopReason": r.stop_reason, "stepType": step.type if step else None, "stepOrder": step.order if step else None,
+                    "nextActionAt": r.next_action_at.isoformat() if r.next_action_at and r.status in ("running", "waiting_connection") else None,
+                    "startedAt": r.started_at.isoformat() if r.started_at else None})
+    return out
 
 
 @router.get("/{campaign_id}/launch-check")
@@ -272,7 +302,8 @@ def _create(payload: CampaignIn, db: Session, user: models.User):
     )
     db.add(campaign)
     db.flush()
-    _apply_steps(campaign, payload.steps if payload.steps else _default_steps())
+    # A map campaign starts empty: every action, the connection request included, is added from the plus button.
+    _apply_steps(campaign, payload.steps if payload.steps else ([] if payload.sequence_mode == "smart" else _default_steps()))
     db.commit()
     db.refresh(campaign)
     return campaign_out(campaign)
@@ -294,7 +325,15 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
             setattr(campaign, key, data[key])
 
     if payload.steps is not None:
+        _guard_steps_in_use(db, campaign, payload.steps)
         _apply_steps(campaign, payload.steps)
+        if campaign.status == "active":
+            # Edits to a running sequence go live at once, so they must be as complete as a launch: no empty message.
+            db.flush()
+            db.refresh(campaign)
+            bad = [p for p in launch_problems(db, campaign) if p["field"] == "steps"]
+            if bad:
+                raise HTTPException(status_code=422, detail=[{"loc": ["body", "steps"], "msg": p["message"], "type": f"launch.{p['kind']}"} for p in bad])
 
     # Going live: validate, stamp launch time, and enroll prospects in the engine.
     if data.get("status") == "active":

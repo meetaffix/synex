@@ -28,7 +28,7 @@ from .config import assistant_config, scrub
 from .models import AssistantMessage, AssistantProposal
 from .prompt import build_prompt, build_settings, clean_page
 from .registry import run_tool
-from .service import Ticket, add_usage, get_settings_row, used_seconds
+from .service import Ticket, add_usage, effective_minutes, get_settings_row, used_seconds
 
 log = logging.getLogger(__name__)
 
@@ -79,9 +79,10 @@ def _prepare(ticket: Ticket) -> Prepared:
         if not row.enabled:
             raise Refused("disabled", "The assistant is turned off for this workspace.")
         used = used_seconds(db, owner.id)
-        cap = row.monthly_minute_cap * 60
+        minutes = effective_minutes(db, owner.id, row)
+        cap = minutes * 60
         if used >= cap:
-            raise Refused("cap_reached", f"This workspace has used its {row.monthly_minute_cap} assistant minutes for the month.")
+            raise Refused("cap_reached", f"This workspace has used its {minutes} assistant minutes for the month.")
         language = ticket.language if ticket.language in ("en", "en-IN") else row.language
         page = clean_page(db, owner.id, ticket.page)
         prompt = build_prompt(db, owner, actor, role, page, language)

@@ -104,16 +104,18 @@ export function SenderAccountsPage() {
       />
 
       {!!accounts.data?.length && overview.data && (
-        <section aria-label="Workspace overview" className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-lg border border-border bg-surface p-4 text-sm" data-testid="seats">
-          <p><span className="text-muted-foreground">Plan</span> <span className="font-medium">{overview.data.plan}</span> <span className="text-subtle">(placeholder: billing is not built yet)</span></p>
-          <p><span className="text-muted-foreground">Seats used</span> <span className="font-medium">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
-          <p><span className="text-muted-foreground">Seats available</span> <span className="font-medium">{overview.data.seatsAvailable}</span></p>
-          <p data-testid="usage-meter"><span className="text-muted-foreground">Last 24 hours</span> <span className="font-medium">{usage.connections} connection requests, {usage.messages} messages</span></p>
-          <span className="ml-auto flex flex-wrap items-center gap-2">
-            <Link className="font-medium underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
+        <section aria-label="Workspace overview" className="grid gap-4 rounded-lg border border-border bg-surface p-4 text-sm shadow-raised sm:p-5" data-testid="seats">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Plan</span> <span className="text-base font-semibold capitalize">{overview.data.plan}</span> <span className="text-xs text-subtle">(placeholder: billing is not built yet)</span></p>
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats used</span> <span className="text-base font-semibold">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats available</span> <span className="text-base font-semibold">{overview.data.seatsAvailable}</span></p>
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5" data-testid="usage-meter"><span className="text-xs text-muted-foreground">Last 24 hours</span> <span className="text-base font-semibold">{usage.connections} connection requests, {usage.messages} messages</span></p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link className="font-medium text-primary underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
             <Button size="sm" variant="outline" disabled aria-describedby="plan-soon">Manage plan</Button>
             <span id="plan-soon" className="text-xs text-muted-foreground">Coming soon: Synex does not sell plans yet.</span>
-          </span>
+          </div>
         </section>
       )}
       {accounts.isLoading && <LoadingList />}

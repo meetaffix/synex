@@ -137,6 +137,7 @@ def lead_list_out(ll: models.LeadList) -> dict:
         "description": ll.description,
         "color": ll.color,
         "leadCount": len(ll.leads),
+        "allConnections": bool(ll.leads) and all(l.connection_degree == 1 for l in ll.leads),  # a connection request would be pointless
         "createdAt": _iso(ll.created_at),
     }
 

@@ -881,8 +881,23 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     gap: var(--space-12);
-    padding: var(--space-8) 0;
-    border-top: 1px solid rgb(var(--border));
+    padding: var(--space-6);
+    border: 1px solid rgb(var(--border));
+    border-radius: var(--radius-lg);
+    background: rgb(var(--surface));
+    box-shadow: var(--shadow-raised);
+  }
+  .settings-grid > section > h2 {
+    font-size: var(--text-base);
+    font-weight: 600;
+  }
+  /* A wide table scrolls sideways; a soft edge on the side that still has more says so. */
+  .scroll-x-shadow {
+    background:
+      linear-gradient(to right, rgb(var(--surface)) 30%, transparent) left center / 40px 100% no-repeat local,
+      linear-gradient(to left, rgb(var(--surface)) 30%, transparent) right center / 40px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgb(18 32 28 / 0.14), transparent) left center / 14px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(18 32 28 / 0.14), transparent) right center / 14px 100% no-repeat scroll;
   }
   .settings-grid section p {
     margin-top: var(--space-2);

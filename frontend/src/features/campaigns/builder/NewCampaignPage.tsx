@@ -12,7 +12,7 @@ export function NewCampaignPage() {
   const [error, setError] = useState<string>();
   const start = () => {
     setError(undefined);
-    api.post<{ id: string }>("/campaigns", { action: "create", name: "Untitled campaign", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" })
+    api.post<{ id: string }>("/campaigns", { action: "create", name: "Untitled campaign", sequenceMode: "smart", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" })
       .then((created) => navigate(`/campaigns/${created.id}/edit`, { replace: true }))
       .catch((e) => setError(requestFailureMessage(e)));
   };

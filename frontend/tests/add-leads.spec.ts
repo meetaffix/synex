@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { account, callsTo, mockApi, newApi } from "./mock-api";
+import { API_PORT } from "./support";
 
 /* The "How would you like to add leads?" dialog. The API is mocked; nothing is read from LinkedIn. */
 
@@ -65,4 +66,62 @@ test("a CSV source offers a sample file and refuses a file over 5 MB with the fi
   await expect(page.getByRole("link", { name: "Download a sample CSV" })).toHaveAttribute("download", "synex-sample-leads.csv");
   await page.getByLabel("CSV file").setInputFiles({ name: "big.csv", mimeType: "text/csv", buffer: Buffer.alloc(5_100_000, "a") });
   await expect(page.getByRole("alert")).toHaveText("That file is larger than 5 MB. Split it into smaller files.");
+});
+
+/* My connections is read by the outreach worker. The page must say when no worker is running, and a request still being read when the
+   window is closed must still finish: the old page stopped watching and the finished list never reached the campaign. */
+const connectionsRoutes = async (page: import("@playwright/test").Page, states: Array<Record<string, unknown>>) => {
+  const base = { id: "c1", source: "connections", label: "My connections", listName: "My connections", limit: 30000, options: {}, fetched: 0, created: 0, skipped: {},
+    detail: null, listId: null, accountId: "a1", estimate: { people: 0, pages: 0, minutes: 0, reads_linkedin: true }, createdAt: "2026-11-20T10:00:00Z", preview: null };
+  let reads = 0;
+  await page.route((url) => url.port === API_PORT && url.pathname.startsWith("/lead-collections"), async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const cors = { "access-control-allow-origin": request.headers()["origin"] ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": "content-type" };
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { ...cors, "access-control-allow-methods": "GET,POST,OPTIONS" } });
+    const send = (body: unknown) => route.fulfill({ status: 200, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
+    if (path === "/lead-collections/sources") return send([{ id: "connections", label: "My connections", readsLinkedin: true, available: true, note: null, maxLeads: 30000, produces: "people" }]);
+    if (path === "/lead-collections/estimate") return send({ people: 0, pages: 0, minutes: 0, reads_linkedin: true, maxPagesPerRun: 15, pagesLeftToday: null });
+    if (request.method() === "POST") return send({ ...base, ...states[0] });
+    return send({ ...base, ...states[Math.min(reads++, states.length - 1)] });
+  });
+};
+
+const openConnections = async (page: import("@playwright/test").Page, states: Array<Record<string, unknown>>, extra?: () => Promise<void>) => {
+  await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
+  await connectionsRoutes(page, states);
+  if (extra) await extra();
+  await page.goto("/leads");
+  await page.getByRole("button", { name: /^Add leads?$/ }).first().click();
+};
+
+test("My connections with no worker running says so, and how to start it", async ({ page }) => {
+  await openConnections(page, [{ status: "queued", workerActive: false }]);
+  await source(page, /My connections/).click();
+  await page.getByRole("button", { name: "Add all my connections" }).click();
+  await expect(page.getByText("No worker is running, so this cannot start yet")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("python -m app.outreach_worker");
+});
+
+test("My connections: closing the window while it is read still tells you when the leads are added", async ({ page }) => {
+  await openConnections(page, [{ status: "queued", workerActive: true }, { status: "queued", workerActive: true }, { status: "completed", created: 3, listId: "l9" }]);
+  await source(page, /My connections/).click();
+  await page.getByRole("button", { name: "Add all my connections" }).click();
+  await expect(page.getByText("Waiting for the worker…")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(page.getByText("3 leads added to My connections.")).toBeVisible({ timeout: 15_000 });
+});
+
+test("My connections: one failed check does not end the watch", async ({ page }) => {
+  let failed = false;
+  await openConnections(page, [{ status: "queued", workerActive: true }, { status: "completed", created: 3, listId: "l9" }], async () => {
+    await page.route((url) => url.port === API_PORT && url.pathname === "/lead-collections/c1", (route) => {
+      if (route.request().method() === "GET" && !failed) { failed = true; return route.abort(); }
+      return route.fallback();
+    });
+  });
+  await source(page, /My connections/).click();
+  await page.getByRole("button", { name: "Add all my connections" }).click();
+  await expect(page.getByText(/Done: 3 new leads added/)).toBeVisible({ timeout: 20_000 });
 });

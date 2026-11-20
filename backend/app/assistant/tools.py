@@ -453,6 +453,8 @@ def _campaign_input(ctx: ToolContext, a: CreateCampaignDraft) -> CampaignIn:
         raise ToolError("The start hour must be before the end hour.")
     if a.working_days is not None and (not a.working_days or any(d < 0 or d > 6 for d in a.working_days)):
         raise ToolError("Working days must be numbers from 0 (Sunday) to 6 (Saturday).")
+    if a.lead_list_id and any(s.type == "connection_request" for s in a.steps) and _list_is_all_connections(ctx.db.get(models.LeadList, a.lead_list_id)):
+        raise ToolError(ALREADY_CONNECTED)
     steps = [StepIn(type=s.type, order=i, message=s.message, delay_hours=(s.delay_hours if s.delay_hours is not None else 48) if s.type == "wait" else None)
              for i, s in enumerate(a.steps)]
     steps.append(StepIn(type="end", order=len(steps)))
@@ -479,6 +481,49 @@ def _propose_campaign(ctx: ToolContext, a: CreateCampaignDraft) -> Plan:
 def _apply_campaign(ctx: ToolContext, a: CreateCampaignDraft) -> dict:
     out = campaigns_router._create(_campaign_input(ctx, a), ctx.db, ctx.workspace)
     return {"campaignId": out["id"], "status": out["status"]}
+
+
+class SetCampaignSequence(Args):
+    campaign_id: str
+    steps: list[StepArg] = Field(min_length=1, max_length=12, description="The whole sequence in order, with the finished message text for every message, follow_up and connection_request step.")
+    name: str | None = Field(None, min_length=1, max_length=100)
+
+
+ALREADY_CONNECTED = ("Everyone on this list is already a connection, so a connection request is pointless. "
+                     "Start with a message (and a follow-up) and leave the connection request out.")
+
+
+def _list_is_all_connections(lead_list: models.LeadList | None) -> bool:
+    return bool(lead_list and lead_list.leads and all(l.connection_degree == 1 for l in lead_list.leads))
+
+
+def _sequence_target(ctx: ToolContext, a: SetCampaignSequence) -> models.Campaign:
+    c = _owned(ctx, models.Campaign, a.campaign_id, "campaign")
+    if c.status not in ("draft", "paused"):
+        raise ToolError("This campaign is running. Pause it first, then change its sequence.")
+    if any(s.type == "connection_request" for s in a.steps) and _list_is_all_connections(c.lead_list):
+        raise ToolError(ALREADY_CONNECTED)
+    return c
+
+
+def _propose_sequence_set(ctx: ToolContext, a: SetCampaignSequence) -> Plan:
+    c = _sequence_target(ctx, a)
+    kinds = ", ".join(s.type.replace("_", " ") for s in a.steps)
+    changes = [f"Replace the sequence of \"{c.name}\" with: {kinds}.", "The campaign is not launched. You review it and launch it yourself."]
+    changes += [f"{s.type.replace('_', ' ').capitalize()}: {(s.message or '').strip()[:200]}" for s in a.steps if (s.message or "").strip()]
+    if a.name and a.name != c.name:
+        changes.append(f'Rename it to "{a.name}".')
+    return Plan(f'Write the sequence for "{c.name}".', changes)
+
+
+def _apply_sequence_set(ctx: ToolContext, a: SetCampaignSequence) -> dict:
+    _sequence_target(ctx, a)
+    steps = [StepIn(type=s.type, order=i, message=s.message, delay_hours=(s.delay_hours if s.delay_hours is not None else 48) if s.type == "wait" else None)
+             for i, s in enumerate(a.steps)]
+    steps.append(StepIn(type="end", order=len(steps)))
+    fields = {"steps": steps, **({"name": a.name} if a.name else {})}
+    out = campaigns_router._update(a.campaign_id, CampaignUpdateIn(**fields), ctx.db, ctx.workspace)
+    return {"campaignId": a.campaign_id, "status": out["status"]}
 
 
 class SetCampaignState(Args):
@@ -612,6 +657,7 @@ register(Tool("create_lead_list", "Prepare a new lead list from leads the user g
 register(Tool("create_template", "Prepare a new message template. Needs the user's confirmation.", CreateTemplate, "write", "manager", propose=_propose_template, apply=_apply_template))
 register(Tool("update_template", "Prepare an edit to an existing template. Needs the user's confirmation.", UpdateTemplate, "write", "manager", propose=_propose_template_edit, apply=_apply_template_edit))
 register(Tool("create_campaign_draft", "Prepare a new DRAFT campaign with steps and settings. It never launches. Needs the user's confirmation.", CreateCampaignDraft, "write", "manager", propose=_propose_campaign, apply=_apply_campaign))
+register(Tool("set_campaign_sequence", "Write the sequence and the finished message text into the campaign the user is editing (a draft or paused campaign). Never launches. Needs the user's confirmation.", SetCampaignSequence, "write", "manager", propose=_propose_sequence_set, apply=_apply_sequence_set))
 register(Tool("set_campaign_state", "Prepare pausing a running campaign or resuming a paused one. Needs the user's confirmation.", SetCampaignState, "write", "manager", propose=_propose_campaign_state, apply=_apply_campaign_state))
 register(Tool("set_account_state", "Prepare pausing or resuming a sender account. Needs the user's confirmation.", SetAccountState, "write", "admin", propose=_propose_account_state, apply=_apply_account_state))
 register(Tool("set_daily_limits", "Prepare a change to a sender account's or campaign's daily limits, within the hard ceilings. Needs the user's confirmation.", SetDailyLimits, "write", "manager", propose=_propose_limits, apply=_apply_limits))

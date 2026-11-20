@@ -2,11 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "api",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8010"],
+      "port": 8010,
+      "cwd": "C:/Users/iamdn/Downloads/synex-zip/synex/backend"
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
-      "cwd": "C:/Users/iamdn/Downloads/synex/frontend"
+      "cwd": "C:/Users/iamdn/Downloads/synex-zip/synex/frontend"
     }
   ]
 }

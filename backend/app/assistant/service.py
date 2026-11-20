@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from .. import models
 from .config import assistant_config
 from .models import AssistantSettings, AssistantUsage
 
@@ -31,6 +32,16 @@ def get_settings_row(db: Session, workspace_id: str) -> AssistantSettings:
     return row
 
 
+def plan_limit(db: Session, workspace_id: str) -> int:
+    from .. import plans
+    return plans.assistant_minute_limit(db, workspace_id)
+
+
+def effective_minutes(db: Session, workspace_id: str, row: AssistantSettings) -> int:
+    """The monthly limit in force: what was set, never more than the plan allows (a value saved before limits existed is not honoured)."""
+    return min(row.monthly_minute_cap, plan_limit(db, workspace_id))
+
+
 def used_seconds(db: Session, workspace_id: str) -> float:
     row = db.get(AssistantUsage, (workspace_id, month_key()))
     return float(row.seconds) if row else 0.0
@@ -50,11 +61,16 @@ def add_usage(db: Session, workspace_id: str, seconds: float) -> None:
 def settings_out(db: Session, workspace_id: str, can_edit: bool) -> dict:
     row = get_settings_row(db, workspace_id)
     used = used_seconds(db, workspace_id)
-    cap = row.monthly_minute_cap * 60
+    limit = plan_limit(db, workspace_id)
+    minutes = effective_minutes(db, workspace_id, row)
+    cap = minutes * 60
+    owner = db.get(models.User, workspace_id)
     return {
+        "plan": ((owner.plan if owner else None) or "free").lower(),
+        "planMinuteLimit": limit,
         "available": bool(assistant_config.deepgram_api_key) if (row.provider or "deepgram") == "deepgram" else True,
         "enabled": row.enabled,
-        "monthlyMinuteCap": row.monthly_minute_cap,
+        "monthlyMinuteCap": minutes,
         "usedSeconds": round(used),
         "remainingSeconds": max(0, round(cap - used)),
         "capReached": used >= cap,

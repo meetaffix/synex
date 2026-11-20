@@ -85,7 +85,7 @@ function Message({ item }: { item: ChatItem }) {
     case "user":
       return (
         <div className="flex justify-end">
-          <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
+          <p className="max-w-[92%] whitespace-pre-wrap rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
             <span className="sr-only">You said: </span>
             {item.text}
           </p>
@@ -94,7 +94,7 @@ function Message({ item }: { item: ChatItem }) {
     case "assistant":
       return (
         <div className="flex justify-start">
-          <p className="max-w-[90%] whitespace-pre-wrap rounded-lg bg-surface-muted px-3 py-2 text-sm">
+          <p className="whitespace-pre-wrap rounded-lg bg-surface-muted px-3 py-2 text-sm">
             <span className="sr-only">Assistant: </span>
             {item.text}
           </p>
@@ -226,7 +226,7 @@ export function AssistantPanel() {
         </p>
       )}
 
-      <div ref={log} role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={log} role="log" aria-live="polite" aria-label="Conversation" className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
         {settingsLoading && (
           <div className="space-y-2" aria-label="Loading the assistant">
             <Skeleton className="h-8 w-2/3" />
@@ -250,11 +250,19 @@ export function AssistantPanel() {
             </div>
           </div>
         )}
-        {items.map((item) => (
-          <Message key={item.id} item={item} />
-        ))}
+        {items.map((item, index) => {
+          // Messages from the same side sit close together; a change of side gets more room. Everything the assistant says shares one width.
+          const side = item.kind === "user" ? "you" : "assistant";
+          const before = items[index - 1];
+          const gap = !before ? "" : (before.kind === "user" ? "you" : "assistant") === side ? "mt-1.5" : "mt-4";
+          return (
+            <div key={item.id} className={cn(gap, side === "assistant" && "max-w-[92%]")}>
+              <Message item={item} />
+            </div>
+          );
+        })}
         {(thinking || working) && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="assistant-thinking">
+          <p className={cn("flex items-center gap-2 text-sm text-muted-foreground", items.length > 0 && "mt-4")} data-testid="assistant-thinking">
             <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
             {working ? `Working: ${working}` : "Thinking"}
           </p>

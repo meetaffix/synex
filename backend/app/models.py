@@ -71,6 +71,17 @@ class User(Base):
     templates = relationship("Template", back_populates="user", cascade="all, delete-orphan")
 
 
+class Plan(Base):
+    """What a plan includes. Limits live here, not in the browser, and the server enforces them. Billing is not built: a plan is assigned, not bought."""
+
+    __tablename__ = "plans"
+
+    id = Column(String, primary_key=True)  # free | pro | scale, as stored in users.plan
+    name = Column(String, nullable=False)
+    position = Column(Integer, default=0, nullable=False)
+    assistant_minutes = Column(Integer, default=0, nullable=False)  # the most the assistant's monthly limit can be
+
+
 class PasswordResetToken(Base):
     """A single-use, time-limited password-reset token."""
 

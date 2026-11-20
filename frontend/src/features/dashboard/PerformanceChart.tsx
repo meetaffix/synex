@@ -19,11 +19,18 @@ const MIN_WIDTH = 240;
 const HEIGHT = 240;
 const PAD = { left: 40, right: 16, top: 16, bottom: 32 };
 
+// Solid lines in three clear hues. Colour is never the only cue: each line ends in its own marker shape (circle, square, diamond) and is named in the legend with its latest value.
 const SERIES = [
-  { key: "requests", label: "Requests sent", tone: "primary", dash: undefined },
-  { key: "accepted", label: "Accepted", tone: "info", dash: "8 4" },
-  { key: "replies", label: "Replies", tone: "accent", dash: "2 4" },
+  { key: "requests", label: "Requests sent", tone: "primary", marker: "circle", fillOpacity: 0.26 },
+  { key: "accepted", label: "Accepted", tone: "info", marker: "square", fillOpacity: 0.1 },
+  { key: "replies", label: "Replies", tone: "accent", marker: "diamond", fillOpacity: 0.1 },
 ] as const;
+
+function Marker({ kind, x, y, r = 5, className, style }: { kind: (typeof SERIES)[number]["marker"]; x: number; y: number; r?: number; className?: string; style?: React.CSSProperties }) {
+  if (kind === "square") return <rect x={x - r} y={y - r} width={r * 2} height={r * 2} rx={1.5} strokeWidth={2} className={className} style={style} />;
+  if (kind === "diamond") return <path d={`M${x},${y - r - 1} L${x + r + 1},${y} L${x},${y + r + 1} L${x - r - 1},${y} Z`} strokeWidth={2} strokeLinejoin="round" className={className} style={style} />;
+  return <circle cx={x} cy={y} r={r} strokeWidth={2} className={className} style={style} />;
+}
 
 /** A date-only value such as 2026-11-02 is a calendar day, not a UTC instant. */
 function localDay(date: string): Date {
@@ -103,7 +110,8 @@ function Chart({ series, granularity }: { series: Series; granularity: Granulari
   const summary = `Area chart of requests sent, accepted and replies by ${granularity}, from ${label(points[0].date)} to ${label(points[points.length - 1].date)}. A table with the same data follows.`;
   const base = PAD.top + inner.h;
   const requests = lines[0];
-  const area = `${requests.path} L${requests.scaled[requests.scaled.length - 1].x},${base} L${requests.scaled[0].x},${base} Z`;
+  const areaOf = (line: (typeof lines)[number]) => `${line.path} L${line.scaled[line.scaled.length - 1].x},${base} L${line.scaled[0].x},${base} Z`;
+  const ticks = Array.from(new Set([0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * (points.length - 1)))));
   const columns = requests.scaled.map((point) => point.x);
 
   const move = (clientX: number, box: DOMRect) => {
@@ -131,37 +139,45 @@ function Chart({ series, granularity }: { series: Series; granularity: Granulari
           onPointerLeave={() => setHover(null)}
         >
           <defs>
-            <linearGradient id={fill} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" style={{ stopColor: "rgb(var(--primary))", stopOpacity: 0.3 }} />
-              <stop offset="1" style={{ stopColor: "rgb(var(--primary))", stopOpacity: 0 }} />
-            </linearGradient>
+            {lines.map((line) => (
+              <linearGradient key={line.key} id={`${fill}-${line.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style={{ stopColor: `rgb(${TONE[line.tone]})`, stopOpacity: line.fillOpacity }} />
+                <stop offset="1" style={{ stopColor: `rgb(${TONE[line.tone]})`, stopOpacity: 0 }} />
+              </linearGradient>
+            ))}
+            <filter id={`${fill}-glow`} x="-10%" y="-30%" width="120%" height="160%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
           </defs>
-          {[0, 0.5, 1].map((fraction) => {
+          {[0, 1 / 3, 2 / 3, 1].map((fraction) => {
             const y = PAD.top + (1 - fraction) * inner.h;
             return (
               <g key={fraction}>
-                <line x1={PAD.left} x2={width - PAD.right} y1={y} y2={y} className="stroke-border" strokeWidth={1} />
+                <line x1={PAD.left} x2={width - PAD.right} y1={y} y2={y} className="stroke-border" strokeWidth={1} strokeDasharray={fraction === 0 ? undefined : "3 5"} />
                 <text x={PAD.left - 8} y={y + 4} textAnchor="end" className="fill-muted-foreground text-xs tabular-nums">
                   {formatNumber(Math.round(max * fraction))}
                 </text>
               </g>
             );
           })}
-          <path d={area} fill={`url(#${fill})`} />
-          {lines.map((line) => (
-            <path key={line.key} d={line.path} fill="none" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={line.dash} style={{ stroke: `rgb(${TONE[line.tone]})` }} />
+          {[...lines].reverse().map((line) => <path key={`a-${line.key}`} d={areaOf(line)} fill={`url(#${fill}-${line.key})`} />)}
+          {[...lines].reverse().map((line) => (
+            <path key={line.key} d={line.path} fill="none" strokeWidth={line.key === "requests" ? 3 : 2.25} strokeLinecap="round" strokeLinejoin="round" filter={line.key === "requests" ? `url(#${fill}-glow)` : undefined} style={{ stroke: `rgb(${TONE[line.tone]})` }} />
           ))}
-          <text x={PAD.left} y={HEIGHT - 8} className="fill-muted-foreground text-xs">
-            {label(points[0].date)}
-          </text>
-          <text x={width - PAD.right} y={HEIGHT - 8} textAnchor="end" className="fill-muted-foreground text-xs">
-            {label(points[points.length - 1].date)}
-          </text>
+          {lines.map((line) => (
+            <Marker key={`end-${line.key}`} kind={line.marker} x={line.scaled[line.scaled.length - 1].x} y={line.scaled[line.scaled.length - 1].y} className="fill-surface" style={{ stroke: `rgb(${TONE[line.tone]})` }} />
+          ))}
+          {ticks.map((index) => (
+            <text key={index} x={columns[index]} y={HEIGHT - 8} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"} className="fill-muted-foreground text-xs">
+              {label(points[index].date)}
+            </text>
+          ))}
           {hover !== null && (
             <g>
-              <line x1={columns[hover]} x2={columns[hover]} y1={PAD.top} y2={base} className="stroke-border-strong" strokeWidth={1} />
+              <line x1={columns[hover]} x2={columns[hover]} y1={PAD.top} y2={base} className="stroke-border-strong" strokeWidth={1} strokeDasharray="3 4" />
               {lines.map((line) => (
-                <circle key={line.key} cx={columns[hover]} cy={line.scaled[hover].y} r={4} strokeWidth={2} className="fill-surface" style={{ stroke: `rgb(${TONE[line.tone]})` }} />
+                <Marker key={line.key} kind={line.marker} x={columns[hover]} y={line.scaled[hover].y} r={5} className="fill-surface" style={{ stroke: `rgb(${TONE[line.tone]})`, filter: `drop-shadow(0 0 5px rgb(${TONE[line.tone]} / 0.55))` }} />
               ))}
             </g>
           )}
@@ -197,13 +213,14 @@ function Chart({ series, granularity }: { series: Series; granularity: Granulari
           </div>
         )}
       </div>
-      <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <ul className="flex flex-wrap gap-2 text-sm">
         {SERIES.map((line) => (
-          <li key={line.key} className="flex items-center gap-2">
-            <svg width="28" height="8" aria-hidden>
-              <line x1="0" x2="28" y1="4" y2="4" strokeWidth={2.5} strokeDasharray={line.dash} strokeLinecap="round" style={{ stroke: `rgb(${TONE[line.tone]})` }} />
+          <li key={line.key} className="flex items-center gap-2 rounded-full border border-border bg-surface-muted px-3 py-1">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0">
+              <Marker kind={line.marker} x={7} y={7} r={4} className="fill-surface" style={{ stroke: `rgb(${TONE[line.tone]})` }} />
             </svg>
-            {line.label}
+            <span>{line.label}</span>
+            <span className="font-semibold tabular-nums">{formatNumber(points[points.length - 1][line.key])}</span>
           </li>
         ))}
       </ul>

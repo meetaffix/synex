@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Shuffle } from "lucide-react";
+import { Shuffle, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSenderAccounts } from "@/features/linkedin-accounts/hooks";
 import { api } from "@/services/client";
+import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { useTemplates } from "@/hooks/api";
 
 export const VARIABLE_GROUPS: { label: string; names: string[] }[] = [
@@ -47,6 +48,25 @@ export function MessageField({ label, value, onChange, maxLength, campaignId, li
   const area = useRef<HTMLTextAreaElement>(null);
   const [custom, setCustom] = useState("");
   const [previewing, setPreviewing] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
+  const [before, setBefore] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: "info" | "danger"; text: string } | null>(null);
+
+  /** One small icon: the user's own message, rewritten plainer and more human. Variables are kept; Undo puts the old text back. */
+  const rewrite = async () => {
+    if (!value.trim() || rewriting) return;
+    setRewriting(true);
+    setNote(null);
+    try {
+      const out = await api.post<{ text: string; provider: string; changed: boolean }>(`/campaigns/${campaignId}/drafts/rewrite`, { text: value, maxLength });
+      if (out.changed) { setBefore(value); onChange(out.text); setNote({ tone: "info", text: out.provider === "local" ? "Tidied. Connect an AI model for a fuller rewrite." : "Rewritten in a plainer, more human voice." }); }
+      else setNote({ tone: "info", text: "This already reads plainly. Nothing changed." });
+    } catch (e) {
+      setNote({ tone: "danger", text: `Could not rewrite. ${requestFailureMessage(e)}` });
+    } finally {
+      setRewriting(false);
+    }
+  };
 
   const insert = (text: string) => {
     const el = area.current;
@@ -67,15 +87,26 @@ export function MessageField({ label, value, onChange, maxLength, campaignId, li
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <Button type="button" size="sm" variant="ghost" loading={rewriting} disabled={!value.trim()} aria-label={`Rewrite ${label} to sound more human`} title="Rewrite what you wrote so it sounds more like a person" onClick={() => void rewrite()}>
+          <Wand2 aria-hidden /> Rewrite
+        </Button>
+      </div>
       <Textarea id={id} ref={area} rows={4} value={value} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} aria-describedby={`${id}-help`} />
       <p id={`${id}-help`} className="text-xs text-muted-foreground">
-        {aiNote ?? "Variables are filled in for each person. {Hi|Hello} picks one option at random."}
+        {aiNote ?? "Details like {{first_name}} are filled in for each person. {Hi|Hello} sends one of the options at random, so messages differ."}
         {maxLength ? ` ${value.length} of ${maxLength} characters.` : ""}
       </p>
+      {note && (
+        <p role={note.tone === "danger" ? "alert" : "status"} className={`flex items-center gap-2 text-xs ${note.tone === "danger" ? "text-danger" : "text-muted-foreground"}`}>
+          {note.text}
+          {before !== null && note.tone === "info" && <button type="button" className="underline underline-offset-2" onClick={() => { onChange(before); setBefore(null); setNote(null); }}>Undo</button>}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <NativeSelect aria-label={`Insert a variable into ${label}`} className="w-auto" value="" onChange={(e) => e.target.value && insert(`{{${e.target.value}}}`)}>
-          <option value="">Insert variable</option>
+          <option value="">Insert a person's detail</option>
           {VARIABLE_GROUPS.map((g) => (
             <optgroup key={g.label} label={g.label}>{g.names.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>
           ))}
@@ -84,9 +115,9 @@ export function MessageField({ label, value, onChange, maxLength, campaignId, li
           <option value="">Insert template</option>
           {offered.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </NativeSelect>
-        <Button type="button" size="sm" variant="outline" onClick={spintax}>Add spintax</Button>
+        <Button type="button" size="sm" variant="outline" onClick={spintax} title="Wraps the selected words, or adds {Hi|Hello|Hey}, so one option is picked at random for each person.">Add alternatives</Button>
         <div className="flex items-center gap-1">
-          <input aria-label={`Custom variable name for ${label}`} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^A-Za-z0-9_]/g, ""))} placeholder="custom variable"
+          <input aria-label={`Custom variable name for ${label}`} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^A-Za-z0-9_]/g, ""))} placeholder="your own detail"
             className="h-8 w-36 rounded-md border border-input bg-surface px-2 text-sm" />
           <Button type="button" size="sm" variant="outline" disabled={!/^[A-Za-z]/.test(custom)} onClick={() => { insert(`{{${custom}}}`); setCustom(""); }}>Add</Button>
         </div>

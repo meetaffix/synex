@@ -33,7 +33,7 @@ export function SafetyPage() {
         actions={<Button asChild variant="outline"><Link to="/settings">Back to settings</Link></Button>} />
       <KillSwitch />
       <Limits />
-      <AuditLog />
+      <section aria-labelledby="audit-h" className="grid gap-2"><h2 id="audit-h" className="text-base font-semibold">Audit log</h2><p className="text-sm text-muted-foreground">Every action on LinkedIn, and every change to settings, is recorded.</p><div><Button asChild variant="outline"><Link to="/settings/audit">Open the audit log</Link></Button></div></section>
     </div>
   );
 }
@@ -107,61 +107,6 @@ function Limits() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground">The test profile is for a test account: 5 profile views, 5 connection requests and 5 messages a day, with random gaps. Apply it from a sender&apos;s Sender limits tab.</p>
-        </>
-      )}
-    </section>
-  );
-}
-
-function AuditLog() {
-  const [offset, setOffset] = useState(0);
-  const [accountId, setAccountId] = useState("");
-  const accounts = useQuery({ queryKey: ["sender-accounts"], queryFn: () => api.get<Account[]>("/linkedin-accounts"), retry: false });
-  const log = useQuery({ queryKey: ["safety", "audit", offset, accountId], queryFn: () => api.get<Audit>(`/outreach/audit?limit=${PAGE}&offset=${offset}${accountId ? `&accountId=${accountId}` : ""}`), retry: false });
-  const data = log.data;
-  return (
-    <section aria-labelledby="audit-h" className="grid gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h2 id="audit-h" className="text-base font-semibold">Audit log</h2><p className="text-sm text-muted-foreground">Every action on LinkedIn, newest first, with why it ended the way it did.</p></div>
-        <div className="grid gap-1">
-          <label htmlFor="audit-account" className="text-sm font-medium">Sender</label>
-          <NativeSelect id="audit-account" className="w-auto" value={accountId} onChange={(e) => { setAccountId(e.target.value); setOffset(0); }}>
-            <option value="">All senders</option>
-            {(accounts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </NativeSelect>
-        </div>
-      </div>
-      {log.isLoading && <Skeleton className="h-40 w-full" aria-label="Loading the audit log" />}
-      {log.isError && <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">The audit log could not be loaded. <Button size="sm" variant="outline" onClick={() => void log.refetch()}>Try again</Button></div>}
-      {data && data.items.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No actions yet. Once a campaign runs, each action appears here.</p>}
-      {data && data.items.length > 0 && (
-        <>
-          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Audit log (scrolls sideways)">
-            <table className="w-full min-w-[44rem] text-sm">
-              <caption className="sr-only">Actions taken on LinkedIn</caption>
-              <thead><tr className="text-left text-muted-foreground">{["When", "Sender", "Action", "Person", "Campaign", "Outcome"].map((h) => <th key={h} scope="col" className="py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
-              <tbody>
-                {data.items.map((i) => (
-                  <tr key={i.id} className="border-t border-border align-top">
-                    <td className="py-2 pr-3"><time dateTime={i.at} title={i.at}>{formatRelative(i.at)}</time></td>
-                    <td className="py-2 pr-3">{i.account}</td>
-                    <th scope="row" className="py-2 pr-3 text-left font-normal">{ACTION_NAMES[i.action] ?? i.action}</th>
-                    <td className="py-2 pr-3">{i.person ?? "-"}</td>
-                    <td className="py-2 pr-3">{i.campaign ?? "-"}</td>
-                    <td className={i.status === "ok" ? "py-2" : "py-2 text-danger"}>{i.reason ?? i.result ?? "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span role="status">{offset + 1} to {Math.min(offset + PAGE, data.total)} of {data.total}</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Newer</Button>
-              <Button size="sm" variant="outline" disabled={offset + PAGE >= data.total} onClick={() => setOffset(offset + PAGE)}>Older</Button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">{data.note}</p>
         </>
       )}
     </section>

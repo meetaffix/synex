@@ -62,75 +62,6 @@ test("leaving with unsaved changes asks first", async ({ page }) => {
   await expect(page).toHaveURL(/\/campaigns$/);
 });
 
-test("the sequence: variables insert as chips, spintax, preview with a missing-variable warning, and a follow-up can be added and removed", async ({ page }) => {
-  await open(page);
-  await page.goto("/campaigns/cb1/edit?step=2");
-  const note = page.getByRole("textbox", { name: "Connection request text", exact: true });
-  await note.fill("Hi ");
-  await page.getByLabel("Insert a variable into Connection request text").selectOption("first_name");
-  await expect(note).toHaveValue("Hi {{first_name}}");
-  await expect(page.getByLabel("Connection request text with variables marked")).toContainText("first_name");
-  await expect(page.getByText(/17 of 200 characters/)).toBeVisible();
-  await page.getByRole("button", { name: "Add spintax" }).first().click();
-  await expect(note).toHaveValue(/\{Hi\|Hello\|Hey\}/);
-  await expect(page.getByText("If connected")).toBeVisible();
-  await expect(page.getByText(/at least 3 hours after the invitation is accepted/)).toBeVisible();
-  await page.getByRole("button", { name: "Add follow-up message" }).click();
-  await expect(page.getByRole("heading", { name: "Follow-up message" })).toBeVisible();
-  await expect(page.getByText("If not replied")).toBeVisible();
-  await page.getByRole("button", { name: "Remove" }).click();
-  await expect(page.getByRole("heading", { name: "Follow-up message" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Smart", exact: true })).toBeEnabled(); // Smart is built: switching asks first (campaign-smart.spec)
-  await expect(page.getByRole("button", { name: "Classic", exact: true })).toHaveAttribute("aria-pressed", "true");
-});
-
-test("AI writing: the drawer has Direct and AI assisted, tone, strategy, honest profile options, a preview with its cost, and an unsaved-changes prompt", async ({ page }) => {
-  const api = await open(page);
-  await page.goto("/campaigns/cb1/edit?step=2");
-  await page.getByRole("switch", { name: /Synex AI writing/ }).first().click();
-  const drawer = page.getByRole("dialog");
-  await expect(drawer.getByRole("heading", { name: /Configure AI for the connection note/ })).toBeVisible();
-  await expect(drawer.getByRole("tab", { name: "AI assisted" })).toHaveAttribute("aria-selected", "true");
-  await expect(drawer.getByLabel(/Recent posts/)).toBeDisabled();
-  await expect(drawer.getByText(/needs the paced profile reader/).first()).toBeVisible();
-  await expect(drawer.getByLabel("Current role and company")).toBeChecked();
-  await drawer.getByRole("radio", { name: "Witty" }).click();
-  await drawer.getByRole("radio", { name: "Curiosity hook" }).click();
-  await drawer.getByLabel("AI generation instructions (optional)").fill("Keep it short");
-  await drawer.getByRole("button", { name: "First name" }).click();
-  await expect(drawer.getByLabel("AI generation instructions (optional)")).toHaveValue("Keep it short {{first_name}}");
-  await drawer.getByRole("button", { name: "Preview message" }).click();
-  await expect(drawer.getByText("Hi Ada, loved your work at Engines.")).toBeVisible();
-  await expect(drawer.getByText(/This preview cost nothing/)).toBeVisible();
-  await drawer.getByRole("button", { name: "Close" }).first().click();
-  await expect(page.getByRole("alertdialog", { name: "Unsaved changes" })).toBeVisible();
-  await page.getByRole("button", { name: "Save", exact: true }).last().click();
-  await expect.poll(() => (lastUpdate(api)?.steps as { aiConfig?: { tone: string; strategy: string; mode: string } }[])?.[0]?.aiConfig?.tone).toBe("witty");
-  const saved = (lastUpdate(api).steps as { aiConfig: { strategy: string; mode: string; instructions: string } }[])[0].aiConfig;
-  expect([saved.strategy, saved.mode, saved.instructions]).toEqual(["curiosity_hook", "ai", "Keep it short {{first_name}}"]);
-});
-
-test("AI campaign context: three tabs, templates, guardrails, and Save AI settings", async ({ page }) => {
-  const api = await open(page);
-  await page.getByRole("button", { name: "AI campaign context" }).click();
-  const panel = page.getByRole("dialog");
-  await expect(panel.getByRole("tab")).toHaveText(["Upload", "Context", "Guardrails"]);
-  await expect(panel.getByText(/PDF and Word files are not read yet/)).toBeVisible();
-  await panel.getByRole("button", { name: "Add website" }).click();
-  await expect(panel.getByLabel("Website address")).toBeVisible();
-  await panel.getByRole("tab", { name: "Context" }).click();
-  await panel.getByRole("button", { name: "Free Audit" }).click();
-  await expect(panel.getByLabel("Goals, audience, offer and value")).toHaveValue(/free audit/i);
-  await panel.getByLabel(/Campaign meeting link/).fill("https://cal.example.com/me");
-  await panel.getByRole("tab", { name: "Guardrails" }).click();
-  await panel.getByLabel("Do not mention").fill("pricing");
-  await panel.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(panel.getByRole("list", { name: "Phrases the AI must not mention" })).toContainText("pricing");
-  await panel.getByRole("button", { name: "Save AI settings" }).click();
-  await expect.poll(() => (lastUpdate(api)?.aiContext as Record<string, unknown>)?.do_not_mention).toEqual(["pricing"]);
-  expect((lastUpdate(api).aiContext as Record<string, string>).meeting_link).toBe("https://cal.example.com/me");
-});
-
 test("review: schedule, exclusions with the do-not-contact list locked on, and the checklist names every blocker with the step that fixes it", async ({ page }) => {
   const api = await open(page, {});
   api.launchProblems = [
@@ -189,59 +120,26 @@ test("review: AI messages show their cost before they are written, must be appro
   expect(callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { status?: string })?.status === "active")).toHaveLength(1);
 });
 
-test("a campaign that is running cannot be edited here, and an unknown one says so", async ({ page }) => {
+test("a running campaign's sequence can be edited, and is saved only when Save changes is pressed", async ({ page }) => {
   const api = await open(page);
   api.builder = { ...(api.builder ?? {}), status: "active" } as never;
+  await page.goto("/campaigns/cb1/edit");
+  await expect(page.getByRole("note").filter({ hasText: "This campaign is running" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next" })).toHaveCount(0);
+  await page.getByRole("button", { name: /^Send message\s/ }).click();
+  await page.getByRole("textbox", { name: "Send message text", exact: true }).fill("A new running text");
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.waitForTimeout(2500); // longer than the draft autosave delay: nothing may be saved yet
+  expect(callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { action?: string })?.action === "update")).toHaveLength(0);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { action?: string })?.action === "update").length).toBe(1);
+  await expect(page).toHaveURL(/\/campaigns\/cb1$/);
+});
+
+test("a finished campaign cannot be edited", async ({ page }) => {
+  const api = await open(page);
+  api.builder = { ...(api.builder ?? {}), status: "completed" } as never;
   await page.reload();
-  await expect(page.getByText(/has launched and is running/)).toBeVisible();
+  await expect(page.getByText(/has finished, so its sequence can no longer be changed/)).toBeVisible();
 });
 
-test("a follow-up wait can be set in minutes with a floor of 15, and follow-ups can be moved up and down", async ({ page }) => {
-  const api = await open(page);
-  await page.goto("/campaigns/cb1/edit?step=2");
-  await page.getByRole("button", { name: "Add follow-up message" }).click();
-  await page.getByRole("button", { name: "Add follow-up message" }).click();
-  const texts = page.getByRole("textbox", { name: "Follow-up message text", exact: true });
-  await texts.nth(0).fill("First follow-up");
-  await texts.nth(1).fill("Second follow-up");
-  // The wait before the first follow-up: minutes are offered, 5 is raised to the 15-minute floor, and the exact figure is saved.
-  const unit = page.getByLabel("Wait unit").nth(1);
-  await expect(unit.locator("option")).toHaveText(["minutes", "hours", "days"]);
-  await unit.selectOption("minutes");
-  await page.getByLabel("Wait", { exact: true }).nth(1).fill("5");
-  await expect(page.getByLabel("Wait", { exact: true }).nth(1)).toHaveValue("15");
-  await expect(page.getByText("at least 15 minutes")).toBeVisible();
-  await expect.poll(() => ((lastUpdate(api)?.steps ?? []) as { type: string; config?: { minutes?: number } | null }[]).some((s: { type: string; config?: { minutes?: number } | null }) => s.type === "wait" && s.config?.minutes === 15), { timeout: 8000 }).toBe(true);
-  // The wait after the invitation has no minutes: its floor is three hours.
-  await expect(page.getByLabel("Wait unit").first().locator("option")).toHaveText(["hours", "days"]);
-  // Move the second follow-up above the first.
-  await page.getByRole("button", { name: "Move this follow-up earlier" }).nth(1).click();
-  await expect(texts.nth(0)).toHaveValue("Second follow-up");
-  await expect(texts.nth(1)).toHaveValue("First follow-up");
-  await expect(page.getByRole("button", { name: "Move this follow-up earlier" }).first()).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Move this follow-up later" }).last()).toBeDisabled();
-  await page.getByRole("button", { name: "Move this follow-up later" }).first().click();
-  await expect(texts.nth(0)).toHaveValue("First follow-up");
-});
-
-test("the sequence has a webhook setting: with no webhook it points to Integrations, with one it saves the chosen events on the campaign", async ({ page }) => {
-  const api = await open(page);
-  await page.goto("/campaigns/cb1/edit?step=2");
-  await page.getByRole("button", { name: /Sequence settings: configure webhook/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Configure webhook" });
-  await expect(dialog.getByText("You have no enabled webhook yet.")).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "Add one in Integrations" })).toHaveAttribute("href", /settings\/integrations/);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(dialog).toHaveCount(0);
-
-  (api as unknown as { integ: { hooks: unknown[] } }).integ.hooks.push({ id: "h1", kind: "webhook", url: "https://hooks.example.com/in", events: [], enabled: true });
-  await page.getByRole("button", { name: /Sequence settings: configure webhook/ }).click();
-  const again = page.getByRole("dialog", { name: "Configure webhook" });
-  await again.getByLabel("Webhook").selectOption("h1");
-  await again.getByLabel("A lead replied").check();
-  await again.getByLabel("This campaign was paused").check();
-  await again.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("button", { name: /Sequence settings: configure webhook/ })).toContainText("Webhook on");
-  await expect.poll(() => (lastUpdate(api)?.webhook as { webhookId: string; events: string[] })?.events?.sort()).toEqual(["campaign_paused", "reply_received"]);
-  expect((lastUpdate(api).webhook as { webhookId: string }).webhookId).toBe("h1");
-});

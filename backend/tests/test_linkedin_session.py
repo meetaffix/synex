@@ -378,6 +378,28 @@ class AccountApiTest(SessionApiCase):
         self.assertEqual(self.client.post(url).json()["status"], "restricted")
         self.assertIsNotNone(self.client.post(url).json()["lastCheckedAt"])
 
+    def test_resync_fills_in_a_profile_that_was_not_read_at_connect(self):
+        account_id = self.connect_and_wait()
+        with SessionLocal() as db:  # a connect that read only the name, as on the real page before the top-card fix
+            row = db.get(models.LinkedInAccount, account_id)
+            row.headline = row.avatar_url = row.location = row.company = None
+            db.commit()
+        from app.linkedin_session import service
+        with service._CHECK_LOCK:
+            service._CHECKS.pop(account_id, None)
+        shown = self.client.post(f"/linkedin-accounts/{account_id}/check").json()
+        self.assertEqual(shown["headline"], "Engineer at Mock Co")
+        self.assertEqual(self.account_row(account_id).headline, "Engineer at Mock Co")
+
+    def test_resync_never_blanks_a_profile_it_fails_to_read(self):
+        account_id = self.connect_and_wait()
+        from app.linkedin_session import service
+        with service._CHECK_LOCK:
+            service._CHECKS.pop(account_id, None)
+        with patch.object(MOCK.site, "read_profile", side_effect=RuntimeError("page changed")):
+            self.client.post(f"/linkedin-accounts/{account_id}/check")
+        self.assertEqual(self.account_row(account_id).headline, "Engineer at Mock Co")
+
     def test_check_without_a_session_is_409(self):
         account_id = self.connect_and_wait()
         self.client.delete(f"/linkedin-accounts/{account_id}")

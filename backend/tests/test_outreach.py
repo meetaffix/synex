@@ -360,6 +360,8 @@ class CampaignFlowTest(OutreachCase):
         with SessionLocal() as db:
             self.assertEqual(db.query(models.Lead).filter_by(first_name="Stranger").count(), 0)
             self.assertEqual([c.lead.first_name for c in db.query(models.Conversation).all()], ["Ann"])
+            done = db.query(models.AgentTask).filter_by(type="sync_inbox", status="done").all()
+            self.assertTrue(any((t.result or {}).get("skipped") == 1 for t in done), [t.result for t in done])  # the stranger was read, not kept, and counted
 
     def test_sync_mode_all_imports_every_conversation(self):
         account_id = self.make_account(sync_mode="all")

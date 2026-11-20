@@ -57,7 +57,7 @@ export function AssistantSettings() {
   const readOnly = !s.canEdit;
   const capValue = cap ?? String(s.monthlyMinuteCap);
   const capNumber = Number(capValue);
-  const capInvalid = capValue.trim() === "" || !Number.isInteger(capNumber) || capNumber < 0 || capNumber > 10000;
+  const capInvalid = capValue.trim() === "" || !Number.isInteger(capNumber) || capNumber < 0 || capNumber > s.planMinuteLimit;
 
   return (
     <Card>
@@ -105,7 +105,7 @@ export function AssistantSettings() {
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-sm font-medium">Usage this month</p>
             <p className="text-sm text-muted-foreground">
-              {used} of {s.monthlyMinuteCap} minutes used
+              {used} of {s.monthlyMinuteCap} minutes used ({s.planMinuteLimit} in your plan)
             </p>
           </div>
           <Progress value={percent} aria-label={`${used} of ${s.monthlyMinuteCap} assistant minutes used this month`} indicatorClassName={s.capReached ? "bg-danger" : undefined} />
@@ -123,8 +123,8 @@ export function AssistantSettings() {
             if (!capInvalid) save.mutate({ monthlyMinuteCap: capNumber });
           }}
         >
-          <FormField label="Monthly minute limit" help="0 turns the assistant off. Time is counted while a session is open." error={capInvalid ? "Enter a whole number from 0 to 10000." : undefined}>
-            <Input type="number" min={0} max={10000} value={capValue} disabled={readOnly} onChange={(e) => setCap(e.target.value)} />
+          <FormField label="Monthly minute limit" help={`0 turns the assistant off. Your ${s.plan.charAt(0).toUpperCase()}${s.plan.slice(1)} plan includes up to ${s.planMinuteLimit} minutes a month. Time is counted while a session is open.`} error={capInvalid ? `Enter a whole number from 0 to ${s.planMinuteLimit}.` : undefined}>
+            <Input type="number" min={0} max={s.planMinuteLimit} value={capValue} disabled={readOnly} onChange={(e) => setCap(e.target.value)} />
           </FormField>
           <FormField label="End a session after">
             <NativeSelect value={s.idleTimeoutSeconds} disabled={readOnly || save.isPending} onChange={(e) => save.mutate({ idleTimeoutSeconds: Number(e.target.value) })}>

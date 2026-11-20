@@ -216,7 +216,7 @@ function CampaignTable({ campaigns, accountNames }: { campaigns: Campaign[]; acc
                 return (
                   <TableRow key={campaign.id}>
                     <th scope="row" className="h-14 px-4 py-2 text-left font-medium">
-                      {editable ? <Link className="underline-offset-2 hover:underline" to={`/campaigns/${campaign.id}/edit`}>{campaign.name}</Link> : campaign.name}
+                      <Link className="underline-offset-2 hover:underline" to={campaign.status === "draft" ? `/campaigns/${campaign.id}/edit` : `/campaigns/${campaign.id}`}>{campaign.name}</Link>
                     </th>
                     <TableCell><Badge variant={(STATUS[campaign.displayStatus] ?? STATUS.draft).variant}>{(STATUS[campaign.displayStatus] ?? { label: campaign.displayStatus }).label}</Badge></TableCell>
                     <TableCell className="text-right">{formatNumber(campaign.stats.totalLeads)}</TableCell>
@@ -233,6 +233,7 @@ function CampaignTable({ campaigns, accountNames }: { campaigns: Campaign[]; acc
                           <Button size="icon-sm" variant="ghost" aria-label={`More actions for ${campaign.name}`}><MoreHorizontal /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {campaign.status !== "draft" && <DropdownMenuItem asChild><Link to={`/campaigns/${campaign.id}`}>View campaign</Link></DropdownMenuItem>}
                           {editable && <DropdownMenuItem asChild><Link to={`/campaigns/${campaign.id}/edit`}>Edit campaign</Link></DropdownMenuItem>}
                           <DropdownMenuItem onSelect={() => act.mutate({ action: "duplicate", id: campaign.id }, { onSuccess: () => toast.success("Campaign duplicated as a draft.") })}>Duplicate campaign</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => void share(campaign)}>Share sequence</DropdownMenuItem>

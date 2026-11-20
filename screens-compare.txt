@@ -1,0 +1,19 @@
+[WebServer] INFO:     Started server process [4156]
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+
+Running 9 tests using 1 worker
+
+  ok 1 tests\screens.spec.ts:18:5 › screens › sender-list (6.7s)
+  ok 2 tests\screens.spec.ts:18:5 › screens › sender-list-error (3.2s)
+  ok 3 tests\screens.spec.ts:18:5 › screens › account-limits-new (3.5s)
+  ok 4 tests\screens.spec.ts:18:5 › screens › account-privacy (3.3s)
+  ok 5 tests\screens.spec.ts:18:5 › screens › account-health (3.3s)
+  ok 6 tests\screens.spec.ts:18:5 › screens › account-connections (2.8s)
+  ok 7 tests\screens.spec.ts:18:5 › screens › account-ai (3.3s)
+  ok 8 tests\screens.spec.ts:18:5 › screens › account-lifecycle (3.2s)
+  ok 9 tests\screens.spec.ts:18:5 › screens › connect-form (3.6s)
+
+  9 passed (50.8s)
+done

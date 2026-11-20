@@ -81,7 +81,7 @@ function AvatarStack({ people, max = 3, className }: { people: { name: string; s
   const shown = people.slice(0, max);
   const rest = people.length - shown.length;
   return (
-    <span role="img" aria-label={people.map((person) => person.name).join(", ")} className={cn("inline-flex -space-x-2", className)}>
+    <span role="img" aria-label={people.map((person) => person.name).join(", ")} className={cn("inline-flex -space-x-1.5", className)}>
       {shown.map((person) => (
         <UserAvatar key={person.name} name={person.name} src={person.src} className="size-7 ring-2 ring-surface" />
       ))}

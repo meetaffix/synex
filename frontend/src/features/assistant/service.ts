@@ -4,6 +4,9 @@ export interface AssistantSettings {
   available: boolean;
   enabled: boolean;
   monthlyMinuteCap: number;
+  /** The plan this workspace is on and the most monthly minutes it includes. The server enforces it; this is only shown. */
+  plan: string;
+  planMinuteLimit: number;
   usedSeconds: number;
   remainingSeconds: number;
   capReached: boolean;

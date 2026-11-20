@@ -33,32 +33,13 @@ test("in the inbox a saved reply is inserted from the list and /shortcut plus a 
   await expect(page.getByLabel("Reply", { exact: true })).toHaveValue("Hi Thanks for replying!");
 });
 
-test("the sequence editor offers the four bundled templates and earlier campaigns, and applying one asks first", async ({ page }) => {
-  await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")], campaigns: [campaign("c1", "Old campaign")] }));
-  await page.goto("/campaigns/cb1/edit?step=2");
-  await page.getByRole("button", { name: "Templates" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("list", { name: "Bundled templates" }).getByRole("listitem")).toHaveCount(4);
-  await dialog.getByLabel("Search templates").fill("cold");
-  await expect(dialog.getByRole("list", { name: "Bundled templates" }).getByRole("listitem")).toHaveCount(1);
-  await dialog.getByRole("button", { name: "Use Cold connection request" }).click();
-  await expect(dialog.getByText("Replace the current sequence with Cold connection request?")).toBeVisible();
-  await dialog.getByRole("button", { name: "Apply template" }).click();
-  await expect(page.getByRole("textbox", { name: "Connection request text", exact: true })).toHaveValue(/I enjoy following work in your field/);
-  await expect(page.getByRole("heading", { name: "Message 1" })).toHaveCount(0); // that template has no message step
-  await page.getByRole("button", { name: "Templates" }).click();
-  await page.getByRole("tab", { name: "Previous campaigns" }).click();
-  await page.getByRole("button", { name: "Use Old campaign" }).click();
-  await page.getByRole("button", { name: "Apply template" }).click();
-  await expect(page.getByRole("textbox", { name: "Connection request text", exact: true })).toHaveValue("Hi {{first_name}}, from the old campaign");
-});
-
 test("a saved template is offered in the message editor, and a sequence file is imported as a draft", async ({ page }) => {
   const api = newApi({ accounts: [account("a1", "Ada Lovelace")], templates: [tpl("t3", "Short note", "connection", "Hi {{first_name}}, let us connect.")] });
   await mockApi(page, api);
   await page.goto("/campaigns/cb1/edit?step=2");
-  await page.getByLabel("Insert a saved template into Connection request text").selectOption({ label: "Short note" });
-  await expect(page.getByRole("textbox", { name: "Connection request text", exact: true })).toHaveValue("Hi {{first_name}}, let us connect.");
+  await page.getByRole("button", { name: /^Send connection request\s/ }).click();
+  await page.getByLabel("Insert a saved template into Send connection request text").selectOption({ label: "Short note" });
+  await expect(page.getByRole("textbox", { name: "Send connection request text", exact: true })).toHaveValue("Hi {{first_name}}, let us connect.");
 });
 
 test("a sequence file is imported as a draft, and a file that is not a sequence is refused with the reason", async ({ page }) => {

@@ -2,24 +2,23 @@ import { useEffect, useState, type ReactElement } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow, ReactFlowProvider, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Eye, Flag, GitBranch, Heart, Mail, Maximize2, MessageSquare, Mic, Minimize2, Plus, Send, Sparkles, Timer, Trash2, UserMinus, UserPlus, X } from "lucide-react";
+import { Eye, Flag, GitBranch, Heart, Mail, Maximize2, MessageSquare, Mic, Minimize2, Plus, Send, Timer, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Switch } from "@/components/ui/switch";
-import { AiDrawer } from "./AiDrawer";
 import { MessageField } from "./MessageField";
 import { VoiceNoteFields } from "./VoiceNoteFields";
-import { addNode, addProblem, isClosed, isConditional, LABELS, listOf, MENU, problems, removeNode } from "./graph";
-import { defaultAi, type AiConfig, type Branch, type BuilderState, type BuilderStep, type StepType } from "./model";
+import { addNode, addProblem, DESCRIPTIONS, isClosed, isConditional, LABELS, listOf, MENU, problems, removeNode } from "./graph";
+import { type Branch, type BuilderState, type BuilderStep, type StepType } from "./model";
 
 interface Props {
   state: BuilderState;
   set: (change: Partial<BuilderState>) => void;
   campaignId: string;
-  onOpenContext: () => void;
+  /** Every lead is already a connection: a connection request is not offered and one already in the sequence is flagged. */
+  audienceConnections?: boolean;
 }
 
 const ONCE_ACTIONS: StepType[] = ["profile_visit", "follow", "like_post", "withdraw_invite"];
@@ -30,7 +29,21 @@ const ICONS: Partial<Record<StepType, typeof Send>> = {
   connection_request: UserPlus, message: MessageSquare, follow_up: MessageSquare, voice_note: Mic, inmail: Mail, free_inmail: Mail,
   profile_visit: Eye, follow: UserPlus, like_post: Heart, withdraw_invite: UserMinus, wait: Timer, if_connected: GitBranch, if_active: GitBranch, end: Flag,
 };
+/** Messages are teal, profile actions blue, timing and conditions amber: the map reads at a glance without reading every card. */
+const TONES: Record<string, string> = {
+  message: "bg-primary-soft text-primary-soft-foreground",
+  profile: "bg-info-soft text-info",
+  timing: "bg-warning-soft text-warning",
+  end: "bg-surface-muted text-muted-foreground",
+};
+const toneOf = (type: StepType): string =>
+  ["connection_request", "message", "follow_up", "voice_note", "inmail", "free_inmail"].includes(type) ? TONES.message
+  : ["profile_visit", "follow", "like_post", "withdraw_invite"].includes(type) ? TONES.profile
+  : type === "end" ? TONES.end : TONES.timing;
+
 const branchLabel = (type: StepType, b: Branch) => (type === "if_connected" ? (b === "yes" ? "Connected" : "Not connected") : b === "yes" ? "Active" : "Not active");
+
+const ONCE_NOTE: Partial<Record<StepType, string>> = { profile_visit: "Opens their profile", follow: "Follows them", like_post: "Likes their latest post", withdraw_invite: "Takes back the invitation", end: "The sequence stops here" };
 
 function summary(s: BuilderStep): string {
   if (s.type === "wait") return s.delayHours >= 24 && s.delayHours % 24 === 0 ? `${s.delayHours / 24} days` : `${s.delayHours} hours`;
@@ -39,7 +52,7 @@ function summary(s: BuilderStep): string {
   if (s.aiConfig?.mode === "ai") return "Written by Synex AI";
   if (s.type === "voice_note") return s.config.audioId ? "Audio ready" : "Audio not set";
   if (["connection_request", "message", "follow_up", "inmail", "free_inmail"].includes(s.type)) return s.message.trim() ? s.message.trim().slice(0, 60) : "No text yet";
-  return "Runs once";
+  return ONCE_NOTE[s.type] ?? "The sequence stops here";
 }
 
 interface StepData extends Record<string, unknown> { step: BuilderStep; issue: string | null; open: () => void }
@@ -51,8 +64,8 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
   return (
     <div style={{ width: STEP_W, height: STEP_H }}>
       <Handle type="target" position={Position.Top} className="!border-0 !bg-border" isConnectable={false} />
-      <button type="button" onClick={open}         className={`nodrag flex h-full w-full items-center gap-3 rounded-lg border bg-surface px-3 text-left shadow-sm hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${issue ? "border-danger" : "border-border"}`}>
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-foreground"><Icon className="size-4" aria-hidden /></span>
+      <button type="button" onClick={open}         className={`nodrag flex h-full w-full items-center gap-3 rounded-lg border bg-surface px-3 text-left shadow-raised transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-primary hover:shadow-float focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${issue ? "border-danger" : "border-border"}`}>
+        <span className={`grid size-9 shrink-0 place-items-center rounded-md ${toneOf(step.type)}`}><Icon className="size-4" aria-hidden /></span>
         <span className="min-w-0"><span className="block truncate text-sm font-semibold">{LABELS[step.type]}</span><span className={`block truncate text-xs ${issue ? "text-danger" : "text-muted-foreground"}`}>{issue ?? summary(step)}</span><span className="sr-only">Open settings</span></span>
       </button>
       <Handle type="source" position={Position.Bottom} className="!border-0 !bg-border" isConnectable={false} />
@@ -114,13 +127,11 @@ function layout(steps: BuilderStep[], issues: { key: number; message: string }[]
 }
 
 /** The Smart sequence: a tree of actions with If steps that split into two branches. Every node shows its settings on its card. */
-export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
+export function SmartGraph({ state, set, campaignId, audienceConnections = false }: Props) {
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [full, setFull] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const [aiFor, setAiFor] = useState<BuilderStep | null>(null);
   const steps = state.steps;
-  const audienceConnections = false;
   const issues = problems(steps, audienceConnections);
   const patch = (key: number, change: Partial<BuilderStep>) => set({ steps: steps.map((s) => (s.key === key ? { ...s, ...change } : s)) });
   const config = (s: BuilderStep, change: Record<string, unknown>) => patch(s.key, { config: { ...s.config, ...change } });
@@ -149,7 +160,7 @@ export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
                 const why = addProblem(steps, type, parentKey, branch, audienceConnections);
                 return (
                   <DropdownMenuItem key={type} disabled={!!why} onSelect={() => set({ steps: addNode(steps, type, parentKey, branch) })}>
-                    <span className="grid"><span>{LABELS[type]}</span>{why && <span className="text-xs text-muted-foreground">{why}</span>}</span>
+                    <span className="grid"><span>{LABELS[type]}</span><span className="text-xs text-muted-foreground">{why ?? DESCRIPTIONS[type]}</span></span>
                   </DropdownMenuItem>
                 );
               })}
@@ -179,17 +190,7 @@ export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
           <MessageField label={ai ? `${label} (fallback text)` : `${label} text`} value={s.message} onChange={(message) => patch(s.key, { message })}
             templateCategory={s.type === "connection_request" ? "connection" : s.type === "follow_up" ? "follow_up" : "first_message"}
             maxLength={s.type === "connection_request" ? 200 : 1500} campaignId={campaignId} listId={state.leadListId} accountIds={state.accountIds}
-            aiNote={ai ? "AI writes this for each person. You review every message before launch. This text is only a fallback." : undefined} />
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-muted p-3">
-              <div className="grid gap-0.5">
-                <span id={`${id}-ai`} className="flex items-center gap-1 text-sm font-medium"><Sparkles className="size-4" aria-hidden /> Synex AI writing</span>
-                <span className="text-xs text-muted-foreground">{ai ? `On: ${s.aiConfig?.tone} tone, ${s.aiConfig?.strategy.replaceAll("_", " ")} strategy.` : "Write this with AI for each person. Switch on to configure."}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {ai && <Button size="sm" variant="outline" onClick={() => setAiFor(s)}>Configure</Button>}
-                <Switch aria-labelledby={`${id}-ai`} checked={ai} onCheckedChange={(on) => { if (on) setAiFor(s); else patch(s.key, { aiConfig: s.aiConfig ? ({ ...s.aiConfig, mode: "direct" } as AiConfig) : null }); }} />
-              </div>
-          </div>
+            aiNote={ai ? "This campaign was set up with AI writing per person. You review every message before launch." : undefined} />
         </div>
       );
     }
@@ -307,10 +308,6 @@ export function SmartGraph({ state, set, campaignId, onOpenContext }: Props) {
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
-      {aiFor && (
-        <AiDrawer title={LABELS[aiFor.type].toLowerCase()} stepType={aiFor.type} value={aiFor.aiConfig ?? { ...defaultAi(), mode: "ai" }} campaignId={campaignId}
-          onSave={(value) => patch(aiFor.key, { aiConfig: value })} onClose={() => setAiFor(null)} onOpenContext={onOpenContext} />
-      )}
     </div>
   );
 }

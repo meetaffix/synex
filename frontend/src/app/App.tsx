@@ -13,6 +13,9 @@ import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { InboxPage } from "@/features/inbox/InboxPage";
 import { CampaignsPage } from "@/features/campaigns/CampaignsPage";
+import { CampaignPage } from "@/features/campaigns/CampaignPage";
+import { PlanCard } from "@/features/plan/PlanCard";
+import { AuditLogPage } from "@/features/audit/AuditLogPage";
 import { BuilderPage } from "@/features/campaigns/builder/BuilderPage";
 import { NewCampaignPage } from "@/features/campaigns/builder/NewCampaignPage";
 import { SenderAccountsPage } from "@/features/linkedin-accounts/AccountsPage";
@@ -83,6 +86,7 @@ export function App() {
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/campaigns/new" element={<NewCampaignPage />} />
+            <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
             <Route path="/campaigns/:campaignId/edit" element={<BuilderPage />} />
             <Route path="/linkedin-accounts" element={<SenderAccountsPage />} />
             <Route path="/linkedin-accounts/:accountId" element={<AccountDetailPage />} />
@@ -102,7 +106,8 @@ export function App() {
             <Route element={<SettingsLayout />}>
               <Route path="/settings/integrations" element={<IntegrationsPage />} />
               <Route path="/settings/safety" element={<SafetyPage />} />
-              <Route path="/settings" element={<Stack><AssistantSettings /><LocalAssistantCard /><SettingsPage /></Stack>} />
+              <Route path="/settings/audit" element={<AuditLogPage />} />
+              <Route path="/settings" element={<Stack><SettingsPage /><PlanCard /><AssistantSettings /><LocalAssistantCard /></Stack>} />
             </Route>
             <Route path="/help" element={<HelpPage />} />
             {redirects.map(([from, to]) => (

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
@@ -50,13 +52,37 @@ class PasswordResetIn(CamelIn):
 
 
 class ProfileUpdateIn(CamelIn):
-    full_name: str | None = None
+    full_name: str | None = Field(None, max_length=200)
     email: EmailStr | None = None
     company: str | None = Field(None, max_length=160)
     phone: str | None = Field(None, max_length=40)
     designation: str | None = Field(None, max_length=120)
-    role: str | None = None
-    avatar_url: str | None = None
+    role: str | None = None  # accepted and ignored: nobody changes their own role here
+    avatar_url: str | None = Field(None, max_length=2048)
+
+    @field_validator("full_name")
+    @classmethod
+    def _name(cls, v):
+        if v is None:
+            return v
+        v = v.strip()
+        if not 1 <= len(v) <= 120:
+            raise ValueError("Enter your name, up to 120 characters.")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def _phone(cls, v):
+        if v and v.strip() and not re.fullmatch(r"[0-9+()\-.\s]{3,40}", v.strip()):
+            raise ValueError("Enter a phone number using digits, spaces, + ( ) - or .")
+        return v
+
+    @field_validator("avatar_url")
+    @classmethod
+    def _picture(cls, v):
+        if v and not v.strip().lower().startswith("https://"):
+            raise ValueError("A picture must be a web address starting with https://.")
+        return v
 
 
 # --------------------------------- Leads ---------------------------------
@@ -83,20 +109,20 @@ def check_variables(value: dict | None) -> dict | None:
 
 
 class LeadIn(CamelIn):
-    first_name: str | None = ""
-    last_name: str | None = ""
-    company: str | None = ""
-    job_title: str | None = ""
-    headline: str | None = None
-    linkedin_url: str | None = ""
-    email: str | None = None
-    phone: str | None = None
-    location: str | None = None
-    industry: str | None = None
+    first_name: str | None = Field("", max_length=200)
+    last_name: str | None = Field("", max_length=200)
+    company: str | None = Field("", max_length=200)
+    job_title: str | None = Field("", max_length=200)
+    headline: str | None = Field(None, max_length=400)
+    linkedin_url: str | None = Field("", max_length=500)
+    email: str | None = Field(None, max_length=254)
+    phone: str | None = Field(None, max_length=40)
+    location: str | None = Field(None, max_length=200)
+    industry: str | None = Field(None, max_length=200)
     timezone: str | None = None  # IANA name; overrides the campaign timezone for working hours
-    tags: list[str] | None = None
+    tags: list[str] | None = Field(None, max_length=50)
     status: str | None = "new"
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=5000)
     list_ids: list[str] | None = None
     variables: dict | None = None
 
@@ -112,20 +138,20 @@ class LeadIn(CamelIn):
 
 
 class LeadUpdateIn(CamelIn):
-    first_name: str | None = None
-    last_name: str | None = None
-    company: str | None = None
-    job_title: str | None = None
-    headline: str | None = None
-    linkedin_url: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    location: str | None = None
-    industry: str | None = None
-    timezone: str | None = None
-    tags: list[str] | None = None
-    status: str | None = None
-    notes: str | None = None
+    first_name: str | None = Field(None, max_length=200)
+    last_name: str | None = Field(None, max_length=200)
+    company: str | None = Field(None, max_length=200)
+    job_title: str | None = Field(None, max_length=200)
+    headline: str | None = Field(None, max_length=400)
+    linkedin_url: str | None = Field(None, max_length=500)
+    email: str | None = Field(None, max_length=254)
+    phone: str | None = Field(None, max_length=40)
+    location: str | None = Field(None, max_length=200)
+    industry: str | None = Field(None, max_length=200)
+    timezone: str | None = Field(None, max_length=64)
+    tags: list[str] | None = Field(None, max_length=50)
+    status: str | None = Field(None, max_length=40)
+    notes: str | None = Field(None, max_length=5000)
     list_ids: list[str] | None = None
     variables: dict | None = None
 
@@ -162,24 +188,24 @@ class BulkStatusIn(CamelIn):
 
 # ------------------------------ Lead lists -------------------------------
 class LeadListIn(CamelIn):
-    name: str
-    description: str | None = None
-    color: str | None = None
+    name: str = Field(max_length=200)
+    description: str | None = Field(None, max_length=1000)
+    color: str | None = Field(None, max_length=40)
 
 
 class LeadListUpdateIn(CamelIn):
-    name: str | None = None
-    description: str | None = None
-    color: str | None = None
+    name: str | None = Field(None, max_length=200)
+    description: str | None = Field(None, max_length=1000)
+    color: str | None = Field(None, max_length=40)
 
 
 # --------------------------------- Steps ---------------------------------
 class StepIn(CamelIn):
     id: str | None = None
     type: str
-    order: int = 0
-    message: str | None = None
-    delay_hours: int | None = None
+    order: int = Field(0, ge=0, le=1000)
+    message: str | None = Field(None, max_length=3000)
+    delay_hours: int | None = Field(None, ge=0, le=24 * 90)  # at most 90 days
     # Reserved for conditional branches: stored and returned, not executed yet.
     parent_step_id: str | None = None
     branch_condition: dict | None = None
@@ -252,8 +278,8 @@ class CampaignSettingsIn(CamelIn):
 
 
 class CampaignIn(CampaignSettingsIn):
-    name: str
-    description: str | None = None
+    name: str = Field(max_length=200)
+    description: str | None = Field(None, max_length=2000)
     account_id: str | None = None
     account_ids: list[str] | None = None
     lead_list_id: str | None = None
@@ -262,8 +288,14 @@ class CampaignIn(CampaignSettingsIn):
     _connection_limit = _campaign_limit("daily_connection_limit", "send_invite")
     _message_limit = _campaign_limit("daily_message_limit", "send_message")
     timezone: str | None = None
-    start_hour: int | None = None
-    end_hour: int | None = None
+    start_hour: int | None = Field(None, ge=0, le=23)
+    end_hour: int | None = Field(None, ge=1, le=24)
+
+    @model_validator(mode="after")
+    def _hours_in_order(self):
+        if self.start_hour is not None and self.end_hour is not None and self.start_hour >= self.end_hour:
+            raise ValueError("The start hour must be before the end hour.")
+        return self
     working_days: list[int] | None = None
     random_delay: bool | None = None
     stop_when_replied: bool | None = None
@@ -275,8 +307,8 @@ class CampaignIn(CampaignSettingsIn):
 
 
 class CampaignUpdateIn(CampaignSettingsIn):
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(None, max_length=200)
+    description: str | None = Field(None, max_length=2000)
     status: str | None = None
     account_id: str | None = None
     account_ids: list[str] | None = None
@@ -286,8 +318,14 @@ class CampaignUpdateIn(CampaignSettingsIn):
     _connection_limit = _campaign_limit("daily_connection_limit", "send_invite")
     _message_limit = _campaign_limit("daily_message_limit", "send_message")
     timezone: str | None = None
-    start_hour: int | None = None
-    end_hour: int | None = None
+    start_hour: int | None = Field(None, ge=0, le=23)
+    end_hour: int | None = Field(None, ge=1, le=24)
+
+    @model_validator(mode="after")
+    def _hours_in_order(self):
+        if self.start_hour is not None and self.end_hour is not None and self.start_hour >= self.end_hour:
+            raise ValueError("The start hour must be before the end hour.")
+        return self
     working_days: list[int] | None = None
     random_delay: bool | None = None
     stop_when_replied: bool | None = None
@@ -325,10 +363,10 @@ def check_shortcut(value: str | None) -> str | None:
 
 
 class TemplateIn(CamelIn):
-    name: str
+    name: str = Field(max_length=200)
     category: str | None = "first_message"
-    body: str | None = ""
-    shortcut: str | None = None
+    body: str | None = Field("", max_length=5000)
+    shortcut: str | None = Field(None, max_length=40)
 
     @field_validator("shortcut")
     @classmethod
@@ -337,10 +375,10 @@ class TemplateIn(CamelIn):
 
 
 class TemplateUpdateIn(CamelIn):
-    name: str | None = None
+    name: str | None = Field(None, max_length=200)
     category: str | None = None
-    body: str | None = None
-    shortcut: str | None = None
+    body: str | None = Field(None, max_length=5000)
+    shortcut: str | None = Field(None, max_length=40)
 
     @field_validator("shortcut")
     @classmethod
@@ -351,13 +389,13 @@ class TemplateUpdateIn(CamelIn):
 # ----------------------------- Conversations -----------------------------
 class MessageIn(CamelIn):
     conversation_id: str | None = None
-    body: str
+    body: str = Field(max_length=8000)
 
 
 class ComposeMessageIn(CamelIn):
     """Start a new conversation with a lead from the unibox."""
     lead_id: str
-    body: str
+    body: str = Field(max_length=8000)
 
 
 class ConversationUpdateIn(CamelIn):
@@ -396,12 +434,12 @@ class LeadImportIn(CamelIn):
 
 
 class ProspectInputIn(CamelIn):
-    first_name: str | None = ""
-    last_name: str | None = ""
-    company: str | None = ""
-    job_title: str | None = ""
-    linkedin_url: str | None = ""
-    location: str | None = None
+    first_name: str | None = Field("", max_length=200)
+    last_name: str | None = Field("", max_length=200)
+    company: str | None = Field("", max_length=200)
+    job_title: str | None = Field("", max_length=200)
+    linkedin_url: str | None = Field("", max_length=500)
+    location: str | None = Field(None, max_length=200)
 
 
 class ProspectReviewIn(CamelIn):

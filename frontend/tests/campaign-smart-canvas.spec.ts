@@ -14,8 +14,6 @@ const open = async (page: Page, over: Parameters<typeof newApi>[0] = {}) => {
   return api;
 };
 const toSmart = async (page: Page) => {
-  await page.getByRole("button", { name: "Smart", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Switch to Smart" }).click();
   await expect(page.getByRole("region", { name: "Sequence graph canvas" })).toBeVisible();
 };
 const add = async (page: Page, where: string, item: string) => {
@@ -34,30 +32,15 @@ const openNode = async (page: Page, label: string) => {
 };
 const lastUpdate = (api: Api) => callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { action?: string })?.action === "update").at(-1)?.body as { sequenceMode: string; steps: { id: string; type: string; parentStepId: string | null; branchCondition: { branch: string } | null; config: Record<string, unknown> | null }[] };
 
-test("switching to Smart asks first, keeps every step, and Classic is where it was", async ({ page }) => {
-  await open(page);
-  await expect(page.getByRole("button", { name: "Classic", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Smart", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "Switch to Smart?" })).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("button", { name: "Classic", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await toSmart(page);
-  await expect(page.getByRole("button", { name: "Smart", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Campaign start")).toBeVisible();
-  await expect(nodes(page)).toHaveCount(4);
-  for (const label of ["Send connection request", "Wait", "Send message", "End"]) await expect(node(page, label)).toHaveCount(1);
-  await expect(page.getByRole("list", { name: "Sequence steps" })).toHaveCount(0);
-});
-
 test("the Add action menu lists every node type and says why one cannot be added", async ({ page }) => {
   await open(page);
   await toSmart(page);
   await page.getByRole("button", { name: "Add action to the sequence" }).click();
   const menu = page.getByRole("menu");
   for (const name of ["Send connection request", "Send message", "Send follow-up", "Send voice note", "Send InMail", "Send free InMail", "View profile", "Follow profile", "Like a post", "Withdraw invite", "Wait", "If connection", "Is active on LinkedIn"]) {
-    await expect(menu.getByRole("menuitem", { name })).toHaveCount(1);
+    await expect(menu.getByRole("menuitem", { name: new RegExp(`^${name}`) })).toHaveCount(1);
   }
+  await expect(menu.getByText("Takes back an invitation that is still waiting.")).toBeVisible(); // every action says in one line what it does
   await expect(menu.getByRole("menuitem", { name: /Send connection request/ })).toHaveAttribute("aria-disabled", "true");
   await expect(menu.getByText("A sequence has one connection request.")).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /Send voice note/ })).not.toHaveAttribute("aria-disabled", "true");
@@ -100,15 +83,12 @@ test("Next stays off while a node is not ready, says which and why, and comes ba
   await toSmart(page);
   await add(page, "Add action to the sequence", "Send InMail");
   await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
-  await expect(page.getByText("Next is off: Send message: write the message.")).toBeVisible();
+  await expect(page.getByText("Next is off: Send InMail: write the message.")).toBeVisible();
   await expect(page.getByRole("note").filter({ hasText: "not ready" })).toContainText("Send InMail: write the message.");
   const inmail = await openNode(page, "Send InMail");
   await inmail.getByLabel("InMail subject").fill("Quick question");
   await inmail.getByRole("textbox", { name: "Send InMail text", exact: true }).fill("Hello {{first_name}}");
   await inmail.getByRole("button", { name: "Done" }).click();
-  const message = await openNode(page, "Send message");
-  await message.getByRole("textbox", { name: "Send message text", exact: true }).fill("Thanks for connecting");
-  await message.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
   await expect(page.getByText(/Next is off/)).toHaveCount(0);
 });
@@ -143,18 +123,6 @@ test("a node opens a settings drawer on the right, Remove deletes it, and Escape
   await again.getByRole("button", { name: "Remove step" }).click();
   await expect(node(page, "Wait")).toHaveCount(0);
   await expect(nodes(page)).toHaveCount(3);
-});
-
-test("switching back to Classic names what it will remove", async ({ page }) => {
-  await open(page);
-  await toSmart(page);
-  await add(page, "Add action to the sequence", "Like a post");
-  await page.getByRole("button", { name: "Classic", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("removes the like a post step");
-  await dialog.getByRole("button", { name: "Switch and remove them" }).click();
-  await expect(page.getByRole("list", { name: "Sequence steps" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Like a post" })).toHaveCount(0);
 });
 
 test("a voice note: only where a connection is certain, direct upload with a preview, and the sender readiness panel", async ({ page }) => {
@@ -225,4 +193,46 @@ test("keyboard: the menu opens from the Add action button, arrows choose, Enter 
   await expect(page.getByRole("dialog", { name: /Configure send connection request/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("a message box offers variables as chips and spintax, and a small icon rewrites the text in a human voice, with Undo", async ({ page }) => {
+  await open(page);
+  await page.route(/\/campaigns\/cb1\/drafts\/rewrite$/, (route) => route.fulfill({ json: { text: "Hey {{first_name}}, loved your post.", provider: "deepgram", changed: true } }));
+  const drawer = await openNode(page, "Send connection request");
+  const box = drawer.getByRole("textbox", { name: "Send connection request text", exact: true });
+  await box.fill("Dear ");
+  await drawer.getByLabel("Insert a variable into Send connection request text").selectOption("first_name");
+  await expect(drawer.getByLabel("Send connection request text with variables marked")).toContainText("first_name");
+  await box.fill("I hope this message finds you well, {{first_name}}.");
+  await expect(drawer.getByText("Synex AI writing")).toHaveCount(0);
+  await drawer.getByRole("button", { name: /Rewrite Send connection request text to sound more human/ }).click();
+  await expect(box).toHaveValue("Hey {{first_name}}, loved your post.");
+  await expect(drawer.getByText("Rewritten in a plainer, more human voice.")).toBeVisible();
+  await drawer.getByRole("button", { name: "Undo" }).click();
+  await expect(box).toHaveValue("I hope this message finds you well, {{first_name}}.");
+});
+
+test("a new campaign's sequence starts empty, and the builder has no Classic, Templates, Webhook or second assistant button", async ({ page }) => {
+  await open(page);
+  for (const name of ["Classic", "Smart", "Templates", "Build with AI", "AI campaign context"]) await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Sequence settings: configure webhook/ })).toHaveCount(0);
+});
+
+test("for a list of people who are already connections, steps that exist to get connected are not offered, and ones already there are flagged", async ({ page }) => {
+  await open(page, { lists: [{ id: "L1", name: "My connections", leadCount: 3, allConnections: true, description: null, color: "primary", createdAt: "2026-11-01T00:00:00Z" }] });
+  await expect(page.getByText(/Send connection request: these people are already your connections/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Add action to the sequence" }).click();
+  for (const [name, reason] of [["Send connection request", "already your connections"], ["Send InMail", "send a normal message"], ["Send free InMail", "send a normal message"], ["Withdraw invite", "no pending invitation"], ["If connection", "nothing to wait for"]] as const) {
+    const item = page.getByRole("menuitem", { name: new RegExp(`^${name}`) });
+    await expect(item).toHaveAttribute("aria-disabled", "true");
+    await expect(item).toContainText(reason);
+  }
+  for (const name of ["Send message", "Send follow-up", "View profile", "Wait"]) await expect(page.getByRole("menuitem", { name: new RegExp(`^${name}`) })).not.toHaveAttribute("aria-disabled", "true");
+});
+
+test("for people who may not be connected, connection requests and InMail stay available", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Add action to the sequence" }).click();
+  await expect(page.getByRole("menuitem", { name: /^Send InMail/ })).not.toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByRole("menuitem", { name: /^If connection/ })).not.toHaveAttribute("aria-disabled", "true");
 });
