@@ -46,6 +46,12 @@ class TaskContext:
     now: datetime
 
 
+def insert_for(dialect_name: str):
+    """The ON CONFLICT insert for a database: SQLite has its own; every server database (PostgreSQL, CockroachDB, whose dialect
+    is named "cockroachdb") takes the PostgreSQL one."""
+    return sqlite_insert if dialect_name == "sqlite" else postgres_insert
+
+
 def _context(db: Session, task: models.AgentTask) -> TaskContext:
     run = task.sequence_run
     campaign = run.campaign if run else None
@@ -67,7 +73,7 @@ def acquire_lease(db: Session, account_id: str, holder: str, now: datetime) -> b
     """Take (or renew) the account's browser lease with one conditional upsert. It succeeds only when no
     lease exists, the existing one has expired, or the caller already holds it, so two workers can never
     both hold it; the database decides, not a separate check."""
-    insert = postgres_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
+    insert = insert_for(db.get_bind().dialect.name)
     expires = now + timedelta(seconds=settings.outreach_lease_seconds)
     statement = insert(models.AccountLease).values(account_id=account_id, holder=holder, expires_at=expires)
     statement = statement.on_conflict_do_update(
