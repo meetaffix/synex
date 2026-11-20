@@ -105,8 +105,17 @@ def run_job(target: str, index: int, root: Path) -> dict:
 
 
 def sequential_count() -> int:
-    """How many tests the ordinary loader finds: the reference every parallel run is compared with."""
-    code = "import unittest; print(unittest.defaultTestLoader.discover('tests').countTestCases())"
+    """How many different tests the ordinary loader finds: the reference every parallel run is compared with. A test is counted
+    once by its id: a module that imports a base class to subclass it makes the loader find that base a second time."""
+    code = """
+import unittest
+ids = set()
+def walk(suite):
+    for t in suite:
+        walk(t) if isinstance(t, unittest.TestSuite) else ids.add(unittest.TestCase.id(t))
+walk(unittest.defaultTestLoader.discover('tests'))
+print(len(ids))
+"""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(TESTS), str(BACKEND)]), "PYTHONWARNINGS": "ignore"}
     out = subprocess.run([sys.executable, "-c", code], cwd=BACKEND, env=env, capture_output=True, text=True).stdout.strip().splitlines()
     return int(out[-1]) if out and out[-1].isdigit() else -1
