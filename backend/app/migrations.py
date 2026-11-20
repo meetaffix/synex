@@ -1,7 +1,9 @@
 """Versioned, repeatable migration; no business data is deleted."""
 import logging
+import time
 
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from .config import DAILY_ACTION_CEILING, DAILY_TYPE_CEILINGS
 from .database import Base, engine, SessionLocal, run_simple_migrations
@@ -10,8 +12,22 @@ from . import models, publishing_models as p
 log = logging.getLogger(__name__)
 
 
+def create_tables(attempts: int = 5) -> None:
+    """create_all, retried: the API and both workers run it at boot, and when a deploy starts them together two can try to create
+    the same table at once. create_all checks what exists on each call, so a retry finds the other process's table and moves on."""
+    for attempt in range(1, attempts + 1):
+        try:
+            Base.metadata.create_all(engine)
+            return
+        except (ProgrammingError, OperationalError) as exc:
+            if attempt == attempts or "already exists" not in str(exc).lower():
+                raise
+            log.warning("another process created a table at the same time (attempt %s of %s): retrying", attempt, attempts)
+            time.sleep(attempt)
+
+
 def migrate():
-    Base.metadata.create_all(engine)
+    create_tables()
     run_simple_migrations()
     with SessionLocal() as db:
         if not db.get(p.Migration, "002_official_publishing"):
