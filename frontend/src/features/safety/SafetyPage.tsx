@@ -29,7 +29,7 @@ const ACTION_NAMES: Record<string, string> = {
 export function SafetyPage() {
   return (
     <div className="grid grid-cols-1 gap-8">
-      <PageHeader title="Safety" description="The kill switch, the hard limits no setting can raise, and a record of every action Synex took on LinkedIn."
+      <PageHeader title="Safety" description="Kill switch, hard limits and a record of every action."
         actions={<Button asChild variant="outline"><Link to="/settings">Back to settings</Link></Button>} />
       <KillSwitch />
       <Limits />

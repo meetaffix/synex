@@ -52,7 +52,7 @@ export function AuditLogPage() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
-      <PageHeader title="Audit log" description="What happened in this workspace: actions on LinkedIn, changes the assistant made, and settings that were changed."
+      <PageHeader title="Audit log" description="Everything done on LinkedIn and every change made here."
         actions={
           <>
             <Button variant="outline" onClick={() => void exportCsv()} disabled={!data || data.total === 0}><Download aria-hidden /> Export CSV</Button>

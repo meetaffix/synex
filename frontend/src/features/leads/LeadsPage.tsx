@@ -309,7 +309,7 @@ export function LeadsPage() {
 
       <PageHeader
         title="Contacts"
-        description={`${total} ${total === 1 ? "lead" : "leads"} in your workspace`}
+        description={`${total} ${total === 1 ? "lead" : "leads"}`}
         actions={
           noLeadsAtAll ? undefined : (
           <>
@@ -473,7 +473,7 @@ export function LeadsPage() {
             description={
               filtering
                 ? "Try a different search, or show every status and list."
-                : "Leads are the people your campaigns contact. Add one, or import a CSV with their LinkedIn URLs."
+                : "Leads are the people your campaigns contact. Add one or import a list."
             }
             action={
               filtering ? (

@@ -246,7 +246,7 @@ export function TemplatesPage() {
     <div className="grid gap-6">
       <PageHeader
         title="Templates"
-        description="Reusable messages for connection requests, introductions and follow-ups."
+        description="Reusable messages."
         actions={
           !isLoading && (!templates || templates.length === 0) ? undefined : (
           <Button onClick={openCreate}>
@@ -267,7 +267,7 @@ export function TemplatesPage() {
         <EmptyState
           illustration="templates"
           title="No templates yet"
-          description="Keep reusable drafts for manual follow-ups."
+          description="Save a message once, reuse it anywhere."
           action={
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />

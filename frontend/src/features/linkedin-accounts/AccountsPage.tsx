@@ -98,7 +98,7 @@ export function SenderAccountsPage() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title="Sender accounts"
-        description="The LinkedIn profiles Synex sends connection requests and messages from."
+        description="The LinkedIn profiles Synex sends from."
         // One primary action per view: while the list is empty, the empty state carries it.
         actions={accounts.data?.length === 0 ? undefined : <Button onClick={() => setConnecting({})}>Connect LinkedIn account</Button>}
       />
@@ -106,7 +106,7 @@ export function SenderAccountsPage() {
       {!!accounts.data?.length && overview.data && (
         <section aria-label="Workspace overview" className="grid gap-4 rounded-lg border border-border bg-surface p-4 text-sm shadow-raised sm:p-5" data-testid="seats">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Plan</span> <span className="text-base font-semibold capitalize">{overview.data.plan}</span> <span className="text-xs text-subtle">(placeholder: billing is not built yet)</span></p>
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Plan</span> <span className="text-base font-semibold capitalize">{overview.data.plan}</span></p>
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats used</span> <span className="text-base font-semibold">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats available</span> <span className="text-base font-semibold">{overview.data.seatsAvailable}</span></p>
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5" data-testid="usage-meter"><span className="text-xs text-muted-foreground">Last 24 hours</span> <span className="text-base font-semibold">{usage.connections} connection requests, {usage.messages} messages</span></p>
@@ -221,7 +221,7 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
     <SharedEmptyState
       illustration="accounts"
       title="No sender accounts yet"
-      description="A sender account is a LinkedIn profile that Synex sends connection requests and messages from. You sign in once, Synex keeps the session, and each account has its own daily limit and optional proxy."
+      description="A sender account is a LinkedIn profile that Synex sends from. Sign in once; each account has its own daily limits."
       action={<Button onClick={onConnect}>Connect LinkedIn account</Button>}
     />
   );

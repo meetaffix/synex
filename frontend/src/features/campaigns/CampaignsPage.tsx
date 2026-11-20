@@ -80,7 +80,7 @@ export function CampaignsPage() {
       {/* One primary action per view: while an empty state is showing, it carries the action. */}
       <PageHeader
         title="Campaigns"
-        description="Sequences that contact leads from your sender accounts."
+        description="Sequences that contact your leads."
         actions={!loading && !failure && accounts.data?.length !== 0 && campaigns.data?.length === 0 ? undefined : NEW_CAMPAIGN}
       />
       {loading && <LoadingTable />}
@@ -95,14 +95,14 @@ export function CampaignsPage() {
       {!loading && !failure && accounts.data?.length === 0 && (
         <ConnectAccountEmpty
           title="Connect LinkedIn account to run campaigns"
-          description="A campaign sends connection requests and messages from a LinkedIn profile you connect to Synex. Connect one first, then your campaigns appear here."
+          description="Connect a LinkedIn profile first. Your campaigns will appear here."
         />
       )}
       {!loading && !failure && !!accounts.data?.length && campaigns.data?.length === 0 && (
         <EmptyState
           illustration="campaigns"
           title="Ready to start your first campaign?"
-          description="A campaign is a sequence of steps, such as a connection request followed by a message, that Synex runs for each lead in a list. Build one with New campaign; its results show here."
+          description="A campaign is a sequence of steps that runs for each lead in a list."
           action={<div className="flex flex-wrap justify-center gap-2"><Button asChild><Link to="/campaigns/new">Create your first campaign</Link></Button><ImportSequence /></div>}
         />
       )}

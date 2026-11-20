@@ -40,8 +40,8 @@ export function InboxPage() {
   if (accounts.isSuccess && accounts.data.length === 0) {
     return (
       <div className="grid gap-6">
-        <PageHeader title="Inbox" description="The central inbox for all your LinkedIn accounts." />
-        <ConnectAccountEmpty title="Connect LinkedIn account to receive replies" description="The inbox shows conversations from your connected LinkedIn accounts. Connect LinkedIn account, run a campaign, and replies from leads appear here." />
+        <PageHeader title="Inbox" />
+        <ConnectAccountEmpty title="Connect LinkedIn account to receive replies" description="Replies from your leads will appear here." />
       </div>
     );
   }
