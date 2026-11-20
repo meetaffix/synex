@@ -156,8 +156,8 @@ function ApiTab() {
   const revoke = useMutation({ mutationFn: (id: string) => api.delete(`/integrations/api-keys/${id}`), onSuccess: () => { toast.success("Key revoked."); void refresh(); } });
   const base = typeof window !== "undefined" ? window.location.origin.replace(/:\d+$/, ":8010") : "";
   return (
-    <section aria-labelledby="api-h" className="grid max-w-3xl gap-5">
-      <div><h2 id="api-h" className="text-base font-semibold">API keys</h2><p className="text-sm text-muted-foreground">A key lets another program read your campaigns, leads and conversations and, if you allow it, add leads. Keys are limited to 60 requests a minute. The same key connects an AI client over MCP.</p></div>
+    <section aria-labelledby="api-h" className="grid min-w-0 max-w-3xl gap-5 [&_code]:break-all">
+      <div><h2 id="api-h" className="text-base font-semibold">API keys</h2><p className="text-sm text-muted-foreground">Lets another program read your campaigns, leads and conversations, and add leads if you allow it. Limited to 60 requests a minute. Also connects an AI client over MCP.</p></div>
       <div className="flex flex-wrap items-end gap-3"><div className="grid gap-1"><Label htmlFor="key-name">Key name</Label><Input id="key-name" value={name} placeholder="My CRM" onChange={(e) => setName(e.target.value)} /></div><label className="flex items-center gap-2 text-sm"><Checkbox checked={canWrite} onCheckedChange={(v) => setCanWrite(v === true)} /> Allow adding leads (otherwise read only)</label><Button loading={create.isPending} onClick={() => create.mutate()}>Create key</Button></div>
       {fresh && <p role="status" className="rounded-lg bg-primary-soft p-3 text-sm text-primary-soft-foreground">Copy this key now. It is shown only once: <code className="break-all">{fresh}</code></p>}
       <ul aria-label="API keys" className="grid gap-2 text-sm">
