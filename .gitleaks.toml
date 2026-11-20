@@ -6,7 +6,7 @@ useDefault = true
 
 # Fake placeholder values only: test keys (for example a sentinel that must never appear in a response), the CI workflow's
 # placeholder environment, the mocked API and an old helper script. A real-looking key anywhere else is still reported.
-[[allowlists]]
+[allowlist]
 description = "Fake keys used by the tests and CI placeholders"
 paths = [
   '''backend/tests/.*\.py''',
