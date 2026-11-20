@@ -60,8 +60,16 @@ def jobs_for(modules: list[str]) -> list[tuple[str, int, bool]]:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         classes = {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
+        def tests_in(node: ast.ClassDef, seen: frozenset = frozenset()) -> int:
+            """Test methods a class has: its own plus the ones it inherits from a base class in the same file."""
+            own = sum(isinstance(n, ast.FunctionDef) and n.name.startswith("test_") for n in node.body)
+            for base in node.bases:
+                name = getattr(base, "id", None)
+                if name in classes and name not in seen:
+                    own += tests_in(classes[name], seen | {node.name})
+            return own
         for node in classes.values():
-            count = sum(isinstance(n, ast.FunctionDef) and n.name.startswith("test_") for n in node.body)
+            count = tests_in(node)
             if count:
                 target = f"{module}.{node.name}"
                 if not modules or any(m == module or m == target for m in modules):

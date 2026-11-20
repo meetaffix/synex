@@ -14,7 +14,7 @@ const ITEMS = [
 export function SettingsLayout() {
   const { pathname, search } = useLocation();
   return (
-    <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
       <nav aria-label="Settings sections">
         <ul className="flex flex-wrap gap-1 lg:grid">
           {ITEMS.map((item) => {

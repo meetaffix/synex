@@ -39,7 +39,9 @@ jobs:
           ENCRYPTION_KEY: ci-placeholder-encryption-key-0123456789
           AUTH_PROVIDER: local
       - name: Unit and integration tests (temporary databases, mocked services)
-        run: python -m unittest discover -s tests
+        # Every test class runs in its own process (run_tests.py), as the tests expect: several set their own environment before the app loads,
+        # which a single shared process cannot honour. It also checks that it ran exactly the tests the sequential loader counts.
+        run: python run_tests.py
         env:
           # Placeholders: the test modules set their own, and no test calls a real service.
           SECRET_KEY: ci-placeholder-secret-key-0123456789-abcdef
@@ -92,6 +94,7 @@ jobs:
         run: npx playwright test --grep-invert "review screenshots"
         env:
           CI: "true"
+          PW_PREVIEW: "1"  # the production build behind vite preview, not the dev server (which runs effects twice)
           VITE_CLERK_PUBLISHABLE_KEY: ""
       - name: Upload failure artifacts
         if: failure()
