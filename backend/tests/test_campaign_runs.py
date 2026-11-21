@@ -100,5 +100,31 @@ class EditRunningCampaignTest(CampaignRunsTest):
         self.assertEqual(len(self.steps()), 2)
 
 
+
+class WhyNothingIsHappeningTest(CampaignRunsTest):
+    """A launched campaign says why it is not sending: the worker is down, or the work is simply not due yet."""
+
+    def monitor(self):
+        r = self.client.get(f"/campaigns?id={self.campaign_id}&monitor=1")
+        self.assertEqual(r.status_code, 200, r.text)
+        return r.json()
+
+    def make_due(self):
+        with SessionLocal() as db:
+            for run in db.query(models.SequenceRun).filter_by(campaign_id=self.campaign_id, status="waiting_connection"):
+                run.next_action_at = datetime.now(timezone.utc) - timedelta(hours=1)
+            db.commit()
+
+    def test_work_that_is_not_due_yet_has_no_warning(self):
+        self.assertIsNone(self.monitor()["waiting"])
+
+    def test_due_work_with_no_worker_says_to_start_it(self):
+        self.make_due()
+        body = self.monitor()
+        self.assertFalse(body["workerRunning"])
+        self.assertEqual(body["waiting"]["code"], "worker_down")
+        self.assertIn("python -m app.outreach_worker", body["waiting"]["message"])
+
+
 if __name__ == "__main__":
     unittest.main()

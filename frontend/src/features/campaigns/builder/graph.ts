@@ -45,6 +45,7 @@ export const MENU: { group: string; types: StepType[] }[] = [
   { group: "Messages", types: ["connection_request", "message", "follow_up", "voice_note", "inmail", "free_inmail"] },
   { group: "Profile actions", types: ["profile_visit", "follow", "like_post", "withdraw_invite"] },
   { group: "Timing and conditions", types: ["wait", "if_connected", "if_active"] },
+  { group: "Finish", types: ["end"] },
 ];
 
 export const listOf = (steps: BuilderStep[], parentKey: number | null, branch: Branch | null) =>

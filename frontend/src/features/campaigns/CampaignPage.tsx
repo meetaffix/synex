@@ -12,13 +12,14 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { api, ApiError } from "@/services/client";
 import { formatNumber, formatPercent, formatRelative } from "@/utils/format";
-import { outline } from "./builder/graph";
-import { fromServer, type ServerCampaign } from "./builder/model";
+import { BuilderPage } from "./builder/BuilderPage";
+import { type ServerCampaign } from "./builder/model";
 
 type Detail = ServerCampaign & { displayStatus?: string; accountName?: string; stats?: { totalLeads?: number } };
 interface Task { id: string; runId: string; type: string; status: string; leadName: string; error: string | null; updatedAt: string | null }
 interface Monitor {
   status: string; health: "ok" | "attention" | "failed"; runCounts: Record<string, number>; currentActions: Task[]; lastExecuted: Task | null; failures: Task[];
+  workerRunning?: boolean; waiting?: { code: string; message: string } | null;
   nextScheduled: { leadName: string; at: string } | null; accounts: { id: string; name: string; live: boolean; dailyActionsUsed: number; dailyActionLimit: number }[];
 }
 interface Run { runId: string; leadName: string; headline: string; status: string; stopReason: string | null; stepType: string | null; nextActionAt: string | null }
@@ -76,7 +77,6 @@ export function CampaignPage() {
   const status = STATUS[c.status] ?? { label: c.status, variant: "muted" as const };
   const m = monitor.data;
   const live = c.status === "active";
-  const steps = outline(fromServer(c).steps);
   const done = (m?.runCounts.completed ?? 0) + (m?.runCounts.stopped ?? 0);
 
   return (
@@ -90,7 +90,7 @@ export function CampaignPage() {
             <Badge variant={status.variant}>{status.label}</Badge>
             {live && <Button variant="outline" loading={setStatus.isPending} onClick={() => setStatus.mutate("paused")}><Pause aria-hidden /> Pause</Button>}
             {c.status === "paused" && <Button loading={setStatus.isPending} onClick={() => setStatus.mutate("active")}><Play aria-hidden /> Resume</Button>}
-            {["draft", "paused", "active"].includes(c.status) && <Button asChild variant="outline"><Link to={`/campaigns/${c.id}/edit`}><Pencil aria-hidden /> Edit sequence</Link></Button>}
+            {["draft", "paused", "active"].includes(c.status) && <Button variant="outline" onClick={() => setTab("sequence")}><Pencil aria-hidden /> Edit sequence</Button>}
           </>
         }
       />
@@ -111,10 +111,10 @@ export function CampaignPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <section aria-labelledby="now-h" className="grid content-start gap-2 rounded-lg border border-border bg-surface p-4">
               <h2 id="now-h" className="text-base font-semibold">What is happening</h2>
-              <p className="text-sm">{m.health === "ok" ? "Everything is running normally." : m.health === "attention" ? "Some actions need your attention." : "Nothing is progressing because of failures."}</p>
+              <p className="text-sm">{m.waiting ? m.waiting.message : m.health === "ok" ? "Everything is running normally." : m.health === "attention" ? "Some actions need your attention." : "Nothing is progressing because of failures."}</p>
               <p className="text-sm text-muted-foreground">Now: {m.currentActions.length === 0 ? "nothing in progress" : m.currentActions.map((t) => `${ACTION[t.type] ?? t.type} for ${t.leadName}`).join(", ")}</p>
               <p className="text-sm text-muted-foreground">Last: {m.lastExecuted ? `${ACTION[m.lastExecuted.type] ?? m.lastExecuted.type} for ${m.lastExecuted.leadName} (${m.lastExecuted.status})${m.lastExecuted.updatedAt ? `, ${formatRelative(m.lastExecuted.updatedAt)}` : ""}` : "nothing yet"}</p>
-              <p className="text-sm text-muted-foreground">Next: {m.nextScheduled ? `${m.nextScheduled.leadName}, ${formatRelative(m.nextScheduled.at)}` : "nothing scheduled"}</p>
+              <p className="text-sm text-muted-foreground">Next: {m.nextScheduled ? `${m.nextScheduled.leadName}, ${new Date(m.nextScheduled.at).getTime() <= Date.now() ? "ready to start" : `in ${formatRelative(m.nextScheduled.at).replace(/^in /, "")}`}` : "nothing scheduled"}</p>
             </section>
             <section aria-labelledby="acc-h" className="grid content-start gap-2 rounded-lg border border-border bg-surface p-4">
               <h2 id="acc-h" className="text-base font-semibold">Sender accounts today</h2>
@@ -165,10 +165,9 @@ export function CampaignPage() {
       </TabPanel>
 
       <TabPanel id="sequence" active={tab === "sequence"} idPrefix="cp">
-        <div className="grid gap-2 rounded-lg border border-border bg-surface p-4">
-          {steps.length === 0 ? <p className="text-sm text-muted-foreground">No steps.</p> : <ol aria-label="Sequence steps" className="grid gap-1 text-sm">{steps.map((line, i) => <li key={i} className="whitespace-pre">{line}</li>)}</ol>}
-          {c.status !== "completed" && c.status !== "archived" && <p className="text-xs text-muted-foreground">Use Edit sequence to change it. Changes apply to people who have not reached those steps yet.</p>}
-        </div>
+        {tab === "sequence" && (c.status === "completed" || c.status === "archived"
+          ? <p role="note" className="rounded-lg border border-border p-4 text-sm text-muted-foreground">This campaign has finished, so its sequence can no longer be changed.</p>
+          : <BuilderPage embedded />)}
       </TabPanel>
 
       <TabPanel id="settings" active={tab === "settings"} idPrefix="cp">

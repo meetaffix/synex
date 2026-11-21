@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     # Outreach executor (python -m app.outreach_worker).
     outreach_kill_switch: bool = False  # stops all task execution; also settable at runtime by a platform admin
-    outreach_tick_interval_seconds: float = 30
+    outreach_tick_interval_seconds: float = 10
     outreach_action_gap_min_seconds: float = 45  # pause between actions on one account, on top of the engine's own pacing
     outreach_action_gap_max_seconds: float = 180
     outreach_batch_max_actions: int = 5  # actions per browser session before it is closed

@@ -73,13 +73,14 @@ test("the Leads tab shows each lead's step and status, and the Sequence tab show
   await expect(table.getByRole("row", { name: /Ada Lovelace/ })).toContainText("Mathematician");
   await expect(table.getByRole("row", { name: /Bo Bee/ })).toContainText("Replied");
   await page.getByRole("tab", { name: "Sequence" }).click();
-  await expect(page.getByRole("list", { name: "Sequence steps" })).toContainText("Send connection request");
-  await expect(page.getByRole("list", { name: "Sequence steps" })).toContainText("Send message");
+  await expect(page.getByRole("button", { name: "Add action to the sequence" })).toBeVisible();
+  await expect(page.getByText("Send connection request").first()).toBeVisible();
+  await expect(page.getByText("Send message").first()).toBeVisible();
 });
 
 test("Pause stops the campaign and a paused one offers Resume and Edit", async ({ page }) => {
   const api = await open(page);
-  await expect(page.getByRole("link", { name: /Edit sequence/ })).toHaveAttribute("href", "/campaigns/c1/edit"); // a running sequence can be edited
+  await expect(page.getByRole("button", { name: /Edit sequence/ })).toBeVisible(); // a running sequence can be edited
   await page.getByRole("button", { name: "Pause" }).click();
   await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).toContainEqual({ action: "update", id: "c1", status: "paused" });
 });
@@ -87,5 +88,6 @@ test("Pause stops the campaign and a paused one offers Resume and Edit", async (
 test("a paused campaign shows Resume and Edit sequence", async ({ page }) => {
   await open(page, "paused");
   await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Edit sequence/ })).toHaveAttribute("href", "/campaigns/c1/edit");
+  await page.getByRole("button", { name: /Edit sequence/ }).click();
+  await expect(page.getByRole("button", { name: "Add action to the sequence" })).toBeVisible(); // the map itself, editable here
 });

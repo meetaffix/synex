@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
@@ -11,6 +11,7 @@ from ..database import get_db
 from ..deps import get_data_user, get_manager_user
 from ..serializers import campaign_out
 from ..schemas import CampaignIn, CampaignUpdateIn, RunActionIn, StepIn
+from ..publishing_models import WorkerHeartbeat
 from .. import campaign_settings, integrations_core, models, engine
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -378,6 +379,30 @@ def _task_out(t: models.AgentTask) -> dict:
     }
 
 
+def _worker_running(db: Session, now: datetime) -> bool:
+    """Whether an outreach worker reported in during the last two minutes. Only the worker starts actions."""
+    fresh = now - timedelta(minutes=2)
+    return any(engine._aware(b.checked_at) >= fresh for b in db.query(WorkerHeartbeat).filter(WorkerHeartbeat.id.like("outreach-%")))
+
+
+def _waiting_reason(campaign: models.Campaign, accounts: list, worker_up: bool, due: bool, now: datetime) -> dict | None:
+    """Why a running campaign is not sending right now, in words a person can act on. None when it is sending or has nothing left."""
+    if campaign.status != "active" or not due:
+        return None
+    if not worker_up:
+        return {"code": "worker_down", "message": "The sending service is not running, so nothing can start. On your own computer, start it with python -m app.outreach_worker from the backend folder."}
+    live = [a for a in accounts if engine.account_is_live(a, now)]
+    if not live:
+        return {"code": "no_account", "message": "No connected sender account. Reconnect the LinkedIn account to continue."}
+    if not engine.within_hours(campaign, now):
+        tz = engine._zone(campaign.timezone) or timezone.utc
+        window = f"{campaign.start_hour}:00 to {campaign.end_hour}:00" if campaign.start_hour is not None and campaign.end_hour is not None else "the set days and hours"
+        return {"code": "outside_hours", "message": f"Outside sending hours ({window}, {getattr(tz, 'key', 'UTC')}). It starts by itself when the window opens."}
+    if all(engine.remaining_capacity(a, now) <= 0 for a in live):
+        return {"code": "daily_limit", "message": "Today's limit is reached. It continues tomorrow."}
+    return {"code": "pacing", "message": "Waiting a short, random gap between actions so it looks human. The next one starts soon."}
+
+
 def _monitor(campaign_id: str, db: Session, user: models.User):
     """Real-time execution view: run pipeline, in-flight actions, the last
     executed action, the next scheduled one, and failures with errors."""
@@ -415,7 +440,11 @@ def _monitor(campaign_id: str, db: Session, user: models.User):
 
     accounts = engine.campaign_accounts(db, campaign)
     steps = engine.sorted_steps(campaign)
+    worker_up = _worker_running(db, now)
+    due = bool(pending_runs) and not in_flight and any(engine._aware(r.next_action_at) <= now for r in pending_runs)
     return {
+        "workerRunning": worker_up,
+        "waiting": _waiting_reason(campaign, accounts, worker_up, due, now),
         "campaignId": campaign.id,
         "status": campaign.status,
         # surfaced as "failed" when nothing is progressing and failures exist

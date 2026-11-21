@@ -22,7 +22,8 @@ const STEPS = ["LinkedIn senders", "List of leads", "Sequence", "Review and laun
 type Saving = "saved" | "dirty" | "saving" | "failed";
 
 /** The four-step campaign builder. It opens with no sender and no leads, saves as you go, and the launch checklist gates the launch. */
-export function BuilderPage() {
+/** `embedded` is the sequence map inside the campaign page: no page chrome, and changes are saved on purpose, never by themselves. */
+export function BuilderPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { campaignId = "" } = useParams();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -33,7 +34,7 @@ export function BuilderPage() {
   const [version, setVersion] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const live = useRef(false);
-  live.current = campaign.data?.status === "active";
+  live.current = embedded || campaign.data?.status === "active";
   const latest = useRef<BuilderState | null>(null);
   const dirty = useRef(false);
   const timer = useRef<number | undefined>(undefined);
@@ -103,7 +104,7 @@ export function BuilderPage() {
   }, []);
 
   const goTo = (next: number) => setParams({ step: String(Math.max(0, Math.min(3, next))) }, { replace: true });
-  const back = (
+  const back = embedded ? null : (
     <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => (dirty.current ? setLeaving(true) : navigate("/campaigns"))}>
       <ArrowLeft aria-hidden /> All campaigns
     </Button>
@@ -142,19 +143,20 @@ export function BuilderPage() {
   const blocked = step === 0 && reachable === 0 ? "Choose a sender account."
     : step === 1 && reachable === 1 ? "Choose a lead list with at least one lead, or add leads."
     : step === 2 && smartIssues.length > 0 ? smartIssues[0].message : null;
-  if (campaign.data.status === "active") {
+  if (embedded || campaign.data.status === "active") {
     const unready = nodeProblems(state.steps, audienceConnections);
-    const saveChanges = async () => { await persist(); if (!dirty.current) { toast.success("Changes saved. They apply to people who have not reached those steps yet."); navigate(`/campaigns/${campaignId}`); } };
+    const saveChanges = async () => { await persist(); if (!dirty.current) { toast.success("Changes saved. They apply to people who have not reached those steps yet."); if (!embedded) navigate(`/campaigns/${campaignId}`); } };
+    const discard = () => { dirty.current = false; if (embedded) { const fresh = fromServer(campaign.data!); latest.current = fresh; setState(fresh); setSaving("saved"); setVersion((v) => v + 1); } else navigate(`/campaigns/${campaignId}`); };
     return (
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
-        <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}><ArrowLeft aria-hidden /> Back to the campaign</Button>
+        {!embedded && <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}><ArrowLeft aria-hidden /> Back to the campaign</Button>}
         <header className="grid gap-1">
-          <h1 className="text-2xl font-semibold">Edit sequence: {state.name}</h1>
-          <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">This campaign is running. Your changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
+          {!embedded && <h1 className="text-2xl font-semibold">Edit sequence: {state.name}</h1>}
+          <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">Changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
         </header>
         <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button variant="outline" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}>Cancel</Button>
+          <Button variant="outline" disabled={embedded && saving !== "dirty" && saving !== "failed"} onClick={() => (dirty.current && !embedded ? setLeaving(true) : discard())}>{embedded ? "Discard changes" : "Cancel"}</Button>
           <div className="flex flex-wrap items-center gap-3">
             {unready.length > 0 && <p id="save-blocked" className="text-sm text-danger">Save is off: {unready[0].message}</p>}
             <Button disabled={saving !== "dirty" && saving !== "failed" || unready.length > 0} aria-describedby={unready.length > 0 ? "save-blocked" : undefined} loading={saving === "saving"} onClick={() => void saveChanges()}>Save changes</Button>
@@ -165,7 +167,7 @@ export function BuilderPage() {
             <DialogHeader><DialogTitle>Discard unsaved changes?</DialogTitle><DialogDescription>Your changes to the running sequence are not saved. Nothing has changed for the campaign yet.</DialogDescription></DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setLeaving(false)}>Keep editing</Button>
-              <Button onClick={() => { dirty.current = false; navigate(`/campaigns/${campaignId}`); }}>Discard changes</Button>
+              <Button onClick={discard}>Discard changes</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
