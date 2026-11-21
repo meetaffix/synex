@@ -103,6 +103,9 @@ class OutreachCase(unittest.TestCase):
         r = self.client.post("/auth", json={"action": "register", "email": "owner@example.com", "fullName": "Owner", "password": "Strong-Test-Password!"})
         self.assertEqual(r.status_code, 200, r.text)
         self.user_id = r.json()["user"]["id"]
+        with SessionLocal() as db:  # these tests are about the hard ceilings, so the workspace sits on the plan that allows up to them
+            db.get(models.User, self.user_id).plan = "enterprise"
+            db.commit()
 
     def settle(self):
         self.worker.stopping.set()

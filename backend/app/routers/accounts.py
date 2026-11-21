@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import models, plans
 from ..config import settings
 from ..database import get_db
 from ..deps import get_admin_user, get_current_user, get_data_user
@@ -47,6 +47,8 @@ def connect(body: ConnectIn, db: Session = Depends(get_db), workspace: models.Us
                         or_(func.lower(models.LinkedInAccount.login_identifier) == body.identifier,
                             func.lower(models.LinkedInAccount.email) == body.identifier))
                 .first())
+    if existing is None and (why := plans.seat_refusal(db, workspace.id)):
+        raise HTTPException(403, why)
     if existing and body.sync_mode and body.sync_mode != (existing.sync_mode or "synex_only"):
         service.require_sync_owner(existing, actor.id)
     attempt = service.begin_login(manager, db, workspace_id=workspace.id, account=existing, identifier=body.identifier,
@@ -108,6 +110,8 @@ def update_account(account_id: str, body: AccountPatch, db: Session = Depends(ge
 @router.post("/invite-link", response_model=ReconnectLinkOut)
 def invite_link(db: Session = Depends(get_db), workspace: models.User = Depends(get_admin_user)):
     """A link for someone else to connect a new sender. The account exists, stopped at limit 0, until they sign in; their profile then names it."""
+    if why := plans.seat_refusal(db, workspace.id):
+        raise HTTPException(403, why)
     account = models.LinkedInAccount(user_id=workspace.id, name="New sender (waiting for sign-in)", status="pending", daily_action_limit=0)
     db.add(account)
     db.commit()

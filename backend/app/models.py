@@ -51,7 +51,9 @@ class User(Base):
     phone = Column(String, nullable=True)
     designation = Column(String, nullable=True)  # job title shown on the profile
     role = Column(String, default="Member")
-    plan = Column(String, default="free")  # free | pro | scale
+    plan = Column(String, default="free")  # free (shown as Demo) | pro | scale | enterprise
+    # Enterprise and special deals: values here replace the plan's own, e.g. {"seats": 40, "dailyInvites": 35}. Daily sending values stay under the hard ceilings.
+    plan_overrides = Column(JSON, nullable=True)
     avatar_url = Column(String, nullable=True)
     # The Clerk user this row is linked to (nullable: set on first Clerk sign-in, matched by verified email).
     clerk_user_id = Column(String, nullable=True)
@@ -80,6 +82,10 @@ class Plan(Base):
     name = Column(String, nullable=False)
     position = Column(Integer, default=0, nullable=False)
     assistant_minutes = Column(Integer, default=0, nullable=False)  # the most the assistant's monthly limit can be
+    seats = Column(Integer, nullable=True)  # LinkedIn sender accounts the workspace may hold
+    daily_invites = Column(Integer, nullable=True)  # connection requests a day, per sender account (never above the hard ceiling)
+    daily_messages = Column(Integer, nullable=True)  # messages a day, per sender account
+    daily_visits = Column(Integer, nullable=True)  # profile visits a day, per sender account
 
 
 class PasswordResetToken(Base):

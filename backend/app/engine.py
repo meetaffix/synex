@@ -417,6 +417,10 @@ def type_room(db: Session, campaign: models.Campaign, account: models.LinkedInAc
     ceiling = DAILY_TYPE_CEILINGS.get(ttype)
     if ceiling is not None:
         rooms.append(ceiling - _count_today(db, account, ttype, now) - planned_today)
+    from . import plans
+    cap = plans.daily_cap(db, account.user_id, ttype)  # what the workspace's plan allows each account in a day
+    if cap is not None:
+        rooms.append(cap - _count_today(db, account, ttype, now) - planned_today)
     if ttype == "send_invite":
         rooms.append(weekly_invite_cap() - weekly_invites(db, account, now) - planned_week)
     limit = campaign_type_limit(campaign, ttype)

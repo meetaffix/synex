@@ -58,6 +58,7 @@ test("the limits table shows what was used, today's limit with its range, and th
 test("a limit cannot be typed above its hard maximum, presets lock the growth fields, and Custom unlocks them", async ({ page }) => {
   const api = await open(page);
   await page.getByRole("button", { name: "Keep current" }).click();
+  await page.getByText("Advanced: set every action yourself").click();
   const invites = page.getByLabel("Connection requests: daily limit");
   const stop = page.getByLabel(/Connection requests: stop at/);
   await stop.fill("90"); // the hard maximum is 40
@@ -82,6 +83,7 @@ test("a refused save keeps what was typed and says why", async ({ page }) => {
   const api = await open(page);
   api.policyStatus = 422;
   await page.getByRole("button", { name: "Keep current" }).click();
+  await page.getByText("Advanced: set every action yourself").click();
   await page.getByLabel("Aggressive").check();
   await page.getByRole("button", { name: "Save limits" }).click();
   await expect(page.getByText("Something went wrong").or(page.getByText(/above the maximum/))).toBeVisible();
@@ -232,6 +234,7 @@ test("AI configuration: a preset voice is assigned with its licence shown; cloni
 test("keyboard only: tabs by arrow keys, a limit changed and saved, and the delete dialog traps focus and returns it on Escape", async ({ page }) => {
   const api = await open(page);
   // Every stop on the way is a real control with a name, and Tab reaches the limits form and its Save button.
+  await page.getByText("Advanced: set every action yourself").click();
   await page.getByRole("tab", { name: "Sender limits" }).focus();
   const stops: string[] = [];
   for (let i = 0; i < 80 && !stops.some((s) => /Connection requests: daily limit/.test(s)); i++) {

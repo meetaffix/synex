@@ -15,11 +15,14 @@ def read_plan(db: Session = Depends(get_db), actor: models.User = Depends(get_cu
     owner, role = resolve_workspace(db, actor)
     current = plans.plan_of(db, owner)
     used = round(service.used_seconds(db, owner.id) / 60, 1)
+    limits = plans.limits_of(db, owner)
     return {
         "plan": current.id, "name": current.name,
-        "limits": {"assistantMinutes": current.assistant_minutes},
-        "assistantMinutes": {"used": used, "limit": current.assistant_minutes, "month": service.month_key()},
-        "plans": [{"id": p.id, "name": p.name, "assistantMinutes": p.assistant_minutes, "current": p.id == current.id}
+        "limits": limits,
+        "seats": {"used": plans.seats_used(db, owner.id), "limit": limits["seats"]},
+        "assistantMinutes": {"used": used, "limit": limits["assistantMinutes"], "month": service.month_key()},
+        "plans": [{"id": p.id, "name": p.name, "assistantMinutes": p.assistant_minutes, "seats": p.seats, "dailyInvites": p.daily_invites,
+                   "dailyMessages": p.daily_messages, "dailyVisits": p.daily_visits, "current": p.id == current.id}
                   for p in db.query(models.Plan).order_by(models.Plan.position).all()],
         "canManage": role == "admin",
         # Billing is not built, so a plan cannot be bought or changed from the app yet. Said plainly instead of a button that does nothing.

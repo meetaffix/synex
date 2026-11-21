@@ -7,8 +7,9 @@ import { api } from "@/services/client";
 
 interface PlanInfo {
   plan: string; name: string; limits: { assistantMinutes: number };
+  seats: { used: number; limit: number | null };
   assistantMinutes: { used: number; limit: number; month: string };
-  plans: { id: string; name: string; assistantMinutes: number; current: boolean }[];
+  plans: { id: string; name: string; assistantMinutes: number; seats: number | null; dailyInvites: number | null; dailyMessages: number | null; dailyVisits: number | null; current: boolean }[];
   canManage: boolean; upgradeAvailable: boolean; upgradeNote: string;
 }
 
@@ -25,6 +26,13 @@ export function PlanCard() {
         <CardDescription>What your plan includes, and how much of it you have used this month.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
+        <div className="grid gap-2" data-testid="plan-seats">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm font-medium">LinkedIn accounts</p>
+            <p className="text-sm text-muted-foreground">{data.seats.used} of {data.seats.limit ?? "unlimited"} in use</p>
+          </div>
+          <Progress value={data.seats.limit ? Math.min(100, (data.seats.used / data.seats.limit) * 100) : 0} aria-label={`${data.seats.used} of ${data.seats.limit ?? "unlimited"} LinkedIn accounts in use`} />
+        </div>
         <div className="grid gap-2" data-testid="plan-usage">
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-sm font-medium">Assistant minutes</p>
@@ -32,11 +40,14 @@ export function PlanCard() {
           </div>
           <Progress value={percent} aria-label={`${data.assistantMinutes.used} of ${data.assistantMinutes.limit} assistant minutes used this month`} />
         </div>
-        <ul aria-label="Plans" className="grid gap-1 text-sm sm:grid-cols-3">
+        <ul aria-label="Plans" className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
           {data.plans.map((p) => (
-            <li key={p.id} className={`rounded-md border px-3 py-2 ${p.current ? "border-primary bg-primary-soft" : "border-border"}`}>
-              <span className="font-medium">{p.name}</span>{p.current && <span className="text-xs text-muted-foreground"> (yours)</span>}
-              <span className="block text-xs text-muted-foreground">{p.assistantMinutes} assistant minutes a month</span>
+            <li key={p.id} className={`grid content-start gap-0.5 rounded-lg border px-3 py-3 ${p.current ? "border-primary bg-primary-soft shadow-raised" : "border-border"}`}>
+              <span className="font-semibold">{p.name}{p.current && <span className="text-xs font-normal text-muted-foreground"> (yours)</span>}</span>
+              <span className="text-xs text-muted-foreground">{p.seats} LinkedIn account{p.seats === 1 ? "" : "s"}</span>
+              <span className="text-xs text-muted-foreground">Per account a day: {p.dailyInvites} requests, {p.dailyMessages} messages, {p.dailyVisits} visits</span>
+              <span className="text-xs text-muted-foreground">{p.assistantMinutes} assistant minutes a month</span>
+              {p.id === "enterprise" && <span className="text-xs text-muted-foreground">Limits can be unlocked for your team.</span>}
             </li>
           ))}
         </ul>

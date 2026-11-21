@@ -32,6 +32,18 @@ const PRESET_SPEED: Record<string, { increaseBy: number; intervalDays: number }>
   aggressive: { increaseBy: 3, intervalDays: 1 },
 };
 
+/** The three actions most people care about. Everything else is under "Advanced". */
+const MAIN: { action: string; label: string; planKey: "dailyInvites" | "dailyMessages" | "dailyVisits" }[] = [
+  { action: "send_invite", label: "Connection requests", planKey: "dailyInvites" },
+  { action: "send_message", label: "Messages", planKey: "dailyMessages" },
+  { action: "visit_profile", label: "Profile visits", planKey: "dailyVisits" },
+];
+const PACES: { value: Preset; label: string; help: string }[] = [
+  { value: "conservative", label: "Careful", help: "Grows slowly. Safest for a new account." },
+  { value: "balanced", label: "Steady", help: "Grows at a normal pace." },
+  { value: "aggressive", label: "Fast", help: "Grows quickly. Only for an account with a long history." },
+];
+
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, Number.isFinite(value) ? value : low));
 
 export function SenderLimitsTab({ accountId, details }: { accountId: string; details: AccountDetails }) {
@@ -40,12 +52,14 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
   const [draft, setDraft] = useState<SenderPolicy>(details.policy);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   useEffect(() => setDraft(details.policy), [details.policy]);
 
   const ceilings = useMemo(() => Object.fromEntries(details.usage.map((row) => [row.action, row.ceiling])), [details.usage]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(details.policy);
   const unconfigured = Object.keys(details.policy.actions).length === 0;
   const suggestions = useMemo(() => recommendedActions(details.usage), [details.usage]);
+  const plan = useQuery({ queryKey: ["plan"], queryFn: () => api.get<{ name: string; limits: Record<string, number> }>("/plan"), retry: false, staleTime: 60_000 });
   const testProfile = useQuery({ queryKey: ["safety", "ceilings"], queryFn: () => api.get<{ testProfile: Record<string, number> }>("/outreach/ceilings"), retry: false, staleTime: 60_000 });
   const testActions = useMemo(() => Object.fromEntries(Object.entries(testProfile.data?.testProfile ?? {}).map(([action, n]) =>
     [action, { dailyLimit: n, increaseBy: 0, stopAt: n, intervalDays: 7, dynamicInterval: false }])) as Record<string, ActionPolicy>, [testProfile.data]);
@@ -135,8 +149,49 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
         </div>
       </section>
 
+      <section aria-labelledby={`${id}-simple`} className="grid gap-4 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-5">
+        <div>
+          <h2 id={`${id}-simple`} className="text-base font-semibold">Daily sending</h2>
+          <p className="text-sm text-muted-foreground">How much this account may send in a day. It starts low and grows at the pace you pick.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {MAIN.map((item) => {
+            const row = details.usage.find((u) => u.action === item.action);
+            if (!row) return null;
+            const current = draft.actions[item.action] ?? suggestions[item.action];
+            const planCap = plan.data?.limits?.[item.planKey];
+            const top = Math.min(row.ceiling, planCap ?? row.ceiling);
+            return (
+              <div key={item.action} className="grid content-start gap-1.5 rounded-md bg-surface-muted p-3">
+                <label htmlFor={`${id}-s-${item.action}`} className="text-sm font-medium">{item.label}</label>
+                <Input id={`${id}-s-${item.action}`} aria-label={`${item.label} per day`} type="number" min={0} max={top} value={current.dailyLimit}
+                  onChange={(event) => setAction(item.action, { dailyLimit: clamp(Number(event.target.value), 0, top), stopAt: Math.max(current.stopAt, clamp(Number(event.target.value), 0, top)) })} />
+                <p className="text-xs text-muted-foreground">Used today: {row.used}. {planCap !== undefined ? `Your ${plan.data?.name} plan allows up to ${top} a day.` : `Up to ${top} a day.`}</p>
+              </div>
+            );
+          })}
+        </div>
+        <div role="radiogroup" aria-label="How fast limits grow" className="grid gap-2 sm:grid-cols-3">
+          {PACES.map((pace) => (
+            <label key={pace.value} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 ${draft.preset === pace.value ? "border-primary bg-primary-soft" : "border-border"}`}>
+              <Radio name={`${id}-pace`} checked={draft.preset === pace.value} onChange={() => setDraft((c) => ({ ...c, preset: pace.value }))} />
+              <span className="grid gap-0.5"><span className="text-sm font-medium">{pace.label}</span><span className="text-xs text-muted-foreground">{pace.help}</span></span>
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" loading={savePolicy.isPending} disabled={!dirty} onClick={() => save(draft)}>Save daily sending</Button>
+          {dirty && <span className="text-sm text-muted-foreground">Not saved yet.</span>}
+        </div>
+      </section>
+
+      <details className="group rounded-lg border border-border bg-surface shadow-raised" open={advancedOpen} onToggle={(event) => setAdvancedOpen((event.currentTarget as HTMLDetailsElement).open)}>
+        <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+          Advanced: set every action yourself
+          <span className="block text-sm font-normal text-muted-foreground">Growth speed, stop values and limits for all {details.usage.length} actions.</span>
+        </summary>
       <form
-        className="grid grid-cols-1 gap-8"
+        className="grid grid-cols-1 gap-8 p-4 pt-0"
         onSubmit={(event) => {
           event.preventDefault();
           save(draft);
@@ -235,6 +290,7 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
           {dirty && <span role="status" className="text-sm text-muted-foreground">You have unsaved changes.</span>}
         </div>
       </form>
+      </details>
     </div>
   );
 }

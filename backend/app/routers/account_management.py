@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import account_policy, connections_runner, csv_safe, engine, models, voices
+from .. import account_policy, connections_runner, csv_safe, engine, models, plans, voices
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
@@ -61,8 +61,10 @@ def overview(db: Session = Depends(get_db), workspace: models.User = Depends(get
         pick = lambda action: {k: rows[action][k] for k in ("used", "low", "high", "budget")}  # noqa: E731
         per_account[account.id] = {"connections": pick("send_invite"), "messages": pick("send_message"),
                                    "smart": account_policy.policy_for(account).preset != "off", "performance": performance[account.id]}
-    return {"plan": "Free", "planPlaceholder": True, "seatsUsed": used,
-            "seatsIncluded": 3, "seatsAvailable": max(0, 3 - used), "accounts": per_account}
+    owner = db.get(models.User, workspace.id)
+    seats = plans.limits_of(db, owner)["seats"] if owner else None
+    return {"plan": plans.plan_of(db, owner).name if owner else "Demo", "planPlaceholder": True, "seatsUsed": used,
+            "seatsIncluded": seats, "seatsAvailable": max(0, (seats or 0) - used), "accounts": per_account}
 
 
 @router.get("/{account_id}/details")

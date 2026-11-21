@@ -17,10 +17,11 @@ test("Account settings in the account menu opens the settings page", async ({ pa
 
 test("the settings page shows the plan from the server, and changing plan says it is not available", async ({ page }) => {
   await mockApi(page, newApi({ accounts: [account("a1", "Ada Lovelace")] }));
-  await page.route(api("/plan"), (route) => route.fulfill({ json: { plan: "free", name: "Free", limits: { assistantMinutes: 60 }, assistantMinutes: { used: 12, limit: 60, month: "2026-11" },
-    plans: [{ id: "free", name: "Free", assistantMinutes: 60, current: true }, { id: "pro", name: "Pro", assistantMinutes: 600, current: false }], canManage: true, upgradeAvailable: false, upgradeNote: "Changing plan is not available yet: billing is not built." } }));
+  await page.route(api("/plan"), (route) => route.fulfill({ json: { plan: "free", name: "Demo", limits: { assistantMinutes: 60 }, seats: { used: 1, limit: 1 }, assistantMinutes: { used: 12, limit: 60, month: "2026-11" },
+    plans: [{ id: "free", name: "Demo", assistantMinutes: 60, seats: 1, dailyInvites: 10, dailyMessages: 20, dailyVisits: 20, current: true }, { id: "pro", name: "Pro", assistantMinutes: 600, seats: 15, dailyInvites: 30, dailyMessages: 80, dailyVisits: 60, current: false }], canManage: true, upgradeAvailable: false, upgradeNote: "Changing plan is not available yet: billing is not built." } }));
   await page.goto("/settings");
-  await expect(page.getByText("Plan: Free")).toBeVisible();
+  await expect(page.getByText("Plan: Demo")).toBeVisible();
+  await expect(page.getByTestId("plan-seats")).toContainText("1 of 1 in use");
   await expect(page.getByTestId("plan-usage")).toContainText("12 of 60 used in 2026-11");
   await expect(page.getByRole("button", { name: /Change plan/ })).toBeDisabled();
 });
