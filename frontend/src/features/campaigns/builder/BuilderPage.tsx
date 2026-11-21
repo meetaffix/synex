@@ -152,7 +152,7 @@ export function BuilderPage({ embedded = false }: { embedded?: boolean } = {}) {
         {!embedded && <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={() => (dirty.current ? setLeaving(true) : navigate(`/campaigns/${campaignId}`))}><ArrowLeft aria-hidden /> Back to the campaign</Button>}
         <header className="grid gap-1">
           {!embedded && <h1 className="text-2xl font-semibold">Edit sequence: {state.name}</h1>}
-          <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">Changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
+          <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">{embedded ? "" : "This campaign is running. "}Changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
         </header>
         <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />
         <div className="flex flex-wrap items-center justify-between gap-2">
