@@ -330,10 +330,14 @@ class ProfileSelectors:
     reacted_marker: str = ""
     comment_box: str = ""
     comment_submit: str = ""
+    # The profile's own header (name, headline, its buttons). Connection buttons are read only inside it. Empty means the whole page.
+    top_card: str = ""
 
 
 # UNVERIFIED against the live site.
 REAL_PROFILE_SELECTORS = ProfileSelectors(
+    # The first section of the main column is the profile header; the right rail (an aside) holds other people's cards.
+    top_card="main section:first-of-type, main .pv-top-card",
     unavailable_marker=":text('Page not found'), :text('Profile is not available')",
     connect_button="button[aria-label^='Invite'][aria-label$='to connect'], button:has-text('Connect')",
     pending_marker="button:has-text('Pending'), button[aria-label^='Pending']",
@@ -410,11 +414,29 @@ class ProfilePages:
         return await _visible(page, self.sel.unavailable_marker)
 
     async def connection_state(self, page: Page) -> str:
-        if await _visible(page, self.sel.pending_marker):
+        """pending, not_connected or connected, read from this person's own header only."""
+        scope = page
+        if self.sel.top_card:
+            try:
+                card = page.locator(self.sel.top_card).first
+                if await card.is_visible():
+                    scope = card
+            except PlaywrightError:
+                pass
+
+        async def shows(selector: str) -> bool:
+            try:
+                return await scope.locator(selector).first.is_visible()
+            except PlaywrightError:
+                return False
+
+        if await shows(self.sel.pending_marker):
             return "pending"
-        if await _visible(page, self.sel.connect_button):
+        if await shows(self.sel.message_button) and not await shows(self.sel.connect_button):
+            return "connected"
+        if await shows(self.sel.connect_button):
             return "not_connected"
-        return "connected" if await _visible(page, self.sel.message_button) else "not_connected"
+        return "connected" if await shows(self.sel.message_button) else "not_connected"
 
     async def is_following(self, page: Page) -> bool:
         return await _visible(page, self.sel.following_marker)

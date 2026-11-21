@@ -1485,6 +1485,19 @@ class MyConnectionsTest(OutreachCase):
         self.assertEqual(self.tasks("check_connection"), [])
         self.assertEqual(self.tasks("send_invite"), [])
 
+    def test_a_connection_linkedin_will_not_let_us_message_is_stopped_with_a_reason_not_left_waiting(self):
+        self.make_campaign(["cy"], steps=[{"type": "message", "message": "Hi"}], audience_source={"type": "connections"})  # the mock shows Connect, no Message
+        self.drive(lambda: self.run_of("cy").status == "stopped")
+        run = self.run_of("cy")
+        self.assertEqual(run.stop_reason, "not_messageable")
+        self.assertEqual(self.lead_status("cy"), "new")  # not turned into "contacted": nothing was sent
+        self.assertEqual(self.tasks("send_invite"), [])
+
+    def test_a_connection_is_messaged_when_linkedin_shows_the_message_button(self):
+        MOCK.accept("di")
+        self.make_campaign(["di"], steps=[{"type": "message", "message": "Hi"}], audience_source={"type": "connections"})
+        self.drive(lambda: any(t.status == "done" for t in self.tasks("send_message")))
+
     def test_a_first_degree_lead_is_treated_as_connected_in_any_campaign(self):
         self.make_campaign([{"user": "bo"}], steps=[{"type": "message", "message": "Hi"}])
         with SessionLocal() as db:

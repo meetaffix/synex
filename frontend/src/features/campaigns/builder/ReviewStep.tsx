@@ -12,6 +12,7 @@ import { useSenderAccounts } from "@/features/linkedin-accounts/hooks";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { leadListsService } from "@/services/resources";
 import { api } from "@/services/client";
+import { LABELS } from "./graph";
 import { DAYS, DAY_LABEL, EXCLUSIONS, draftsApi, useDrafts, type BuilderState, type Day, type LaunchProblem } from "./model";
 
 const dryRunSchema = (data: unknown) => data as { actions: { leadName: string; accountName: string | null; stepType: string | null; message: string; earliestAt: string | null; skipReason: string | null }[] };
@@ -95,7 +96,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
             <span>Do not contact list <Link className="underline underline-offset-2" to="/leads?tab=dnc">Manage list</Link></span>
             <Switch checked disabled onCheckedChange={() => undefined} aria-label="Do not contact list (always on)" />
           </li>
-          {EXCLUSIONS.map((e) => (
+          {EXCLUSIONS.filter((e) => !(e.key === "existing_connections" && (list as { allConnections?: boolean } | undefined)?.allConnections)).map((e) => (
             <li key={e.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <span id={`ex-${e.key}`}>{e.label}</span>
               <Switch aria-labelledby={`ex-${e.key}`} checked={!!state.exclusions[e.key]} onCheckedChange={(v) => set({ exclusions: { ...state.exclusions, [e.key]: v } })} />
@@ -116,7 +117,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
         <h3 id="seq-sum" className="text-base font-semibold">Campaign sequence</h3>
         <ol className="grid list-decimal gap-1 pl-5 text-sm">
           {state.steps.filter((s) => s.type !== "end").map((s) => (
-            <li key={s.key}>{s.type === "wait" ? `Wait ${s.delayHours % 24 === 0 ? `${s.delayHours / 24} day${s.delayHours === 24 ? "" : "s"}` : `${s.delayHours} hours`}` : s.type.replaceAll("_", " ")}{s.aiConfig?.mode === "ai" ? " (written by AI)" : ""}</li>
+            <li key={s.key}>{s.type === "wait" ? `Wait ${s.delayHours % 24 === 0 ? `${s.delayHours / 24} day${s.delayHours === 24 ? "" : "s"}` : `${s.delayHours} hours`}` : LABELS[s.type] ?? s.type}{s.aiConfig?.mode === "ai" ? " (written by AI)" : ""}</li>
           ))}
         </ol>
         <p><Button type="button" variant="link" className="h-auto p-0" onClick={() => goTo(2)}>Edit sequence</Button></p>

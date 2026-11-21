@@ -305,6 +305,15 @@ def _message(ctx: TaskContext, result: str) -> str | None:
         _advance(ctx)
         return "message_sent"
     if result == "not_connected":
+        known_connection = lead is not None and (engine.already_connected(ctx.campaign, lead) if ctx.campaign is not None else lead.status in engine.ACCEPTED_STATES)
+        if known_connection and manual is None and ctx.run is not None:
+            # A connection we could not message: LinkedIn showed no Message button. Nothing was sent and nothing will be
+            # accepted, so waiting would be wrong. Stop this person and say why; Retry is on the campaign page.
+            engine.refund_daily(ctx.account)
+            ctx.task.status = "failed"
+            ctx.task.result = {**(ctx.task.result or {}), "result": "not_connected", "detail": "LinkedIn showed no Message button for this connection, so nothing was sent."}
+            engine.stop_run(ctx.run, "not_messageable", ctx.now)
+            return None
         if lead and lead.status == "connected":
             lead.status = "contacted"
         if manual is not None:

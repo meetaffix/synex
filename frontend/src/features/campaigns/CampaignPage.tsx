@@ -31,9 +31,21 @@ const STATUS: Record<string, { label: string; variant: NonNullable<BadgeProps["v
   completed: { label: "Finished", variant: "secondary" }, archived: { label: "Archived", variant: "muted" },
 };
 const RUN: Record<string, string> = { running: "In progress", waiting_connection: "Waiting for them to accept", awaiting_agent: "Waiting for the worker", needs_review: "Needs review", completed: "Finished", stopped: "Stopped" };
-const STOP: Record<string, string> = { replied: "Replied", interested: "Interested", not_interested: "Not interested", ended: "Sequence ended", send_failed: "Could not send" };
+const STOP: Record<string, string> = { replied: "Replied", interested: "Interested", not_interested: "Not interested", ended: "Sequence ended", send_failed: "Could not send", not_messageable: "LinkedIn offered no Message button" };
 const STEP: Record<string, string> = { connection_request: "Connection request", message: "Message", follow_up: "Follow-up", wait: "Waiting", if_connected: "Waiting for acceptance", profile_visit: "Profile visit", follow: "Follow", like_post: "Like a post", withdraw_invite: "Withdraw invite", voice_note: "Voice note", inmail: "InMail", free_inmail: "Free InMail", end: "End" };
 const ACTION: Record<string, string> = { send_invite: "Connection request", send_message: "Message", visit_profile: "Profile visit", sync_inbox: "Inbox read", check_connection: "Connection check" };
+
+/** "Next up", "Today, 11:32", "Tomorrow, 08:00" or "Mon 23 Nov, 08:00": a time anyone can read at a glance. */
+function when(at: string): string {
+  const d = new Date(at);
+  if (d.getTime() <= Date.now()) return "Next up";
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const diff = Math.floor((new Date(d).setHours(0, 0, 0, 0) - day.getTime()) / 86_400_000);
+  if (diff === 0) return `Today, ${time}`;
+  if (diff === 1) return `Tomorrow, ${time}`;
+  return `${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}, ${time}`;
+}
 
 const TABS = [{ id: "overview", label: "Overview" }, { id: "leads", label: "Leads" }, { id: "sequence", label: "Sequence" }, { id: "settings", label: "Settings" }];
 
@@ -138,7 +150,7 @@ export function CampaignPage() {
                       {(m.upcoming ?? []).map((u) => (
                         <li key={u.runId} className="flex items-baseline justify-between gap-3 rounded-md bg-surface-muted px-3 py-2">
                           <span className="min-w-0 truncate"><span className="font-medium">{u.leadName}</span> · {u.step ? STEP[u.step] ?? u.step : "Finishing"}{u.status === "waiting_connection" ? " (after they accept)" : ""}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">{new Date(u.at).getTime() <= Date.now() ? "next up" : new Date(u.at).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{when(u.at)}</span>
                         </li>
                       ))}
                     </ol>

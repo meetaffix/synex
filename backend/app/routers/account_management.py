@@ -101,6 +101,14 @@ def save_policy(account_id: str, body: account_policy.SenderPolicy, db: Session 
         config["policyStartedAt"] = datetime.now(timezone.utc).isoformat()
     config["policy"] = proposed
     account.management_config = config
+    # Per-action limits above 0 are a decision to let the account work. A brand-new account still has its overall daily
+    # limit at 0 (stopped), which would silently block every one of them: open it to the sum of the chosen limits
+    # (never above the hard ceiling) and start the warm-up. An overall limit someone set by hand is left alone.
+    chosen = sum(max(0, int((a or {}).get("dailyLimit") or 0)) for a in (proposed.get("actions") or {}).values())
+    if chosen > 0 and (account.daily_action_limit or 0) == 0:
+        from ..config import DAILY_ACTION_CEILING
+        account.daily_action_limit = min(chosen, DAILY_ACTION_CEILING)
+        account.warmup_started_at = account.warmup_started_at or datetime.now(timezone.utc)
     db.commit()
     return proposed
 

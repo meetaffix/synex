@@ -63,6 +63,16 @@ class CampaignRunsTest(unittest.TestCase):
         bo = rows["Bo Bee"]
         self.assertEqual((bo["status"], bo["stopReason"], bo["stepType"]), ("stopped", "replied", "connection_request"))
 
+    def test_people_who_were_already_connections_are_not_counted_as_invited_or_accepted(self):
+        with SessionLocal() as db:
+            for lead in db.query(models.Lead).all():
+                lead.status = "connected"
+            camp = db.get(models.Campaign, self.campaign_id)
+            camp.lead_list = models.LeadList(user_id=self.uid, name="L", leads=db.query(models.Lead).all())
+            db.commit()
+        stats = self.client.get(f"/campaigns?id={self.campaign_id}").json()["stats"]
+        self.assertEqual((stats["invitesSent"], stats["connected"], stats["acceptanceRate"]), (0, 0, 0.0))
+
     def test_another_account_cannot_read_it(self):
         other = TestClient(app, headers=ORIGIN)
         self.addCleanup(other.close)

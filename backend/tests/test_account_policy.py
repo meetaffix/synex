@@ -55,6 +55,18 @@ class PolicyApiTest(SessionApiCase):
             self.assertIsNone(engine.emit_task(db, account, "send_message", {}, "must-not-queue"))
             self.assertIn("limit", engine.manual_send_refusal(db, account, "send_message", NOW))
 
+    def test_choosing_limits_on_a_new_stopped_account_lets_it_work(self):
+        account_id = self.connect_and_wait()
+        with SessionLocal() as db:
+            db.get(models.LinkedInAccount, account_id).daily_action_limit = 0  # a new account starts stopped
+            db.commit()
+        payload = {"actions": {"send_message": {"dailyLimit": 5, "stopAt": 5}, "visit_profile": {"dailyLimit": 5, "stopAt": 5}}}
+        self.assertEqual(self.client.put(f"/linkedin-accounts/{account_id}/policy", json=payload).status_code, 200)
+        with SessionLocal() as db:
+            account = db.get(models.LinkedInAccount, account_id)
+            self.assertEqual(account.daily_action_limit, 10)
+            self.assertIsNotNone(account.warmup_started_at)
+
     def test_rolling_window_counts_yesterday_and_actual_commit_time(self):
         account_id = self.connect_and_wait()
         with SessionLocal() as db:

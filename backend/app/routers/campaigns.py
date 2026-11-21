@@ -56,6 +56,21 @@ def launch_problems(db: Session, campaign: models.Campaign) -> list[dict]:
     if not any(engine.account_is_live(a, now) for a in engine.campaign_accounts(db, campaign)):
         missing("no_connected_account", "accountId",
                 "Select a connected sender account for this campaign. Connect one under Sender accounts if you have none.", "senders")
+    live = [a for a in engine.campaign_accounts(db, campaign) if engine.account_is_live(a, now)]
+    if live:
+        from .. import account_policy
+        names = ", ".join(a.name for a in live)
+        if all(engine.configured_daily_limit(a) == 0 for a in live):
+            missing("sender_stopped", "accountId", f"{names}: the daily limit is 0, so nothing can be sent. Set limits on the account's Sender limits tab.", "senders")
+        else:
+            # Each action the sequence needs must be allowed on at least one sender, or those steps would wait forever.
+            needs = {"message": "send_message", "follow_up": "send_message", "voice_note": "send_voice_note", "inmail": "send_inmail", "free_inmail": "send_inmail",
+                     **({} if (campaign.audience_source or {}).get("type") == "connections" else {"connection_request": "send_invite"}), **engine.ACTION_TASKS}
+            labels = {"send_message": "messages", "send_invite": "connection requests", "visit_profile": "profile visits", "follow_profile": "follows",
+                      "like_post": "post likes", "send_inmail": "InMails", "send_voice_note": "voice notes", "withdraw_invite": "invitation withdrawals"}
+            for action in sorted({needs[s.type] for s in campaign.steps if s.type in needs}):
+                if all(account_policy.bounds(a, action, now)[1] == 0 for a in live):
+                    missing("action_stopped", "accountId", f"{names}: {labels.get(action, action)} are set to 0 a day, so those steps cannot run. Raise the limit on the Sender limits tab.", "senders")
     if not (campaign.lead_list_id and campaign.lead_list and campaign.lead_list.leads):
         missing("empty_lead_list", "leadListId", "Add at least one lead to the campaign's list before launching.", "leads")
     if not campaign.steps:
@@ -417,7 +432,7 @@ def _monitor(campaign_id: str, db: Session, user: models.User):
     run_counts: dict[str, int] = {}
     for r in runs:
         run_counts[r.status] = run_counts.get(r.status, 0) + 1
-    failed_runs = [r for r in runs if r.status == "stopped" and r.stop_reason == "send_failed"]
+    failed_runs = [r for r in runs if r.status == "stopped" and r.stop_reason in ("send_failed", "not_messageable")]
 
     run_ids = [r.id for r in runs]
     tasks = (

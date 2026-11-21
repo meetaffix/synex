@@ -170,6 +170,8 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
   openRef.current = open;
   const watch = (id: string) => {
     window.clearInterval(poll.current);
+    void client.invalidateQueries({ queryKey: ["lead-collections"] }); // the background card picks it up at once
+
     let misses = 0;
     poll.current = window.setInterval(async () => {
       try {

@@ -157,11 +157,27 @@ def step_out(s: models.CampaignStep) -> dict:
     }
 
 
+def _sent_by_campaign(c: models.Campaign, ttype: str) -> set:
+    """Lead ids this campaign really sent this action to (a finished task), not a guess from the lead's status."""
+    from sqlalchemy.orm import object_session
+    db = object_session(c)
+    if db is None or c.id is None:
+        return set()
+    rows = (db.query(models.SequenceRun.lead_id)
+            .join(models.AgentTask, models.AgentTask.sequence_run_id == models.SequenceRun.id)
+            .filter(models.SequenceRun.campaign_id == c.id, models.AgentTask.type == ttype, models.AgentTask.status == "done").all())
+    return {r[0] for r in rows}
+
+
 def campaign_stats(c: models.Campaign) -> dict:
     leads = c.lead_list.leads if c.lead_list else []
-    invited = sum(1 for l in leads if l.status in INVITED_STATES)
-    connected = sum(1 for l in leads if l.status in CONNECTED_STATES)
+    # Invites and acceptances count only requests this campaign actually sent: people who were already connections
+    # (a "My connections" campaign) were never invited, so they must not show as invited and accepted.
+    invited_ids = _sent_by_campaign(c, "send_invite")
+    invited = len(invited_ids)
+    connected = sum(1 for l in leads if l.id in invited_ids and l.status in CONNECTED_STATES)
     replied = sum(1 for l in leads if l.status in REPLIED_STATES)
+    reached = len(invited_ids | _sent_by_campaign(c, "send_message"))
     messages_sent = sum(
         1
         for convo in c.conversations
@@ -176,7 +192,7 @@ def campaign_stats(c: models.Campaign) -> dict:
         "interested": sum(1 for l in leads if l.status == "interested"),
         "messagesSent": messages_sent,
         "acceptanceRate": round(connected / invited * 100, 1) if invited else 0.0,
-        "replyRate": round(replied / invited * 100, 1) if invited else 0.0,
+        "replyRate": round(replied / reached * 100, 1) if reached else 0.0,
     }
 
 
