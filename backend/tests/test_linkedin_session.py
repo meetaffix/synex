@@ -119,6 +119,9 @@ class SessionApiCase(unittest.TestCase):
         self.addCleanup(client.close)
         r = client.post("/auth", json={"action": "register", "email": email, "fullName": "Test Owner", "password": "Strong-Test-Password!"})
         self.assertEqual(r.status_code, 200, r.text)
+        with SessionLocal() as db:  # these tests connect several senders, so the owner is on the plan with room for them
+            db.get(models.User, r.json()["user"]["id"]).plan = "enterprise"
+            db.commit()
         return client
 
     def settle(self):

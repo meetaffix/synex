@@ -35,7 +35,7 @@ class DeleteTest(unittest.TestCase):
         Base.metadata.drop_all(database.engine)
         Base.metadata.create_all(database.engine)
         with SessionLocal() as db:
-            owner = models.User(email="a@example.com", full_name="A", hashed_password="x")
+            owner = models.User(email="a@example.com", full_name="A", hashed_password="x", plan="enterprise")  # these tests hold several senders
             db.add(owner)
             db.flush()
             account = models.LinkedInAccount(user_id=owner.id, name="Ada Lovelace", status="active", session_status="connected", daily_action_limit=50,
