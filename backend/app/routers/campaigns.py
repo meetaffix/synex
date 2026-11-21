@@ -494,7 +494,7 @@ def _monitor(campaign_id: str, db: Session, user: models.User):
                 "leadId": next_run.lead_id,
                 "leadName": _lead_name(next_run.lead),
                 "stepOrder": engine.step_order_of(steps, next_run),
-                "at": next_run.next_action_at.isoformat(),
+                "at": engine._aware(next_run.next_action_at).isoformat(),
             }
             if next_run
             else None
@@ -506,7 +506,7 @@ def _monitor(campaign_id: str, db: Session, user: models.User):
                 "leadId": r.lead_id,
                 "leadName": _lead_name(r.lead),
                 "stepOrder": engine.step_order_of(steps, r),
-                "stoppedAt": r.completed_at.isoformat() if r.completed_at else None,
+                "stoppedAt": engine._aware(r.completed_at).isoformat() if r.completed_at else None,
             }
             for r in failed_runs
         ],

@@ -134,6 +134,10 @@ def first_in_list(steps: list[models.CampaignStep], parent_id: str | None, branc
     return items[0] if items else None
 
 
+def steps_of(run: models.SequenceRun) -> list[models.CampaignStep]:
+    return sorted_steps(run.campaign)
+
+
 def current_step(steps: list[models.CampaignStep], run: models.SequenceRun) -> models.CampaignStep | None:
     """The run's step, looked up by id so steps can be added to a live campaign."""
     if run.current_step_id is None:
@@ -513,9 +517,22 @@ def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now, e
     message = render_sender_variables(message, account)  # the sender is known only now, when an account is picked
     payload = {"leadId": lead.id, "linkedinUrl": lead.linkedin_url or "", "message": message or "",
                "stepId": step.id, "campaignId": campaign.id, **(extra or {})}
-    task = emit_task(db, account, ttype, payload, f"{run.id}:{step.id}", run)
+    key = f"{run.id}:{step.id}"
+    task = emit_task(db, account, ttype, payload, key, run)
     if task is not None:
         _reserve_daily(account, now)
+    else:
+        # Nothing was queued. Never park the run for a task that does not exist: look at why, and say it.
+        earlier = db.query(models.AgentTask).filter_by(idempotency_key=key).first()
+        if earlier is None:  # no room on the account right now: try again later
+            run.next_action_at = _retry_later(now)
+            return
+        if earlier.status == "done":
+            move_past(steps_of(run), run, step, now)
+            return
+        if earlier.status not in ("pending", "running"):  # failed or needs review: it must never be re-sent by itself
+            stop_run(run, "send_failed", now)
+            return
     run.status = "awaiting_agent"
     run.next_action_at = now + timedelta(hours=24)  # parked; the task result reschedules
 
@@ -733,11 +750,16 @@ def emit_stale_withdrawals(db: Session, now: datetime, per_tick: int = 3) -> int
 def emit_inbox_syncs(db: Session, now: datetime) -> int:
     """Queue one inbox read per live account when its interval has elapsed (and one right after connecting).
     sync_mode decides what is STORED (outreach_results.apply_inbox), not whether the inbox is read."""
-    interval = timedelta(minutes=settings.outreach_inbox_sync_interval_minutes)
+    from .account_policy import bounds
+    base_interval = timedelta(minutes=settings.outreach_inbox_sync_interval_minutes)
     queued = 0
     for account in db.query(models.LinkedInAccount).filter(models.LinkedInAccount.session_status == "connected").all():
         if not account_is_live(account):
             continue
+        budget = bounds(account, "sync_inbox", now)[2]
+        if budget <= 0:
+            continue  # the sender's own inbox-read limit is 0: stopped, by the owner's choice
+        interval = max(base_interval, timedelta(hours=24) / budget) if base_interval else base_interval  # an interval of 0 means as often as the budget allows; otherwise spread the day's reads, so the budget lasts until tonight
         last = _aware(account.last_inbox_sync_at)
         if last is not None and now - last < interval:
             continue

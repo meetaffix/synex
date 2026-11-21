@@ -449,9 +449,13 @@ def apply_result(task_id: str, result: str) -> None:
         event = HANDLERS[ctx.task.type](ctx, result)
         if ctx.task.status == "running":
             ctx.task.status = "done"
-        ctx.task.result = {"result": result}
-        _register_success(ctx.campaign)
-        _audit(ctx, result, "ok", event)
+        ctx.task.result = {**(ctx.task.result or {}), "result": result}  # keep the detail a handler wrote
+        if ctx.task.status == "failed":  # the handler decided nothing was sent: that is a failure, never a success
+            register_failure(ctx.campaign)
+            _audit(ctx, result, "error", event)
+        else:
+            _register_success(ctx.campaign)
+            _audit(ctx, result, "ok", event)
         db.commit()
     log.info("outreach task %s %s", task_id, result)
 
@@ -556,11 +560,18 @@ def _store_thread(db: Session, account: models.LinkedInAccount, lead: models.Lea
     convo.li_conversation_id = convo.li_conversation_id or conv.thread_id
     known = {m.li_event_id for m in convo.messages if m.li_event_id}
     since = _first_outreach_at(db, lead)
-    for raw in sorted(conv.messages, key=lambda m: m.sent_at):
+    # The live reader cannot read a message's real time, so every message carries the time of the read and time cannot say what is old.
+    # The order of the thread can: a message counts as a reply only when we had already written in this thread before it.
+    ours_before = any(m.direction == "outbound" for m in convo.messages)
+    # An invitation is not a message in the thread: when we never wrote there, the order says nothing and the message stands as a reply.
+    we_wrote_here = ours_before or any(raw.direction == "out" for raw in conv.messages)
+    for raw in sorted(conv.messages, key=lambda m: m.sent_at):  # a stable sort: equal times keep the thread's own order
         if raw.event_id in known:
             continue
         sent_at = datetime.fromisoformat(raw.sent_at)
         inbound = raw.direction == "in"
+        if not inbound:
+            ours_before = True
         mine = next((m for m in convo.messages if m.direction == "outbound" and not m.li_event_id and m.body.strip() == raw.text), None)
         if not inbound and mine is not None:
             mine.li_event_id = raw.event_id  # our own send, now matched to LinkedIn's event
@@ -571,7 +582,7 @@ def _store_thread(db: Session, account: models.LinkedInAccount, lead: models.Lea
         if inbound:
             convo.unread = True
             convo.answered = False  # the person wrote again, so it needs a reply again
-            if since is not None and sent_at > since:
+            if since is not None and sent_at > since and (ours_before or not we_wrote_here):
                 if lead.status in ("new", "contacted", "connected"):
                     lead.status = "replied"
                 engine.record_event(db, lead, "replied", raw.text[:140], campaign=lead.campaign, account=account)

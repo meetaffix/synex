@@ -342,7 +342,9 @@ export const states: State[] = [
   { name: "safety-admin", path: "/settings/safety", api: () => { const api = newApi({ accounts: accounts() }); api.assistant.admin = true; return api; } },
   { name: "campaign-smart", path: "/campaigns/cb1/edit?step=2", api: () => { const api = newApi({ accounts: accounts() }); return api; }, prepare: async (page) => {
     await page.getByRole("button", { name: "Add action to the sequence" }).click();
-    await page.getByRole("menuitem", { name: /If connection/ }).click();
+    const ifConnection = page.getByRole("menuitem", { name: /If connection/ });
+    await ifConnection.scrollIntoViewIfNeeded(); // the menu scrolls: it is longer since End was added
+    await ifConnection.click();
     await expect(page.getByText("Not connected", { exact: true })).toBeVisible();
   } },
   { name: "settings-providers", path: "/settings", api: () => newApi({ accounts: accounts() }) },
