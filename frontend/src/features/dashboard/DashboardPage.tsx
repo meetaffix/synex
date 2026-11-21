@@ -47,10 +47,10 @@ function metrics(summary: Summary | undefined, campaigns: Campaign[] | undefined
         replies: sum((c) => c.stats.replied),
         interestedLeads: sum((c) => c.stats.interested),
       },
-      source: "All-time totals from your campaigns. Answer counts and response times need a dashboard feed that is not available yet.",
+      source: "All-time totals from your campaigns. Answer counts and response times are not available from this server yet.",
     };
   }
-  return { values: noMetrics, source: "Figures for a date range or a single account need a dashboard feed that is not available yet." };
+  return { values: noMetrics, source: "Figures for a date range or a single account are not available from this server yet." };
 }
 
 /** One honest line about today, from data Synex already has: actions sent today and replies waiting. */

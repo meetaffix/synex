@@ -24,7 +24,7 @@ export function SenderAccountsPage() {
   const accounts = useSenderAccounts();
   const actions = useAccountActions();
   const overview = useOverview();
-  const usage = useMemo(() => Object.values(overview.data?.accounts ?? {}).reduce((sum, a) => ({ connections: sum.connections + a.connections.used, messages: sum.messages + a.messages.used }), { connections: 0, messages: 0 }), [overview.data]);
+  const usage = useMemo(() => Object.values(overview.data?.accounts ?? {}).reduce((sum, a) => ({ connections: sum.connections + a.connections.sent, messages: sum.messages + a.messages.sent, waiting: sum.waiting + a.connections.queued + a.messages.queued }), { connections: 0, messages: 0, waiting: 0 }), [overview.data]);
   const [params, setParams] = useSearchParams();
   // "Connect LinkedIn account" links here with ?connect=1: open the form, then drop the flag so a reload does not reopen it.
   const [connecting, setConnecting] = useState<{ reconnecting?: string } | null>(params.get("connect") === "1" || pendingConnectAttempt() ? {} : null);
@@ -109,12 +109,10 @@ export function SenderAccountsPage() {
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Plan</span> <span className="text-base font-semibold capitalize">{overview.data.plan}</span></p>
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats used</span> <span className="text-base font-semibold">{overview.data.seatsUsed} of {overview.data.seatsIncluded}</span></p>
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5"><span className="text-xs text-muted-foreground">Seats available</span> <span className="text-base font-semibold">{overview.data.seatsAvailable}</span></p>
-            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5" data-testid="usage-meter"><span className="text-xs text-muted-foreground">Last 24 hours</span> <span className="text-base font-semibold">{usage.connections} connection requests, {usage.messages} messages</span></p>
+            <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5" data-testid="usage-meter"><span className="text-xs text-muted-foreground">Last 24 hours</span> <span className="text-base font-semibold">{usage.connections} connection requests, {usage.messages} messages sent{usage.waiting ? `, ${usage.waiting} waiting` : ""}</span></p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link className="font-medium text-primary underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
-            <Button size="sm" variant="outline" disabled aria-describedby="plan-soon">Manage plan</Button>
-            <span id="plan-soon" className="text-xs text-muted-foreground">Coming soon: Synex does not sell plans yet.</span>
           </div>
         </section>
       )}

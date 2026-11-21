@@ -107,6 +107,29 @@ def rolling_usage(db, account_id: str, now: datetime, action: str | None = None,
     return query.scalar() or 0
 
 
+def rolling_counts(db, account_id: str, now: datetime, action: str) -> tuple[int, int]:
+    """(sent, queued) in the last 24 hours. A queued action has not reached LinkedIn yet, so it is never shown as sent, but it does use up the day's budget."""
+    from .models import AgentTask
+    rows = db.query(AgentTask.status, func.count(AgentTask.id)).filter(
+        AgentTask.account_id == account_id, AgentTask.type == action, AgentTask.status.in_(("pending", "running", "done", "needs_review")),
+        func.coalesce(AgentTask.committed_at, AgentTask.created_at) >= now - timedelta(hours=24)).group_by(AgentTask.status).all()
+    counts = dict(rows)
+    return counts.get("done", 0) + counts.get("needs_review", 0), counts.get("pending", 0) + counts.get("running", 0)
+
+
+# What "actions sent" means on a screen: things that reached a person on LinkedIn, not reads of the sender's own pages.
+SENT_TYPES = ("send_invite", "send_message", "send_inmail", "send_voice_note", "visit_profile", "follow_profile", "like_post", "withdraw_invite", "engage_post")
+
+
+def sent_today(db, account, now: datetime) -> int:
+    """Actions of the account that really went out since its own local midnight."""
+    from .engine import _day_start_utc
+    from .models import AgentTask
+    return db.query(func.count(AgentTask.id)).filter(
+        AgentTask.account_id == account.id, AgentTask.type.in_(SENT_TYPES), AgentTask.status.in_(("done", "needs_review")),
+        func.coalesce(AgentTask.committed_at, AgentTask.created_at) >= _day_start_utc(account, now)).scalar() or 0
+
+
 def action_room(db, account, action: str, now: datetime, *, exclude_task: str | None = None) -> int:
     return bounds(account, action, now)[2] - rolling_usage(db, account.id, now, action, exclude_task=exclude_task)
 
@@ -115,8 +138,9 @@ def usage_rows(db, account, now: datetime) -> list[dict]:
     rows = []
     for action, ceiling in DAILY_TYPE_CEILINGS.items():
         low, high, budget = bounds(account, action, now)
+        sent, queued = rolling_counts(db, account.id, now, action)
         rows.append({"action": action, "label": LABELS.get(action, action.replace("_", " ").capitalize()),
-                     "used": rolling_usage(db, account.id, now, action), "low": low, "high": high,
+                     "used": rolling_usage(db, account.id, now, action), "sent": sent, "queued": queued, "low": low, "high": high,
                      "budget": budget, "ceiling": ceiling})
     return rows
 

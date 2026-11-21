@@ -215,6 +215,8 @@ def precheck(task_id: str) -> str | None:
                 return f"lead_{reason}"
             if lead and dnc.blocked(db, lead.user_id, lead):
                 return "lead_do_not_contact"
+            if lead and campaign.lead_list_id and campaign.lead_list_id not in {l.id for l in lead.lists}:
+                return "lead_removed_from_list"  # taken off the list while the action was queued
         if task.type == "send_invite" and lead and lead.status in engine.ACCEPTED_STATES:
             return "already_connected"
         if task.type == "send_message":

@@ -41,7 +41,7 @@ test("the filters apply to the funnel too, and both exports download a file", as
   expect((await download).suggestedFilename()).toBe("synex-campaigns.csv");
 });
 
-test("without a dashboard feed the funnel says so instead of showing numbers", async ({ page }) => {
+test("without live figures the funnel says so instead of showing numbers", async ({ page }) => {
   await open(page, false);
-  await expect(page.getByText("The funnel needs a dashboard feed that is not available yet.")).toBeVisible();
+  await expect(page.getByText("The funnel is not available from this server yet.")).toBeVisible();
 });

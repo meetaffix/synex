@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { api } from "@/services/client";
+import { campaignsService } from "../service";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { useState } from "react";
 
@@ -12,7 +13,11 @@ export function NewCampaignPage() {
   const [error, setError] = useState<string>();
   const start = () => {
     setError(undefined);
-    api.post<{ id: string }>("/campaigns", { action: "create", name: "Untitled campaign", sequenceMode: "smart", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" })
+    // An untouched draft from an earlier visit is reused, so opening this page twice does not leave empty campaigns behind.
+    campaignsService.list()
+      .then((all) => all.find((c) => c.status === "draft" && c.name === "Untitled campaign" && !c.accountId && !c.leadListName && c.stats.totalLeads === 0))
+      .catch(() => undefined)
+      .then((empty) => empty ?? api.post<{ id: string }>("/campaigns", { action: "create", name: "Untitled campaign", sequenceMode: "smart", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" }))
       .then((created) => navigate(`/campaigns/${created.id}/edit`, { replace: true }))
       .catch((e) => setError(requestFailureMessage(e)));
   };

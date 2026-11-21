@@ -29,23 +29,32 @@ def _percent(part: int, whole: int):
 
 
 def _performance(db: Session, workspace_id: str, accounts, campaigns) -> dict:
-    """Per account: of the people its campaigns contacted, how many accepted, and of those how many replied."""
-    by_campaign = {}
-    for lead in db.query(models.Lead.campaign_id, models.Lead.status).filter(models.Lead.user_id == workspace_id, models.Lead.campaign_id.isnot(None)):
-        counts = by_campaign.setdefault(lead.campaign_id, {"invited": 0, "accepted": 0, "replied": 0})
-        if lead.status != "new":
-            counts["invited"] += 1
-        counts["accepted"] += lead.status in ACCEPTED
-        counts["replied"] += lead.status in REPLIED
+    """Per account, from what its campaigns really sent: of the people invited, how many accepted; of the people reached (an invitation or a message), how many replied.
+    Someone who was already a connection was never invited, so they are neither invited nor accepted."""
+    campaign_ids = [c.id for c in campaigns]
+    invited_by: dict[str, set] = {}
+    reached_by: dict[str, set] = {}
+    if campaign_ids:
+        rows = (db.query(models.SequenceRun.campaign_id, models.SequenceRun.lead_id, models.AgentTask.type)
+                .join(models.AgentTask, models.AgentTask.sequence_run_id == models.SequenceRun.id)
+                .filter(models.SequenceRun.campaign_id.in_(campaign_ids), models.AgentTask.status == "done",
+                        models.AgentTask.type.in_(("send_invite", "send_message", "send_inmail"))).all())
+        for campaign_id, lead_id, ttype in rows:
+            reached_by.setdefault(campaign_id, set()).add(lead_id)
+            if ttype == "send_invite":
+                invited_by.setdefault(campaign_id, set()).add(lead_id)
+    status = {lead.id: lead.status for lead in db.query(models.Lead.id, models.Lead.status).filter(models.Lead.user_id == workspace_id)}
     out = {}
     for account in accounts:
-        total = {"invited": 0, "accepted": 0, "replied": 0}
-        for campaign in campaigns:
-            if campaign.account_id == account.id or account.id in (campaign.account_ids or []):
-                for key, value in by_campaign.get(campaign.id, {}).items():
-                    total[key] += value
-        out[account.id] = {**total, "acceptedPercent": _percent(total["accepted"], total["invited"]), "replyPercent": _percent(total["replied"], total["accepted"])}
+        mine = [c for c in campaigns if c.account_id == account.id or account.id in (c.account_ids or [])]
+        invited = {(c.id, lead) for c in mine for lead in invited_by.get(c.id, ())}
+        reached = {(c.id, lead) for c in mine for lead in reached_by.get(c.id, ())}
+        accepted = {pair for pair in invited if status.get(pair[1]) in ACCEPTED}
+        replied = {pair for pair in reached if status.get(pair[1]) in REPLIED}
+        out[account.id] = {"invited": len(invited), "accepted": len(accepted), "replied": len(replied),
+                           "acceptedPercent": _percent(len(accepted), len(invited)), "replyPercent": _percent(len(replied), len(reached))}
     return out
+
 
 
 @router.get("/overview")
@@ -58,7 +67,7 @@ def overview(db: Session = Depends(get_db), workspace: models.User = Depends(get
     per_account = {}
     for account in accounts:
         rows = {row["action"]: row for row in account_policy.usage_rows(db, account, now)}
-        pick = lambda action: {k: rows[action][k] for k in ("used", "low", "high", "budget")}  # noqa: E731
+        pick = lambda action: {k: rows[action][k] for k in ("used", "sent", "queued", "low", "high", "budget")}  # noqa: E731
         per_account[account.id] = {"connections": pick("send_invite"), "messages": pick("send_message"),
                                    "smart": account_policy.policy_for(account).preset != "off", "performance": performance[account.id],
                                    "health": {k: v for k, v in account_health.score(db, account, now).items() if k in ("score", "level", "label")}}

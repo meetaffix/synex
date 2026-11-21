@@ -260,7 +260,7 @@ test.describe("dashboard", () => {
     // A date range cannot be answered from campaign totals, so nothing is invented.
     await page.getByLabel("Date range").selectOption("30d");
     await expect(card("Connections accepted")).toContainText("Not available yet");
-    await expect(cards.getByText("Figures for a date range or a single account need a dashboard feed")).toBeVisible();
+    await expect(cards.getByText("Figures for a date range or a single account are not available")).toBeVisible();
     await page.getByLabel("Date range").selectOption("all");
     await page.getByLabel("Campaign").selectOption("c2");
     await expect(card("Connections accepted")).toContainText("3");

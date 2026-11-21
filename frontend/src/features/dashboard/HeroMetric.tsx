@@ -35,7 +35,7 @@ export function HeroMetric({ replies, contacted, rates, unit, loading }: Props) 
           ) : rate === null ? (
             <>
               <p className="text-xl font-semibold">Not available yet</p>
-              <p className="max-w-xs text-sm text-brand-text-muted">It appears once Synex has contacted leads and the dashboard feed is connected.</p>
+              <p className="max-w-xs text-sm text-brand-text-muted">It shows once Synex has sent messages and people have answered.</p>
             </>
           ) : (
             <p className="text-display font-semibold tabular-nums text-brand-accent">

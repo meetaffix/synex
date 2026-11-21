@@ -105,6 +105,48 @@ RESULT_REASONS = {
 }
 
 
+# The same result word means different things for different actions: "not connected" on a message is a failure, on a connection check it is an answer.
+TYPE_REASONS = {
+    ("send_message", "not_connected"): "LinkedIn did not offer a Message button for this person, so nothing was sent.",
+    ("send_voice_note", "not_connected"): "LinkedIn did not offer a Message button for this person, so nothing was sent.",
+    ("check_connection", "not_connected"): "Not connected yet.",
+    ("check_connection", "pending"): "The connection request is still waiting for an answer.",
+    ("check_connection", "connected"): "Connected.",
+}
+RETRY_WORDS = "LinkedIn did not answer in time. Synex tries again later; nothing was sent."
+
+
+def reason_for(step: str | None, result: str | None) -> str:
+    """The result of an action in plain words. Never a raw error name."""
+    result = result or ""
+    if (step, result) in TYPE_REASONS:
+        return TYPE_REASONS[(step, result)]
+    if result.startswith("retry_"):
+        return RETRY_WORDS if step not in ("sync_inbox", "sync_connections", "collect_leads") else "LinkedIn did not answer in time. Synex tries again later."
+    if result.startswith("failed_"):
+        return "Failed, and nothing was sent." if step not in ("sync_inbox", "sync_connections", "collect_leads") else "Could not read LinkedIn; it will be tried again."
+    if result.startswith("needs_review_"):
+        return RESULT_REASONS["needs_review"]
+    if result.startswith("skipped_"):
+        return "Skipped: " + result[len("skipped_"):].replace("_", " ") + "."
+    if result.startswith("synced_"):
+        return f"Read {result[len('synced_'):]} conversations."
+    return RESULT_REASONS.get(result, result.replace("_", " ").capitalize())
+
+
+SEND_STEPS = ("send_invite", "send_message", "send_inmail", "send_voice_note", "withdraw_invite", "follow_profile", "like_post", "engage_post", "visit_profile")
+
+
+def describe(step: str | None, result: str | None, person: str | None, campaign: str | None, text: str | None) -> str:
+    """One line for the audit log: what happened, to whom, and for a message the words that were going to be sent."""
+    parts = [reason_for(step, result)]
+    if person:
+        parts.append(f"To {person}" + (f", campaign {campaign}." if campaign else "."))
+    if text and step in ("send_message", "send_inmail", "send_invite"):
+        parts.append("Text: " + (text if len(text) <= 300 else text[:300] + "..."))
+    return " ".join(parts)
+
+
 @router.get("/outreach/ceilings")
 def ceilings(user: models.User = Depends(get_data_user)):
     """The hard limits no setting can raise, and the test profile."""
@@ -134,7 +176,7 @@ def audit(limit: int = 50, offset: int = 0, account_id: str | None = Query(None,
     for r in rows:
         lead = leads.get((tasks[r.task_id].payload or {}).get("leadId")) if r.task_id in tasks else None
         items.append({"id": r.id, "at": r.created_at.isoformat(), "account": accounts.get(r.account_id, "A removed account"), "action": r.step, "result": r.result, "status": r.status,
-                      "reason": RESULT_REASONS.get(r.result or "", (r.result or "").replace("_", " ").capitalize() or None), "person": f"{lead.first_name} {lead.last_name}".strip() if lead else None,
+                      "reason": reason_for(r.step, r.result) or None, "person": f"{lead.first_name} {lead.last_name}".strip() if lead else None,
                       "campaign": campaigns.get(r.campaign_id)})
     return {"items": items, "total": total, "limit": limit, "offset": offset,
             "note": "Synex keeps the most recent actions of each account; older rows are removed to keep the log small."}

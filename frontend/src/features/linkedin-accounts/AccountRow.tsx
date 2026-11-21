@@ -114,11 +114,11 @@ export function AccountRow({ account, actions, checking, error, summary, index =
             <dl aria-label={`${account.name}: last 24 hours`} className="grid gap-1 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Connection requests, 24 h</dt>
-                <dd className="tabular-nums">{summary.connections.used} of {summary.connections.low} to {summary.connections.high}</dd>
+                <dd className="tabular-nums">{summary.connections.sent} of {summary.connections.low} to {summary.connections.high}{summary.connections.queued ? ` (+${summary.connections.queued} waiting)` : ""}</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Messages, 24 h</dt>
-                <dd className="tabular-nums">{summary.messages.used} of {summary.messages.low} to {summary.messages.high}</dd>
+                <dd className="tabular-nums">{summary.messages.sent} of {summary.messages.low} to {summary.messages.high}{summary.messages.queued ? ` (+${summary.messages.queued} waiting)` : ""}</dd>
               </div>
             </dl>
             <ul aria-label={`${account.name}: performance`} className="flex flex-wrap items-center gap-2 text-xs">

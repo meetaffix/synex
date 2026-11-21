@@ -67,3 +67,15 @@ running sequence; the duplicate `follow` / `follow_profile` step types; the seco
 5. Screen clean-up (U7 to U14, U16 to U18) and the clutter list.
 
 None of Part 2 is fixed yet. Part 1 lists the five fixes already made.
+
+## Status after the second fix pass (21 Nov 2026, evening)
+
+Fixed, each with a test: L1 to L5 (confirm before send, committed earlier); L9 (an untouched draft is reused instead of creating a new one on every visit);
+L10 (default time zone is the sender's); L11 (a person taken off the list is stopped, also when their action is already queued); U1, U2 (queued is shown
+as "waiting", not as sent; the dashboard line counts what really went out); U3 (account Accepted % and Replied % come from real sends; people who were
+already connections are neither invited nor accepted); U5 (audit log: names the person and the text, says "nothing was sent", plain words for errors, a
+"Messages and invitations" filter that is now the default); U7 (plain wording on the dashboard); U11 (the disabled "Manage plan" button is gone).
+
+Still open: L6 to L8 (not changed), L12 (default exclusions: a behaviour change for the owner to decide), L13, U4 (inbox reads are spread over the day now,
+but the day's reads already used cannot be given back), U6, U8, U9, U10, U12 to U18, the clutter list. Reply % on an account now means "of the people Synex sent
+something to", not "of the people who accepted".

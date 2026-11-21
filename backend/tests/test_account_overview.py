@@ -38,7 +38,14 @@ class OverviewTest(unittest.TestCase):
             db.add(campaign)
             db.flush()
             for status in ["new", "contacted", "contacted", "connected", "replied", "interested"]:
-                db.add(models.Lead(user_id=owner.id, campaign_id=campaign.id, status=status))
+                lead = models.Lead(user_id=owner.id, campaign_id=campaign.id, status=status)
+                db.add(lead)
+                db.flush()
+                if status != "new":  # everyone but the first was really sent an invitation: a finished send_invite task
+                    run = models.SequenceRun(user_id=owner.id, campaign_id=campaign.id, lead_id=lead.id, status="completed")
+                    db.add(run)
+                    db.flush()
+                    db.add(models.AgentTask(account_id=self.a.id, sequence_run_id=run.id, type="send_invite", status="done", idempotency_key=f"k{lead.id}", payload={}))
             db.commit()
             self.owner_id, self.aid, self.bid = owner.id, self.a.id, self.b.id
 
@@ -55,7 +62,7 @@ class OverviewTest(unittest.TestCase):
         perf = data["accounts"][self.aid]["performance"]
         self.assertEqual((perf["invited"], perf["accepted"], perf["replied"]), (5, 3, 2))
         self.assertEqual(perf["acceptedPercent"], 60.0)
-        self.assertEqual(perf["replyPercent"], 66.7)
+        self.assertEqual(perf["replyPercent"], 40.0)  # of the 5 people reached, 2 replied
 
     def test_an_account_with_no_campaigns_has_no_rates_not_zero(self):
         perf = self.client.get("/linkedin-accounts/overview").json()["accounts"][self.bid]["performance"]
@@ -67,7 +74,7 @@ class OverviewTest(unittest.TestCase):
         self.assertTrue(data["accounts"][self.bid]["smart"])
         self.assertFalse(data["accounts"][self.aid]["smart"])
         for key in ("connections", "messages"):
-            self.assertEqual(set(data["accounts"][self.aid][key]), {"used", "low", "high", "budget"})
+            self.assertEqual(set(data["accounts"][self.aid][key]), {"used", "sent", "queued", "low", "high", "budget"})
         self.assertEqual(data["seatsUsed"], 2)
 
 

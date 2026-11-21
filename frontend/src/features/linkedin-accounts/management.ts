@@ -29,6 +29,8 @@ const usageRowSchema = z.object({
   low: z.number(),
   high: z.number(),
   budget: z.number(),
+  sent: z.number().default(0),
+  queued: z.number().default(0),
   ceiling: z.number(),
 });
 
@@ -46,7 +48,7 @@ export const detailsSchema = z.object({
   activity: z.array(z.object({ id: z.string(), step: z.string(), status: z.string(), message: z.string().nullable(), createdAt: z.string() })),
 });
 
-const rangeSchema = z.object({ used: z.number(), low: z.number(), high: z.number(), budget: z.number() });
+const rangeSchema = z.object({ used: z.number(), sent: z.number().default(0), queued: z.number().default(0), low: z.number(), high: z.number(), budget: z.number() });
 export const accountSummarySchema = z.object({
   connections: rangeSchema,
   messages: rangeSchema,

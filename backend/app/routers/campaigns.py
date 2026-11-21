@@ -299,6 +299,12 @@ def display_statuses(db: Session, campaigns) -> dict[str, str]:
     return out
 
 
+def _default_timezone(db: Session, payload: CampaignIn) -> str:
+    """Working hours mean the sender's own day: with no time zone given, use the sender account's, never a fixed New York."""
+    account = db.get(models.LinkedInAccount, payload.account_id) if payload.account_id else None
+    return engine.account_tz(account) if account is not None else "UTC"
+
+
 def _create(payload: CampaignIn, db: Session, user: models.User):
     campaign = models.Campaign(
         user_id=user.id,
@@ -310,7 +316,7 @@ def _create(payload: CampaignIn, db: Session, user: models.User):
         lead_list_id=payload.lead_list_id or None,
         daily_connection_limit=20 if payload.daily_connection_limit is None else payload.daily_connection_limit,
         daily_message_limit=40 if payload.daily_message_limit is None else payload.daily_message_limit,
-        timezone=payload.timezone or "America/New_York",
+        timezone=payload.timezone or _default_timezone(db, payload),
         start_hour=payload.start_hour if payload.start_hour is not None else 9,
         end_hour=payload.end_hour if payload.end_hour is not None else 17,
         working_days=payload.working_days or [1, 2, 3, 4, 5],

@@ -135,5 +135,82 @@ class ConfirmBeforeSendTest(OutreachCase):
         self.assertEqual(self.client.post(f"/leads/{lead_id}/add-to-campaign", json={"campaignId": campaign_id}).status_code, 200)
 
 
+class HonestCountsTest(OutreachCase):
+    def _queue_one_message(self):
+        account_id = self.make_account()
+        self.make_campaign([{"user": "vimal", "status": "connected"}], MESSAGE_ONLY, [account_id])
+        self.tick()
+        self.assertEqual(len(self.tasks("send_message")), 1)
+        return account_id
+
+    def test_a_queued_message_is_not_counted_as_sent(self):
+        from app import account_policy
+        from app.serializers import account_out
+        account_id = self._queue_one_message()
+        with SessionLocal() as db:
+            row = {r["action"]: r for r in account_policy.usage_rows(db, db.get(models.LinkedInAccount, account_id), datetime.now(timezone.utc))}["send_message"]
+            self.assertEqual((row["sent"], row["queued"]), (0, 1))
+            self.assertEqual(row["used"], 1, "a queued message still takes up the day's budget")
+            self.assertEqual(account_out(db.get(models.LinkedInAccount, account_id))["dailyActionsUsed"], 0, "the dashboard says how many actions were really sent today")
+
+    def test_an_account_whose_campaigns_sent_no_invitation_has_no_accepted_percentage(self):
+        from app.routers import account_management
+        account_id = self.make_account()
+        self.make_campaign([{"user": "a", "status": "connected"}, {"user": "b", "status": "connected"}], MESSAGE_ONLY, [account_id])
+        with SessionLocal() as db:
+            accounts, campaigns = db.query(models.LinkedInAccount).all(), db.query(models.Campaign).all()
+            out = account_management._performance(db, self.user_id, accounts, campaigns)[account_id]
+        self.assertIsNone(out["acceptedPercent"], "people who were already connections were never invited, so nobody 'accepted'")
+        self.assertEqual(out["invited"], 0)
+
+
+class AuditLogTest(OutreachCase):
+    def test_a_failed_send_says_who_it_was_for_what_it_said_and_that_nothing_was_sent(self):
+        account_id = self.make_account()
+        self.make_campaign([{"user": "vimal", "status": "connected"}], MESSAGE_ONLY, [account_id])
+        self.tick()
+        (task,) = self.tasks("send_message")
+        with SessionLocal() as db:
+            run = db.query(models.SequenceRun).one()
+            db.add(models.AgentActivity(account_id=account_id, user_id=self.user_id, scope="task", step="send_message", status="error", message="x",
+                                        campaign_id=run.campaign_id, task_id=task.id, result="not_connected"))
+            db.commit()
+        rows = self.client.get("/audit?source=linkedin").json()["items"]
+        row = next(r for r in rows if r["action"] == "send_message")
+        self.assertEqual(row["status"], "error")
+        self.assertIn("Vimal", row["detail"])
+        self.assertIn("Hello Vimal", row["detail"], "the text that was going to be sent")
+        self.assertIn("nothing was sent", row["detail"].lower())
+        self.assertNotIn("message waits", row["detail"])
+
+    def test_the_sends_filter_leaves_out_inbox_reads(self):
+        account_id = self.make_account()
+        with SessionLocal() as db:
+            for step in ("sync_inbox", "send_message"):
+                db.add(models.AgentActivity(account_id=account_id, user_id=self.user_id, scope="task", step=step, status="ok", message="x", result="sent"))
+            db.commit()
+        rows = self.client.get("/audit?source=sends").json()["items"]
+        self.assertEqual([r["action"] for r in rows], ["send_message"])
+
+    def test_raw_error_names_are_turned_into_plain_words(self):
+        from app.routers.outreach import reason_for
+        self.assertNotIn("timeouterror", reason_for("sync_inbox", "retry_TimeoutError").lower())
+        self.assertIn("again", reason_for("sync_inbox", "retry_TimeoutError").lower())
+        self.assertIn("nothing was sent", reason_for("send_message", "failed_RuntimeError").lower())
+
+
+class RemovedFromListTest(OutreachCase):
+    def test_a_person_taken_off_the_list_stops_getting_messages(self):
+        self.make_campaign([{"user": "vimal", "status": "connected"}, {"user": "mohan", "status": "connected"}], MESSAGE_ONLY)
+        with SessionLocal() as db:
+            lead_list = db.query(models.LeadList).one()
+            lead_list.leads.remove(next(l for l in lead_list.leads if l.first_name == "Vimal"))
+            db.commit()
+        self.tick()
+        self.assertEqual((self.run_of("vimal").status, self.run_of("vimal").stop_reason), ("stopped", "removed_from_list"))
+        self.assertEqual(self.run_of("mohan").status, "awaiting_agent")
+        self.assertEqual(len(self.tasks("send_message")), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

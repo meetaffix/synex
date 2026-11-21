@@ -64,6 +64,7 @@ test("the audit log pages through its entries and filters by source", async ({ p
     return route.fulfill({ json: { items: mine.slice(offset, offset + limit), total: mine.length, limit, offset, canDelete: false } });
   });
   await page.goto("/settings/audit");
+  await page.getByLabel("Show").selectOption("all"); // the page opens on messages and invitations; this checks the whole log
   await expect(page.getByRole("status").filter({ hasText: "of 31" })).toHaveText("1 to 25 of 31");
   await expect(page.getByRole("button", { name: "Newer" })).toBeDisabled();
   await page.getByRole("button", { name: "Older" }).click();

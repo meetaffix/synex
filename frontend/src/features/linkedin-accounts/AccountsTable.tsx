@@ -54,8 +54,8 @@ export function AccountsTable({ accounts, summaries, actionsFor, checkingId, err
                 <td className="px-4 py-3">
                   {summary ? (
                     <div className="grid gap-1 whitespace-nowrap tabular-nums">
-                      <span>Connections {summary.connections.used} of {summary.connections.low} to {summary.connections.high}</span>
-                      <span>Messages {summary.messages.used} of {summary.messages.low} to {summary.messages.high}</span>
+                      <span>Connections {summary.connections.sent} of {summary.connections.low} to {summary.connections.high}{summary.connections.queued ? ` (+${summary.connections.queued} waiting)` : ""}</span>
+                      <span>Messages {summary.messages.sent} of {summary.messages.low} to {summary.messages.high}{summary.messages.queued ? ` (+${summary.messages.queued} waiting)` : ""}</span>
                       {summary.smart && <span className="w-fit rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-foreground">Smart limits</span>}
                     </div>
                   ) : <span className="text-muted-foreground">{account.dailyActionLimit === 0 ? "Stopped" : `${account.dailyActionsUsed} of ${account.dailyActionLimit} actions`}</span>}
@@ -64,7 +64,7 @@ export function AccountsTable({ accounts, summaries, actionsFor, checkingId, err
                   {summary ? (
                     <div className="flex flex-wrap gap-2 whitespace-nowrap text-xs">
                       <span className="rounded-full bg-surface-muted px-2 py-0.5" title="Of the people invited, the share who accepted">Accepted {percent(summary.performance.acceptedPercent)}</span>
-                      <span className="rounded-full bg-surface-muted px-2 py-0.5" title="Of the people who accepted, the share who replied">Replied {percent(summary.performance.replyPercent)}</span>
+                      <span className="rounded-full bg-surface-muted px-2 py-0.5" title="Of the people Synex sent something to, the share who replied">Replied {percent(summary.performance.replyPercent)}</span>
                     </div>
                   ) : <span className="text-muted-foreground">No data</span>}
                 </td>

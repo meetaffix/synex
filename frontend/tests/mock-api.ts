@@ -534,7 +534,7 @@ export async function mockApi(page: Page, api: Api) {
 
       if (path === "/linkedin-accounts/overview")
         return json(200, { plan: "Free", planPlaceholder: true, seatsUsed: api.accounts.length, seatsIncluded: 3, seatsAvailable: Math.max(0, 3 - api.accounts.length),
-          accounts: Object.fromEntries(api.accounts.map((a, i) => [a.id, { connections: { used: 2, low: 4, high: 6, budget: 5 }, messages: { used: 1, low: 9, high: 11, budget: 10 }, smart: i === 0,
+          accounts: Object.fromEntries(api.accounts.map((a, i) => [a.id, { connections: { used: 2, sent: 2, queued: 0, low: 4, high: 6, budget: 5 }, messages: { used: 1, sent: 1, queued: 0, low: 9, high: 11, budget: 10 }, smart: i === 0,
             performance: i === 0 ? { invited: 20, accepted: 8, replied: 2, acceptedPercent: 40, replyPercent: 25 } : { invited: 0, accepted: 0, replied: 0, acceptedPercent: null, replyPercent: null } }])) });
       if (path === "/lead-collections/sources") return json(200, [{ id: "urls", label: "Paste profile links", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "csv", label: "CSV or Google Sheets", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "lists", label: "From my existing lists", readsLinkedin: false, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "search", label: "LinkedIn basic search", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "post", label: "LinkedIn post reactions or comments", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "people" }, { id: "event", label: "LinkedIn event attendees", readsLinkedin: true, available: true, note: "The sender account must be marked as attending the event.", maxLeads: 500, produces: "people" }, { id: "sales_navigator", label: "Sales Navigator leads", readsLinkedin: true, available: true, note: "Needs a Sales Navigator subscription on the sender account.", maxLeads: 500, produces: "people" }, { id: "companies", label: "LinkedIn companies", readsLinkedin: true, available: true, note: null, maxLeads: 500, produces: "companies" }, { id: "group", label: "LinkedIn group members", readsLinkedin: true, available: false, note: "Coming soon: LinkedIn only shows a group's member list to its members.", maxLeads: 500, produces: "people" }]);
       if (path === "/lead-collections/estimate")
@@ -635,7 +635,7 @@ export async function mockApi(page: Page, api: Api) {
           const actions = (state.policy.actions ?? {}) as Record<string, { dailyLimit: number; stopAt: number }>;
           const usage = Object.entries(CEILINGS).map(([action, [label, ceiling]]) => {
             const limit = actions[action]?.dailyLimit ?? ceiling;
-            return { action, label, used: 3, low: Math.max(0, limit - 1), high: Math.min(ceiling, limit + 1), budget: limit, ceiling };
+            return { action, label, used: 3, sent: 3, queued: 0, low: Math.max(0, limit - 1), high: Math.min(ceiling, limit + 1), budget: limit, ceiling };
           });
           return json(200, { accountId: manage[1], voiceId: state.voiceId ?? null, lifecycle: state.lifecycle, activeCampaigns: 1, canChangePrivacy: state.canChangePrivacy, policy: state.policy, usage,
             ssi: null, ssiReason: "No verified LinkedIn SSI data has been collected.", activity: [] });

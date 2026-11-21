@@ -73,8 +73,13 @@ def account_display_status(a: models.LinkedInAccount) -> str:
 def account_out(a: models.LinkedInAccount) -> dict:
     from .engine import effective_daily_limit  # local import avoids load-order coupling
 
+    from sqlalchemy.orm import object_session
+    from . import account_policy
     now = datetime.now(timezone.utc)
     effective = effective_daily_limit(a, now)
+    session = object_session(a)
+    # What the screens call "used today" is what really went out, not what is queued (the queue counter is only for pacing).
+    really_sent = account_policy.sent_today(session, a, now) if session is not None and a.id else (a.daily_actions_used or 0)
     return {
         "id": a.id,
         "name": a.name,
@@ -87,7 +92,7 @@ def account_out(a: models.LinkedInAccount) -> dict:
         "dailyActionLimit": a.daily_action_limit,
         "effectiveDailyLimit": effective,
         "warmingUp": bool(a.daily_action_limit) and effective < a.daily_action_limit,
-        "dailyActionsUsed": a.daily_actions_used,
+        "dailyActionsUsed": really_sent,
         "messagesSent": a.messages_sent,
         "connectionsSent": a.connections_sent,
         "lastSyncAt": _iso(a.last_sync_at),

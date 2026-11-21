@@ -41,7 +41,7 @@ export function FunnelPanel({ filters }: { filters: DashboardFilters }) {
       </div>
       {funnel.isLoading && <Skeleton className="h-32 w-full" />}
       {funnel.isError && <p role="alert" className="text-sm text-danger">The funnel could not be loaded. {requestFailureMessage(funnel.error)}</p>}
-      {funnel.data?.state === "unavailable" && <p className="text-sm text-muted-foreground">The funnel needs a dashboard feed that is not available yet.</p>}
+      {funnel.data?.state === "unavailable" && <p className="text-sm text-muted-foreground">The funnel is not available from this server yet.</p>}
       {stages.length > 0 && stages[0].count === 0 && <p className="text-sm text-muted-foreground">No leads are in a campaign for these filters yet.</p>}
       {stages.length > 0 && (
         <ol aria-label="Funnel stages" className="grid gap-3">

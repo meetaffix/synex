@@ -128,7 +128,7 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
             <thead className="bg-surface-muted text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">Action</th>
-                <th scope="col" className="px-3 py-2 font-medium">Used</th>
+                <th scope="col" className="px-3 py-2 font-medium">Sent</th>
                 <th scope="col" className="px-3 py-2 font-medium">Today's limit</th>
                 <th scope="col" className="px-3 py-2 font-medium">Range</th>
                 <th scope="col" className="px-3 py-2 font-medium">Hard maximum</th>
@@ -138,7 +138,7 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
               {details.usage.map((row) => (
                 <tr key={row.action} className="border-t border-border">
                   <th scope="row" className="px-3 py-2 text-left font-medium">{row.label}</th>
-                  <td className="px-3 py-2 tabular-nums">{row.used}</td>
+                  <td className="px-3 py-2 tabular-nums">{row.sent}{row.queued ? <span className="text-muted-foreground"> (+{row.queued} waiting)</span> : null}</td>
                   <td className="px-3 py-2 tabular-nums">{row.budget === 0 ? "Stopped" : row.budget}</td>
                   <td className="px-3 py-2 tabular-nums">{row.high === 0 ? "0" : `${row.low} to ${row.high}`}</td>
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{row.ceiling}</td>
@@ -166,7 +166,7 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
                 <label htmlFor={`${id}-s-${item.action}`} className="text-sm font-medium">{item.label}</label>
                 <Input id={`${id}-s-${item.action}`} aria-label={`${item.label} per day`} type="number" min={0} max={top} value={current.dailyLimit}
                   onChange={(event) => setAction(item.action, { dailyLimit: clamp(Number(event.target.value), 0, top), stopAt: Math.max(current.stopAt, clamp(Number(event.target.value), 0, top)) })} />
-                <p className="text-xs text-muted-foreground">Used today: {row.used}. {planCap !== undefined ? `Your ${plan.data?.name} plan allows up to ${top} a day.` : `Up to ${top} a day.`}</p>
+                <p className="text-xs text-muted-foreground">Sent: {row.sent}{row.queued ? `, waiting to be sent: ${row.queued}` : ""}. {planCap !== undefined ? `Your ${plan.data?.name} plan allows up to ${top} a day.` : `Up to ${top} a day.`}</p>
               </div>
             );
           })}

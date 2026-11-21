@@ -636,6 +636,10 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
     if dnc.blocked(db, campaign.user_id, lead):
         stop_run(run, "do_not_contact", now)
         return
+    on_list = getattr(campaign, "_tick_list_ids", None)  # set by tick(): who is on the campaign's list now
+    if on_list is not None and lead.id not in on_list:  # taken off the list after the launch: they must not be contacted any more
+        stop_run(run, "removed_from_list", now)
+        return
 
     if not (lead.linkedin_url or "").strip():
         stop_run(run, "no_linkedin_url", now)
@@ -792,6 +796,7 @@ def tick(db: Session) -> dict:
         if not steps:
             continue
         accounts = campaign_accounts(db, campaign)
+        campaign._tick_list_ids = {l.id for l in campaign.lead_list.leads} if campaign.lead_list else None
         runs = (
             db.query(models.SequenceRun)
             .filter(models.SequenceRun.campaign_id == campaign.id, models.SequenceRun.status.in_(["running", "waiting_connection"]))

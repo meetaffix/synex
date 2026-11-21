@@ -17,7 +17,7 @@ interface Item { id: string; at: string; source: "linkedin" | "assistant" | "set
 interface Page { items: Item[]; total: number; limit: number; offset: number; canDelete: boolean }
 
 const PAGE = 25;
-const SOURCES = [["all", "Everything"], ["linkedin", "LinkedIn actions"], ["assistant", "Assistant changes"], ["settings", "Settings"]] as const;
+const SOURCES = [["all", "Everything"], ["sends", "Messages and invitations"], ["linkedin", "All LinkedIn actions"], ["assistant", "Assistant changes"], ["settings", "Settings"]] as const;
 const SOURCE_LABEL: Record<string, string> = { linkedin: "LinkedIn", assistant: "Assistant", settings: "Settings" };
 const failure = (e: unknown) => (e instanceof ApiError && e.message ? e.message : requestFailureMessage(e));
 
@@ -26,7 +26,7 @@ const csvCell = (v: string) => `"${v.replaceAll('"', '""')}"`;
 /** Everything done in this workspace, newest first: actions on LinkedIn, what the assistant changed, and settings changes. An admin can delete it all. */
 export function AuditLogPage() {
   const qc = useQueryClient();
-  const [source, setSource] = useState<string>("all");
+  const [source, setSource] = useState<string>("sends"); // what reached people first; the reads of the inbox are one filter away
   const [offset, setOffset] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [word, setWord] = useState("");
