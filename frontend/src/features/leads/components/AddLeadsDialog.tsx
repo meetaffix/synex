@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { announceFinished } from "../BackgroundImports";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -113,8 +114,6 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const poll = useRef<number | undefined>(undefined);
-  const openRef = useRef(open);
-  openRef.current = open;
 
   const connected = (accounts.data ?? []).filter((a) => a.status === "connected");
   const estimate = useQuery({
@@ -167,6 +166,8 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
     }
   }, [source, text, reactions, comments, filters, listIds, mapping]);
 
+  const openRef = useRef(open);
+  openRef.current = open;
   const watch = (id: string) => {
     window.clearInterval(poll.current);
     let misses = 0;
@@ -180,7 +181,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
           if (next.status === "completed") {
             void client.invalidateQueries();
             if (next.listId) onCompleted?.(next.listId);
-            if (!openRef.current) toast.success(`${next.created} leads added to ${next.listName}.`);
+            if (!openRef.current) announceFinished(next);
           }
         }
       } catch {
@@ -457,7 +458,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
               {collection.status === "previewing" && "Reading the first results…"}
               {collection.status === "preview_ready" && `Preview: ${collection.preview?.total ?? 0} people found so far`}
               {collection.status === "queued" && (collection.workerActive === false ? "No worker is running, so this cannot start yet" : "Waiting for the worker…")}
-              {collection.status === "running" && `Collecting: ${collection.fetched} found`}
+              {collection.status === "running" && `Collecting: ${collection.fetched.toLocaleString()} found so far`}
               {collection.status === "completed" && `Done: ${collection.created} new ${collection.created === 1 ? "lead" : "leads"} added to “${collection.listName}”${collection.fetched > collection.created ? `, ${collection.fetched - collection.created} already in Synex and put on the list` : ""}`}
               {collection.status === "stopped" && "Stopped"}
               {collection.status === "failed" && "The read stopped early"}
@@ -494,6 +495,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="flex justify-end gap-2">
               {working && <Button variant="outline" onClick={stop}>Stop</Button>}
+              {working && <Button onClick={() => { toast.message("The import continues in the background. Its progress stays at the bottom right."); close(false); }}>Keep working: run in background</Button>}
               {collection.status === "preview_ready" && (
                 <>
                   <Button variant="outline" onClick={() => setCollection(null)}>Back</Button>

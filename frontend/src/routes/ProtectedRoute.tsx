@@ -16,8 +16,14 @@ function FullScreenLoader() {
   );
 }
 
+/** The page someone tried to open while signed out. It is honoured for ten minutes only: an old one must not send a later sign-in somewhere unexpected. */
+const RETURN_FOR_MS = 10 * 60 * 1000;
 function destination() {
-  const path = sessionStorage.getItem("synex.returnTo");
+  let path: string | null = null;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("synex.returnTo") ?? "null") as { path?: string; at?: number } | null;
+    if (saved?.path && typeof saved.at === "number" && Date.now() - saved.at < RETURN_FOR_MS) path = saved.path;
+  } catch { /* an old or damaged value is simply not used */ }
   return path && /^\/(?!\/)/.test(path) && !path.includes("\\") ? path : "/dashboard";
 }
 export function ProtectedRoute() {
@@ -26,7 +32,7 @@ export function ProtectedRoute() {
   const target=destination();
   useEffect(()=>{
     if (isLoading) return;
-    if (!isAuthenticated) sessionStorage.setItem("synex.returnTo",current);
+    if (!isAuthenticated) sessionStorage.setItem("synex.returnTo", JSON.stringify({ path: current, at: Date.now() }));
     else if (current===target || location.pathname!=="/dashboard") sessionStorage.removeItem("synex.returnTo");
   },[current,target,isLoading,isAuthenticated,location.pathname]);
   if(isLoading)return <FullScreenLoader/>;

@@ -118,6 +118,12 @@ class WhyNothingIsHappeningTest(CampaignRunsTest):
     def test_work_that_is_not_due_yet_has_no_warning(self):
         self.assertIsNone(self.monitor()["waiting"])
 
+    def test_the_timeline_lists_who_is_next_and_when(self):
+        body = self.monitor()
+        self.assertEqual([u["leadName"] for u in body["upcoming"]], ["Ada Lovelace"])
+        self.assertEqual(body["upcoming"][0]["step"], "wait")
+        self.assertEqual(body["recent"], [])
+
     def test_due_work_with_no_worker_says_to_start_it(self):
         self.make_due()
         body = self.monitor()

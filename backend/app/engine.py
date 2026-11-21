@@ -572,6 +572,12 @@ def stop_reason_for(campaign: models.Campaign, lead: models.Lead) -> str | None:
     return None
 
 
+def already_connected(campaign: models.Campaign, lead: models.Lead) -> bool:
+    """A lead the sender is connected to: accepted, 1st degree, or reached through a "My connections" campaign."""
+    return (lead.status in ACCEPTED_STATES or lead.connection_degree == 1
+            or (campaign.audience_source or {}).get("type") == "connections")
+
+
 def _await_acceptance(db, campaign, run, step, lead, accounts, now) -> None:
     """The lead has not accepted yet: poll LinkedIn on a slow schedule (counted against limits)."""
     run.status = "waiting_connection"
@@ -635,8 +641,7 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
         return
 
     if step.type == "if_connected":
-        connected = lead.status in ACCEPTED_STATES or (campaign.audience_source or {}).get("type") == "connections"
-        if connected:
+        if already_connected(campaign, lead):
             _branch_and_continue(db, campaign, steps, run, step, "yes", accounts, now)
             return
         days = (step.config or {}).get("waitDays", step_types.DEFAULT_CONNECTION_WAIT_DAYS)
@@ -656,14 +661,14 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
 
     if step.type == "connection_request":
         # Skip when already connected, or when the audience is "My connections".
-        if (campaign.audience_source or {}).get("type") == "connections" or lead.status in ACCEPTED_STATES:
+        if already_connected(campaign, lead):
             move_past(steps, run, step, now)
             return
         _send_or_park(db, campaign, run, step, "send_invite", lead, message_for(db, campaign, step, lead)[0], accounts, now)
         return
 
     if step.type in ("message", "follow_up"):
-        if lead.status not in ACCEPTED_STATES:
+        if not already_connected(campaign, lead):
             _await_acceptance(db, campaign, run, step, lead, accounts, now)
             return
         _send_or_park(db, campaign, run, step, "send_message", lead, message_for(db, campaign, step, lead)[0], accounts, now)
@@ -676,7 +681,7 @@ def _advance_run(db: Session, campaign, steps, run, accounts, now) -> None:
         return
 
     if step.type == "voice_note":
-        if lead.status not in ACCEPTED_STATES:
+        if not already_connected(campaign, lead):
             _await_acceptance(db, campaign, run, step, lead, accounts, now)
             return
         config = step.config or {}

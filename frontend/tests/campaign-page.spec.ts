@@ -69,7 +69,7 @@ test("the Leads tab shows each lead's step and status, and the Sequence tab show
   await open(page);
   await page.getByRole("tab", { name: "Leads" }).click();
   const table = page.getByRole("table");
-  await expect(table.getByRole("row", { name: /Ada Lovelace/ })).toContainText("Waiting to connect");
+  await expect(table.getByRole("row", { name: /Ada Lovelace/ })).toContainText("Waiting for them to accept");
   await expect(table.getByRole("row", { name: /Ada Lovelace/ })).toContainText("Mathematician");
   await expect(table.getByRole("row", { name: /Bo Bee/ })).toContainText("Replied");
   await page.getByRole("tab", { name: "Sequence" }).click();

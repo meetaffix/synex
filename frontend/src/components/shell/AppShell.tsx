@@ -8,6 +8,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { AssistantProvider } from "@/features/assistant/AssistantProvider";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import { BackgroundImports } from "@/features/leads/BackgroundImports";
 
 const STORAGE_KEY = "synex.sidebar.collapsed";
 
@@ -98,6 +99,7 @@ function Shell() {
           </ErrorBoundary>
         </main>
       </div>
+      <BackgroundImports />
     </div>
   );
 }

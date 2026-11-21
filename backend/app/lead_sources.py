@@ -273,16 +273,22 @@ def import_collection(db: Session, collection: models.LeadCollection) -> int:
     created = 0
     for item in keep:
         lead = existing.get(item.url_key)
+        # Someone on the sender's own connection list, or shown as 1st degree, is already connected: no request, no acceptance wait.
+        connected = collection.source == "connections" or item.degree == 1
+        degree = 1 if connected else item.degree
         if lead is None:
             first, _, last = (item.name or "").strip().partition(" ")
             lead = models.Lead(user_id=collection.user_id, first_name=first, last_name=last, headline=item.headline,
                                company=item.company or "", location=item.location, linkedin_url=item.profile_url,
-                               connection_degree=item.degree, source=collection.source, status="new",
+                               connection_degree=degree, source=collection.source, status="connected" if connected else "new",
                                email=(item.extra or {}).get("email"))
             db.add(lead)
             created += 1
-        elif lead.connection_degree is None and item.degree is not None:
-            lead.connection_degree = item.degree
+        else:
+            if lead.connection_degree is None and degree is not None:
+                lead.connection_degree = degree
+            if connected and lead.status in ("new", "contacted", "pending"):
+                lead.status = "connected"
         lead_list.leads.append(lead)
     collection.list_id, collection.created_count, collection.skipped = lead_list.id, created, skipped
     return created

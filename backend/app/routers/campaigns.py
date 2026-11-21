@@ -442,7 +442,24 @@ def _monitor(campaign_id: str, db: Session, user: models.User):
     steps = engine.sorted_steps(campaign)
     worker_up = _worker_running(db, now)
     due = bool(pending_runs) and not in_flight and any(engine._aware(r.next_action_at) <= now for r in pending_runs)
+    step_by_id = {s.id: s for s in steps}
+    upcoming = sorted(pending_runs, key=lambda r: engine._aware(r.next_action_at))[:15]
+    live = [a for a in accounts if engine.account_is_live(a, now)]
+    gap = None
+    if live:
+        base = engine.pacing_base(campaign, now, None, max(engine.remaining_capacity(a, now) for a in live))
+        if base is not None:
+            low, high = (round(base * f / 60, 1) for f in engine.GAP_JITTER)
+            gap = {"minMinutes": low, "maxMinutes": high}
     return {
+        # What happens next, in order: each lead's next step and when it is due. The gap is the random pause between two actions on one account.
+        "upcoming": [
+            {"runId": r.id, "leadName": _lead_name(r.lead), "step": step_by_id[r.current_step_id].type if r.current_step_id in step_by_id else None,
+             "status": r.status, "at": engine._aware(r.next_action_at).isoformat()}
+            for r in upcoming
+        ],
+        "gap": gap,
+        "recent": [_task_out(t) for t in executed[:15]],
         "workerRunning": worker_up,
         "waiting": _waiting_reason(campaign, accounts, worker_up, due, now),
         "campaignId": campaign.id,

@@ -1475,5 +1475,24 @@ class LimitApiTest(OutreachCase):
             migrate()  # runs once only
 
 
+
+class MyConnectionsTest(OutreachCase):
+    """People who are already connections get the message straight away: no connection request, no wait for an acceptance, no profile check."""
+
+    def test_a_my_connections_campaign_messages_without_waiting_for_acceptance(self):
+        self.make_campaign(["ada"], steps=[{"type": "message", "message": "Hi {{firstName}}"}], audience_source={"type": "connections"})
+        self.drive(lambda: len(self.tasks("send_message")) >= 1)
+        self.assertEqual(self.tasks("check_connection"), [])
+        self.assertEqual(self.tasks("send_invite"), [])
+
+    def test_a_first_degree_lead_is_treated_as_connected_in_any_campaign(self):
+        self.make_campaign([{"user": "bo"}], steps=[{"type": "message", "message": "Hi"}])
+        with SessionLocal() as db:
+            db.query(models.Lead).filter_by(first_name="Bo").one().connection_degree = 1
+            db.commit()
+        self.drive(lambda: len(self.tasks("send_message")) >= 1)
+        self.assertEqual(self.tasks("check_connection"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

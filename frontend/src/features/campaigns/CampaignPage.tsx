@@ -20,6 +20,8 @@ interface Task { id: string; runId: string; type: string; status: string; leadNa
 interface Monitor {
   status: string; health: "ok" | "attention" | "failed"; runCounts: Record<string, number>; currentActions: Task[]; lastExecuted: Task | null; failures: Task[];
   workerRunning?: boolean; waiting?: { code: string; message: string } | null;
+  upcoming?: { runId: string; leadName: string; step: string | null; status: string; at: string }[];
+  gap?: { minMinutes: number; maxMinutes: number } | null; recent?: Task[];
   nextScheduled: { leadName: string; at: string } | null; accounts: { id: string; name: string; live: boolean; dailyActionsUsed: number; dailyActionLimit: number }[];
 }
 interface Run { runId: string; leadName: string; headline: string; status: string; stopReason: string | null; stepType: string | null; nextActionAt: string | null }
@@ -28,7 +30,7 @@ const STATUS: Record<string, { label: string; variant: NonNullable<BadgeProps["v
   active: { label: "Running", variant: "success" }, paused: { label: "Paused", variant: "warning" }, draft: { label: "Draft", variant: "muted" },
   completed: { label: "Finished", variant: "secondary" }, archived: { label: "Archived", variant: "muted" },
 };
-const RUN: Record<string, string> = { running: "In progress", waiting_connection: "Waiting to connect", awaiting_agent: "Waiting for the worker", needs_review: "Needs review", completed: "Finished", stopped: "Stopped" };
+const RUN: Record<string, string> = { running: "In progress", waiting_connection: "Waiting for them to accept", awaiting_agent: "Waiting for the worker", needs_review: "Needs review", completed: "Finished", stopped: "Stopped" };
 const STOP: Record<string, string> = { replied: "Replied", interested: "Interested", not_interested: "Not interested", ended: "Sequence ended", send_failed: "Could not send" };
 const STEP: Record<string, string> = { connection_request: "Connection request", message: "Message", follow_up: "Follow-up", wait: "Waiting", if_connected: "Waiting for acceptance", profile_visit: "Profile visit", follow: "Follow", like_post: "Like a post", withdraw_invite: "Withdraw invite", voice_note: "Voice note", inmail: "InMail", free_inmail: "Free InMail", end: "End" };
 const ACTION: Record<string, string> = { send_invite: "Connection request", send_message: "Message", visit_profile: "Profile visit", sync_inbox: "Inbox read", check_connection: "Connection check" };
@@ -122,6 +124,40 @@ export function CampaignPage() {
               {m.accounts.map((a) => (
                 <p key={a.id} className="flex items-center justify-between gap-2 text-sm"><span>{a.name}{!a.live && <span className="text-danger"> (not connected)</span>}</span><span className="text-muted-foreground">{a.dailyActionsUsed} of {a.dailyActionLimit} actions</span></p>
               ))}
+            </section>
+            <section aria-labelledby="plan-h" className="grid content-start gap-2 rounded-lg border border-border bg-surface p-4 lg:col-span-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="plan-h" className="text-base font-semibold">Timeline</h2>
+                {m.gap && <p className="text-xs text-muted-foreground">Each account waits a random {m.gap.minMinutes} to {m.gap.maxMinutes} minutes between actions, so it never acts like a robot.</p>}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid content-start gap-1">
+                  <h3 className="text-sm font-medium">Coming up</h3>
+                  {(m.upcoming ?? []).length === 0 ? <p className="text-sm text-muted-foreground">Nothing is waiting.</p> : (
+                    <ol aria-label="Coming up" className="grid gap-1 text-sm">
+                      {(m.upcoming ?? []).map((u) => (
+                        <li key={u.runId} className="flex items-baseline justify-between gap-3 rounded-md bg-surface-muted px-3 py-2">
+                          <span className="min-w-0 truncate"><span className="font-medium">{u.leadName}</span> · {u.step ? STEP[u.step] ?? u.step : "Finishing"}{u.status === "waiting_connection" ? " (after they accept)" : ""}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{new Date(u.at).getTime() <= Date.now() ? "next up" : new Date(u.at).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+                <div className="grid content-start gap-1">
+                  <h3 className="text-sm font-medium">Done so far</h3>
+                  {(m.recent ?? []).length === 0 ? <p className="text-sm text-muted-foreground">Nothing has been sent yet.</p> : (
+                    <ol aria-label="Done so far" className="grid gap-1 text-sm">
+                      {(m.recent ?? []).map((t) => (
+                        <li key={t.id} className="flex items-baseline justify-between gap-3 rounded-md bg-surface-muted px-3 py-2">
+                          <span className="min-w-0 truncate"><span className="font-medium">{t.leadName}</span> · {ACTION[t.type] ?? t.type}{t.status !== "done" ? ` (${t.status.replaceAll("_", " ")})` : ""}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{t.updatedAt ? formatRelative(t.updatedAt) : ""}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
             </section>
             {m.failures.length > 0 && (
               <section aria-labelledby="fail-h" className="grid gap-2 rounded-lg border border-danger/40 bg-danger-soft p-4 lg:col-span-2">
