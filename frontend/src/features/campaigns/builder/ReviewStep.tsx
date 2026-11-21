@@ -45,7 +45,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
     onError: (e) => toast.error(requestFailureMessage(e)),
   });
   const approveAll = useMutation({ mutationFn: () => draftsApi.approve(campaignId, true), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["drafts", campaignId] }); await qc.invalidateQueries({ queryKey: ["launch-check"] }); } });
-  const dryRun = useMutation({ mutationFn: async () => { await flush(); return dryRunSchema(await api.post(`/campaigns/${campaignId}/dry-run`)); }, onSuccess: setDry, onError: (e) => toast.error(requestFailureMessage(e)) });
+  const dryRun = useMutation({ mutationFn: async () => { await flush(); return dryRunSchema(await api.post(`/campaigns/${campaignId}/dry-run`)); }, onSuccess: (d) => { setDry(d); setConfirmed(false); }, onError: (e) => toast.error(requestFailureMessage(e)) });
   const launch = useMutation({
     mutationFn: async () => { await flush(); await api.post("/campaigns", { action: "update", id: campaignId, status: "active" }); },
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["campaigns"] }); toast.success("Campaign launched."); onLaunched(); },
@@ -174,7 +174,7 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
                   <tr key={i} className="border-t border-border">
                     <th scope="row" className="px-3 py-2 text-left font-medium">{a.leadName}</th>
                     <td className="px-3 py-2">{a.accountName ?? "None"}</td>
-                    <td className="px-3 py-2">{a.skipReason ? "Skipped" : `${a.stepType?.replaceAll("_", " ")}${a.message ? `: ${a.message.slice(0, 60)}` : ""}`}</td>
+                    <td className="px-3 py-2">{a.skipReason ? "Skipped" : `${a.stepType?.replaceAll("_", " ")}${a.message ? `: ${a.message}` : ""}`}</td>
                     <td className="px-3 py-2">{a.skipReason ?? (a.earliestAt ? new Date(a.earliestAt).toLocaleString() : "")}</td>
                   </tr>
                 ))}
@@ -182,7 +182,8 @@ export function ReviewStep({ state, set, campaignId, problems, checking, goTo, o
             </table>
           </div>
         )}
-        <label className="flex items-center gap-2 text-sm"><Checkbox checked={confirmed} disabled={blocked} onCheckedChange={(v) => setConfirmed(v === true)} /> I confirm all details are correct and ready to launch</label>
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={confirmed} disabled={blocked || !dry} onCheckedChange={(v) => setConfirmed(v === true)} /> I have read who is sent to and what is sent, and I confirm the campaign is ready to launch</label>
+        {!blocked && !dry && <p className="text-xs text-muted-foreground">Preview what would be sent first. The launch is confirmed against that list.</p>}
         <div>
           <Button size="lg" className="w-full sm:w-auto" disabled={blocked || !confirmed} loading={launch.isPending} onClick={() => launch.mutate()}>
             {blocked ? (problems && problems.length > 0 ? `Fix ${problems.length} thing${problems.length === 1 ? "" : "s"} to launch` : "Checking") : "Launch campaign"}

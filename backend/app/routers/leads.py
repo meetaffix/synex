@@ -652,6 +652,9 @@ def add_to_campaign(lead_id: str, body: dict, db: Session = Depends(get_db), use
         raise HTTPException(409, "This person or their company is on the do-not-contact list, so they cannot be added to a campaign.")
     if campaign.lead_list is None:
         raise HTTPException(409, "This campaign has no lead list yet. Choose one in the campaign's Leads step first.")
+    if campaign.status == "active":  # checked before anything changes: refusing must leave the list as it was
+        from .campaigns import require_send_confirmation
+        require_send_confirmation(body.get("confirmSend") is True, "Adding this person to a running campaign")
     if lead not in campaign.lead_list.leads:
         campaign.lead_list.leads.append(lead)
     started = 0

@@ -37,6 +37,13 @@ def _default_steps() -> list[dict]:
     ]
 
 
+def require_send_confirmation(confirmed: bool, what: str) -> None:
+    """Anything that can start a real send after a campaign's first launch must have been confirmed by the person at the screen."""
+    if not confirmed:
+        raise HTTPException(status_code=409, detail={"code": "send_confirmation_required",
+                                                     "message": f"{what} can start real messages to real people. Confirm it on the screen that shows who is sent to next."})
+
+
 def _owned(db: Session, user: models.User, campaign_id: str) -> models.Campaign:
     c = db.get(models.Campaign, campaign_id)
     if not c or c.user_id != user.id:
@@ -353,6 +360,8 @@ def _update(campaign_id: str, payload: CampaignUpdateIn, db: Session, user: mode
 
     # Going live: validate, stamp launch time, and enroll prospects in the engine.
     if data.get("status") == "active":
+        if was_paused:  # a resume: the first launch is confirmed in the builder's review step
+            require_send_confirmation(payload.confirm_send, "Resuming this campaign")
         _validate_launch(db, campaign)
         first_launch = campaign.launched_at is None
         if first_launch:
@@ -537,6 +546,7 @@ def _run_action(campaign_id: str, run_id: str, payload: RunActionIn, db: Session
     attempts are archived so the failure counter restarts."""
     if payload.action not in ("retry", "skip"):
         raise HTTPException(status_code=400, detail="action must be 'retry' or 'skip'")
+    require_send_confirmation(payload.confirm_send, "Retrying or skipping this step")
     run = _owned_run(db, user, campaign_id, run_id)
     now = datetime.now(timezone.utc)
     # Archive previous failed attempts so the failure counter restarts, and free their
@@ -670,6 +680,6 @@ def write_campaigns(
         if not (body.get("id") and body.get("runId")):
             raise HTTPException(status_code=400, detail="id and runId are required for a run action")
         return _run_action(
-            body["id"], body["runId"], _parse(RunActionIn, {"action": body.get("runAction")}), db, user
+            body["id"], body["runId"], _parse(RunActionIn, {"action": body.get("runAction"), "confirmSend": body.get("confirmSend") is True}), db, user
         )
     raise HTTPException(status_code=400, detail=f"Unknown campaign action: {action!r}")

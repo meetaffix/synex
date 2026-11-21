@@ -19,6 +19,8 @@ interface Props {
   campaignId: string;
   /** Every lead is already a connection: a connection request is not offered and one already in the sequence is flagged. */
   audienceConnections?: boolean;
+  /** The campaign is sending: wiping the whole sequence is not offered, because people are on its steps right now. */
+  running?: boolean;
 }
 
 const ONCE_ACTIONS: StepType[] = ["profile_visit", "follow", "like_post", "withdraw_invite"];
@@ -127,7 +129,7 @@ function layout(steps: BuilderStep[], issues: { key: number; message: string }[]
 }
 
 /** The Smart sequence: a tree of actions with If steps that split into two branches. Every node shows its settings on its card. */
-export function SmartGraph({ state, set, campaignId, audienceConnections = false }: Props) {
+export function SmartGraph({ state, set, campaignId, audienceConnections = false, running = false }: Props) {
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [full, setFull] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -251,7 +253,7 @@ export function SmartGraph({ state, set, campaignId, audienceConnections = false
     <div className={full ? "fixed inset-0 z-50 grid grid-rows-[auto_1fr] gap-2 bg-background p-4" : "grid gap-2"} {...(full ? { role: "region", "aria-label": "Sequence graph, full screen" } : {})}>
       <div role="toolbar" aria-label="Graph tools" className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" size="sm" variant="outline" onClick={() => setFull(!full)}>{full ? <><Minimize2 aria-hidden /> Exit full screen</> : <><Maximize2 aria-hidden /> Full screen</>}</Button>
-        <Button type="button" size="sm" variant="outline" className="text-danger" disabled={steps.length === 0} onClick={() => setClearing(true)}><Trash2 aria-hidden /> Clear all</Button>
+        {!running && <Button type="button" size="sm" variant="outline" className="text-danger" disabled={steps.length === 0} onClick={() => setClearing(true)}><Trash2 aria-hidden /> Clear all</Button>}
       </div>
       <div className={`${full ? "min-h-0" : "h-[680px]"} overflow-hidden rounded-lg border border-border bg-surface-muted`} role="region" aria-label="Sequence graph canvas">
         <ReactFlowProvider>

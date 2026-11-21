@@ -58,7 +58,7 @@ class OverviewTest(unittest.TestCase):
         return self.client.get(f"/leads/{self.lead_id}/overview").json()
 
     def add(self, key):
-        return self.client.post(f"/leads/{self.lead_id}/add-to-campaign", json={"campaignId": self.ids[key]})
+        return self.client.post(f"/leads/{self.lead_id}/add-to-campaign", json={"campaignId": self.ids[key], "confirmSend": True})
 
     def test_a_lead_in_no_campaign_says_so_and_another_workspaces_lead_is_hidden(self):
         data = self.overview()

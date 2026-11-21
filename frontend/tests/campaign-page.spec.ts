@@ -62,7 +62,12 @@ test("a failed action can be retried or skipped from the page", async ({ page })
   const needs = page.getByRole("region", { name: "Needs attention" });
   await expect(needs).toContainText("Cy Cee: The profile could not be opened");
   await needs.getByRole("button", { name: "Retry" }).click();
-  await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).toContainEqual({ action: "run", id: "c1", runId: "r3", runAction: "retry" });
+  // A retry can start a real message, so nothing is sent until the person has seen who and what and said yes.
+  const dialog = page.getByRole("dialog", { name: "Try Cy Cee again?" });
+  await expect(dialog.getByTestId("send-confirm-list")).toContainText("Hi Cy");
+  expect(callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).not.toContainEqual(expect.objectContaining({ action: "run" }));
+  await dialog.getByRole("button", { name: "Yes, try again" }).click();
+  await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).toContainEqual({ action: "run", id: "c1", confirmSend: true, runId: "r3", runAction: "retry" });
 });
 
 test("the Leads tab shows each lead's step and status, and the Sequence tab shows the steps", async ({ page }) => {
@@ -83,6 +88,16 @@ test("Pause stops the campaign and a paused one offers Resume and Edit", async (
   await expect(page.getByRole("button", { name: /Edit sequence/ })).toBeVisible(); // a running sequence can be edited
   await page.getByRole("button", { name: "Pause" }).click();
   await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).toContainEqual({ action: "update", id: "c1", status: "paused" });
+});
+
+test("Resume shows who is sent to next and sends nothing until it is confirmed", async ({ page }) => {
+  const api = await open(page, "paused");
+  await page.getByRole("button", { name: "Resume" }).click();
+  const dialog = page.getByRole("dialog", { name: "Resume this campaign?" });
+  await expect(dialog.getByTestId("send-confirm-list")).toContainText("Cy Cee");
+  expect(callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).not.toContainEqual(expect.objectContaining({ status: "active" }));
+  await dialog.getByRole("button", { name: "Yes, resume sending" }).click();
+  await expect.poll(() => callsTo(api, "POST", /^\/campaigns$/).map((c) => c.body)).toContainEqual({ action: "update", id: "c1", status: "active", confirmSend: true });
 });
 
 test("a paused campaign shows Resume and Edit sequence", async ({ page }) => {

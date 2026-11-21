@@ -307,6 +307,7 @@ class CampaignIn(CampaignSettingsIn):
 
 
 class CampaignUpdateIn(CampaignSettingsIn):
+    confirm_send: bool = False  # set by the screen after the person has seen who is sent to next; needed to resume a paused campaign
     name: str | None = Field(None, max_length=200)
     description: str | None = Field(None, max_length=2000)
     status: str | None = None
@@ -348,6 +349,7 @@ class TeamMemberUpdateIn(CamelIn):
 
 class RunActionIn(CamelIn):
     action: str  # retry | skip
+    confirm_send: bool = False  # retry and skip can start a real send, so the person must have seen it first
 
 
 # ------------------------------- Templates -------------------------------

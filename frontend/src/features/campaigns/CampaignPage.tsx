@@ -13,6 +13,7 @@ import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { api, ApiError } from "@/services/client";
 import { formatNumber, formatPercent, formatRelative } from "@/utils/format";
 import { BuilderPage } from "./builder/BuilderPage";
+import { SendConfirmDialog } from "./SendConfirmDialog";
 import { type ServerCampaign } from "./builder/model";
 
 type Detail = ServerCampaign & { displayStatus?: string; accountName?: string; stats?: { totalLeads?: number } };
@@ -68,14 +69,16 @@ export function CampaignPage() {
   const monitor = useQuery({ queryKey: ["campaign-monitor", campaignId], queryFn: () => api.get<Monitor>(`/campaigns?id=${campaignId}&monitor=1`), refetchInterval: 10_000 });
   const runs = useQuery({ queryKey: ["campaign-runs", campaignId], queryFn: () => api.get<Run[]>(`/campaigns/${campaignId}/runs`), refetchInterval: 10_000 });
   const refresh = () => Promise.all(["campaign-page", "campaign-monitor", "campaign-runs", "campaigns"].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+  // Resuming, retrying and skipping can start real messages, so each one waits for a yes on a screen that shows who is sent to and what.
+  const [confirming, setConfirming] = useState<null | { kind: "resume" } | { kind: "retry" | "skip"; runId: string; leadName: string }>(null);
   const setStatus = useMutation({
-    mutationFn: (status: "paused" | "active") => api.post("/campaigns", { action: "update", id: campaignId, status }),
-    onSuccess: async (_d, status) => { await refresh(); toast.success(status === "paused" ? "Campaign paused. Nothing more is sent until you resume it." : "Campaign resumed."); },
+    mutationFn: (status: "paused" | "active") => api.post("/campaigns", { action: "update", id: campaignId, status, ...(status === "active" ? { confirmSend: true } : {}) }),
+    onSuccess: async (_d, status) => { setConfirming(null); await refresh(); toast.success(status === "paused" ? "Campaign paused. Nothing more is sent until you resume it." : "Campaign resumed."); },
     onError: (e) => toast.error(requestFailureMessage(e)),
   });
   const fix = useMutation({
-    mutationFn: (v: { runId: string; runAction: "retry" | "skip" }) => api.post("/campaigns", { action: "run", id: campaignId, ...v }),
-    onSuccess: async () => { await refresh(); toast.success("Done. The lead is back in the sequence."); },
+    mutationFn: (v: { runId: string; runAction: "retry" | "skip" }) => api.post("/campaigns", { action: "run", id: campaignId, confirmSend: true, ...v }),
+    onSuccess: async () => { setConfirming(null); await refresh(); toast.success("Done. The lead is back in the sequence."); },
     onError: (e) => toast.error(requestFailureMessage(e)),
   });
 
@@ -103,7 +106,7 @@ export function CampaignPage() {
           <>
             <Badge variant={status.variant}>{status.label}</Badge>
             {live && <Button variant="outline" loading={setStatus.isPending} onClick={() => setStatus.mutate("paused")}><Pause aria-hidden /> Pause</Button>}
-            {c.status === "paused" && <Button loading={setStatus.isPending} onClick={() => setStatus.mutate("active")}><Play aria-hidden /> Resume</Button>}
+            {c.status === "paused" && <Button loading={setStatus.isPending} onClick={() => setConfirming({ kind: "resume" })}><Play aria-hidden /> Resume</Button>}
             {["draft", "paused", "active"].includes(c.status) && <Button variant="outline" onClick={() => setTab("sequence")}><Pencil aria-hidden /> Edit sequence</Button>}
           </>
         }
@@ -178,8 +181,8 @@ export function CampaignPage() {
                   <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span>{ACTION[t.type] ?? t.type} for {t.leadName}: {t.error ?? t.status.replaceAll("_", " ")}</span>
                     <span className="flex gap-2">
-                      <Button size="sm" variant="outline" disabled={fix.isPending} onClick={() => fix.mutate({ runId: t.runId, runAction: "retry" })}>Retry</Button>
-                      <Button size="sm" variant="outline" disabled={fix.isPending} onClick={() => fix.mutate({ runId: t.runId, runAction: "skip" })}>Skip</Button>
+                      <Button size="sm" variant="outline" disabled={fix.isPending} onClick={() => setConfirming({ kind: "retry", runId: t.runId, leadName: t.leadName })}>Retry</Button>
+                      <Button size="sm" variant="outline" disabled={fix.isPending} onClick={() => setConfirming({ kind: "skip", runId: t.runId, leadName: t.leadName })}>Skip</Button>
                     </span>
                   </div>
                 ))}
@@ -230,6 +233,21 @@ export function CampaignPage() {
           ].map(([k, v]) => <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>)}
         </dl>
       </TabPanel>
+      {confirming && (
+        <SendConfirmDialog
+          open
+          onOpenChange={(open) => !open && setConfirming(null)}
+          campaignId={campaignId}
+          onlyLead={confirming.kind === "resume" ? undefined : confirming.leadName}
+          title={confirming.kind === "resume" ? "Resume this campaign?" : confirming.kind === "retry" ? `Try ${confirming.leadName} again?` : `Skip this step for ${confirming.leadName}?`}
+          intro={confirming.kind === "resume"
+            ? "Resuming can start real messages to real people, inside the sender's daily limits and working hours. This is who is sent to next:"
+            : confirming.kind === "retry" ? "The step that failed is queued again and can send a real message. This is what would be sent:" : "The failed step is skipped and the next one can send a real message. This is what would be sent next:"}
+          confirmLabel={confirming.kind === "resume" ? "Yes, resume sending" : confirming.kind === "retry" ? "Yes, try again" : "Yes, skip the step"}
+          loading={setStatus.isPending || fix.isPending}
+          onConfirm={() => (confirming.kind === "resume" ? setStatus.mutate("active") : fix.mutate({ runId: confirming.runId, runAction: confirming.kind }))}
+        />
+      )}
     </div>
   );
 }

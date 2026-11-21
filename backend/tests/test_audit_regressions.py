@@ -83,5 +83,57 @@ class FalseReplyTest(OutreachCase):
         self.assertEqual(self._store([("out", "Hello Vimal"), ("in", "Hi, tell me more")]), "replied")
 
 
+class ConfirmBeforeSendTest(OutreachCase):
+    """Anything that can start a real send after the first launch needs an explicit confirmation from the person at the screen."""
+
+    def _campaign(self):
+        return self.make_campaign([{"user": "vimal", "status": "connected"}], MESSAGE_ONLY)
+
+    def _update(self, campaign_id, **fields):
+        return self.client.post("/campaigns", json={"action": "update", "id": campaign_id, **fields})
+
+    def test_resume_needs_a_confirmation(self):
+        campaign_id = self._campaign()
+        self.assertEqual(self._update(campaign_id, status="paused").status_code, 200)  # pausing never needs one
+        refused = self._update(campaign_id, status="active")
+        self.assertEqual(refused.status_code, 409, refused.text)
+        self.assertIn("send_confirmation_required", refused.text)
+        with SessionLocal() as db:
+            self.assertEqual(db.query(models.Campaign).one().status, "paused")
+        self.assertEqual(self._update(campaign_id, status="active", confirmSend=True).status_code, 200)
+
+    def test_retry_and_skip_need_a_confirmation(self):
+        campaign_id = self._campaign()
+        run_id = self.run_of("vimal").id
+        for action in ("retry", "skip"):
+            body = {"action": "run", "id": campaign_id, "runId": run_id, "runAction": action}
+            refused = self.client.post("/campaigns", json=body)
+            self.assertEqual(refused.status_code, 409, refused.text)
+            self.assertIn("send_confirmation_required", refused.text)
+        self.assertEqual(self.client.post("/campaigns", json={"action": "run", "id": campaign_id, "runId": run_id, "runAction": "retry", "confirmSend": True}).status_code, 200)
+
+    def test_adding_a_person_to_a_running_campaign_needs_a_confirmation(self):
+        campaign_id = self._campaign()
+        with SessionLocal() as db:
+            lead = models.Lead(user_id=self.user_id, first_name="Late", last_name="Test", status="connected", linkedin_url=MOCK.profile_url("late"))
+            db.add(lead)
+            db.commit()
+            lead_id = lead.id
+        refused = self.client.post(f"/leads/{lead_id}/add-to-campaign", json={"campaignId": campaign_id})
+        self.assertEqual(refused.status_code, 409, refused.text)
+        self.assertIn("send_confirmation_required", refused.text)
+        self.assertEqual(self.client.post(f"/leads/{lead_id}/add-to-campaign", json={"campaignId": campaign_id, "confirmSend": True}).status_code, 200)
+
+    def test_adding_a_person_to_a_paused_campaign_sends_nothing_so_needs_none(self):
+        campaign_id = self._campaign()
+        self._update(campaign_id, status="paused")
+        with SessionLocal() as db:
+            lead = models.Lead(user_id=self.user_id, first_name="Late", last_name="Test", status="connected", linkedin_url=MOCK.profile_url("late"))
+            db.add(lead)
+            db.commit()
+            lead_id = lead.id
+        self.assertEqual(self.client.post(f"/leads/{lead_id}/add-to-campaign", json={"campaignId": campaign_id}).status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

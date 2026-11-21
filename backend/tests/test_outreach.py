@@ -940,7 +940,7 @@ class CampaignActionsTest(OutreachCase):
             db.query(models.SequenceRun).update({"status": "needs_review"})
             db.commit()
         run_id = self.run_of("ann").id
-        r = self.client.post("/campaigns", json={"action": "run", "id": campaign_id, "runId": run_id, "runAction": "retry"})
+        r = self.client.post("/campaigns", json={"action": "run", "id": campaign_id, "runId": run_id, "runAction": "retry", "confirmSend": True})
         self.assertEqual(r.status_code, 200, r.text)
         self.tick()
         self.assertEqual(sorted(t.status for t in self.tasks("send_invite")), ["abandoned", "pending"])
@@ -948,7 +948,7 @@ class CampaignActionsTest(OutreachCase):
     def test_skip_moves_the_run_past_the_current_step(self):
         campaign_id = self.make_campaign(["ann"], [{"type": "connection_request", "message": "Hi"}, {"type": "profile_visit"}, {"type": "end"}])
         run = self.run_of("ann")
-        r = self.client.post("/campaigns", json={"action": "run", "id": campaign_id, "runId": run.id, "runAction": "skip"})
+        r = self.client.post("/campaigns", json={"action": "run", "id": campaign_id, "runId": run.id, "runAction": "skip", "confirmSend": True})
         self.assertEqual((r.status_code, r.json()["stepOrder"]), (200, 1))
 
     def test_the_monitor_reports_tasks_by_the_new_statuses(self):

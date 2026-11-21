@@ -82,7 +82,7 @@ test("review: schedule, exclusions with the do-not-contact list locked on, and t
   await expect(page.getByText("Missing required information")).toBeVisible();
   const launch = page.getByRole("button", { name: "Fix 3 things to launch" });
   await expect(launch).toBeDisabled();
-  await expect(page.getByLabel("I confirm all details are correct and ready to launch")).toBeDisabled();
+  await expect(page.getByLabel("I have read who is sent to and what is sent, and I confirm the campaign is ready to launch")).toBeDisabled();
   await page.getByRole("button", { name: "Go to List of leads" }).click();
   await expect(page).toHaveURL(/step=1/);
 });
@@ -114,7 +114,10 @@ test("review: AI messages show their cost before they are written, must be appro
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.getByRole("button", { name: "Approve all (1)" }).click();
   await expect(page.getByText("Everything needed to launch is in place.")).toBeVisible();
-  await page.getByLabel("I confirm all details are correct and ready to launch").check();
+  await expect(page.getByLabel("I have read who is sent to and what is sent, and I confirm the campaign is ready to launch")).toBeDisabled(); // the preview comes first
+  await page.getByRole("button", { name: "Preview what would be sent (dry run)" }).click();
+  await expect(page.getByText("Hi Ada").first()).toBeVisible();
+  await page.getByLabel("I have read who is sent to and what is sent, and I confirm the campaign is ready to launch").check();
   await page.getByRole("button", { name: "Launch campaign" }).click();
   await expect(page.getByText("Campaign launched.")).toBeVisible();
   expect(callsTo(api, "POST", /^\/campaigns$/).filter((c) => (c.body as { status?: string })?.status === "active")).toHaveLength(1);

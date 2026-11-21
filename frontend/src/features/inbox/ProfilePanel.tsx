@@ -1,3 +1,4 @@
+import { AddToRunningDialog } from "@/features/campaigns/AddToRunningDialog";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useCampaignList } from "@/features/campaigns/hooks";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
-import { api } from "@/services/client";
+import { api, ApiError } from "@/services/client";
 import { INTEREST_LABEL, useInboxActions, type InboxItem } from "./model";
 
 interface Overview {
@@ -22,10 +23,11 @@ export function ProfilePanel({ item, onClose }: { item: InboxItem; onClose: () =
   const qc = useQueryClient();
   const [tag, setTag] = useState("");
   const [campaignId, setCampaignId] = useState("");
+  const [asking, setAsking] = useState(false); // a running campaign starts the person at once, so the screen asks first
   const overview = useQuery({ queryKey: ["inbox", "lead-overview", item.leadId], queryFn: () => api.get<Overview>(`/leads/${item.leadId}/overview`) });
   const campaigns = useCampaignList();
   const add = useMutation({
-    mutationFn: () => api.post(`/leads/${item.leadId}/add-to-campaign`, { campaignId }),
+    mutationFn: (confirmSend?: boolean) => api.post(`/leads/${item.leadId}/add-to-campaign`, { campaignId, ...(confirmSend ? { confirmSend: true } : {}) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inbox", "lead-overview", item.leadId] }),
   });
   const run = (action: Parameters<typeof actions.bulk.mutate>[0]["action"], value?: string) =>
@@ -79,7 +81,11 @@ export function ProfilePanel({ item, onClose }: { item: InboxItem; onClose: () =
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1"><Label htmlFor="pp-campaign">Add to a campaign</Label>
               <NativeSelect id="pp-campaign" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}><option value="">Choose a campaign</option>{choices.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect></div>
-            <Button size="sm" disabled={!campaignId} loading={add.isPending} onClick={() => add.mutate(undefined, { onSuccess: () => { toast.success("Added to the campaign's lead list."); setCampaignId(""); }, onError: (e) => toast.error(requestFailureMessage(e)) })}>Add</Button>
+            <Button size="sm" disabled={!campaignId} loading={add.isPending} onClick={() => add.mutate(undefined, { onSuccess: () => { toast.success("Added to the campaign's lead list."); setCampaignId(""); }, onError: (e) => (e instanceof ApiError && e.code === "send_confirmation_required" ? setAsking(true) : toast.error(requestFailureMessage(e))) })}>Add</Button>
+            {asking && (
+              <AddToRunningDialog open onOpenChange={(o) => !o && setAsking(false)} campaignId={campaignId} leadName={item.leadName} loading={add.isPending}
+                onConfirm={() => add.mutate(true, { onSuccess: () => { toast.success("Added. Their sequence starts within the campaign's limits."); setCampaignId(""); setAsking(false); }, onError: (e) => { setAsking(false); toast.error(requestFailureMessage(e)); } })} />
+            )}
           </div>
         )}
       </section>

@@ -154,7 +154,7 @@ export function BuilderPage({ embedded = false }: { embedded?: boolean } = {}) {
           {!embedded && <h1 className="text-2xl font-semibold">Edit sequence: {state.name}</h1>}
           <p role="note" className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">{embedded ? "" : "This campaign is running. "}Changes apply to people who have not reached those steps yet, and are saved only when you press Save changes. A step someone is on right now cannot be removed.</p>
         </header>
-        <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />
+        <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} running={live.current} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="outline" disabled={embedded && saving !== "dirty" && saving !== "failed"} onClick={() => (dirty.current && !embedded ? setLeaving(true) : discard())}>{embedded ? "Discard changes" : "Cancel"}</Button>
           <div className="flex flex-wrap items-center gap-3">
@@ -213,7 +213,7 @@ export function BuilderPage({ embedded = false }: { embedded?: boolean } = {}) {
       <div className="min-w-0">
         {step === 0 && <SendersStep state={state} set={change} />}
         {step === 1 && <LeadsStep state={state} set={change} />}
-        {step === 2 && <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} />}
+        {step === 2 && <SequenceStep state={state} set={change} campaignId={campaignId} audienceConnections={audienceConnections} running={live.current} />}
         {step === 3 && (
           <ReviewStep state={state} set={change} campaignId={campaignId} problems={check.data?.problems} checking={check.isFetching} goTo={goTo}
             flush={persist} onLaunched={() => navigate(`/campaigns/${campaignId}`)} />

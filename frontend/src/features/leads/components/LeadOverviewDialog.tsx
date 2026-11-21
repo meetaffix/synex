@@ -1,3 +1,4 @@
+import { AddToRunningDialog } from "@/features/campaigns/AddToRunningDialog";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -33,8 +34,9 @@ export function LeadOverviewDialog({ lead, onClose }: { lead: Lead | null; onClo
   });
   const campaigns = useCampaignList();
   const [campaignId, setCampaignId] = useState("");
+  const [asking, setAsking] = useState(false); // a running campaign starts the person at once, so the screen asks first
   const add = useMutation({
-    mutationFn: () => api.post<{ added: boolean; started: boolean }>(`/leads/${lead?.id}/add-to-campaign`, { campaignId }),
+    mutationFn: (confirmSend?: boolean) => api.post<{ added: boolean; started: boolean }>(`/leads/${lead?.id}/add-to-campaign`, { campaignId, ...(confirmSend ? { confirmSend: true } : {}) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["lead-overview", lead?.id] }),
   });
   const choices = (campaigns.data ?? []).filter((c) => !query.data?.campaigns.some((x) => x.id === c.id));
@@ -89,7 +91,7 @@ export function LeadOverviewDialog({ lead, onClose }: { lead: Lead | null; onClo
                     </NativeSelect>
                   </div>
                   <Button size="sm" disabled={!campaignId} loading={add.isPending}
-                    onClick={() => add.mutate(undefined, { onSuccess: (r) => { toast.success(r.started ? "Added. Their sequence starts within the campaign's limits." : "Added to the campaign's lead list."); setCampaignId(""); }, onError: (e) => toast.error(requestFailureMessage(e)) })}>
+                    onClick={() => add.mutate(undefined, { onSuccess: (r) => { toast.success(r.started ? "Added. Their sequence starts within the campaign's limits." : "Added to the campaign's lead list."); setCampaignId(""); }, onError: (e) => (e instanceof ApiError && e.code === "send_confirmation_required" ? setAsking(true) : toast.error(requestFailureMessage(e))) })}>
                     Add
                   </Button>
                 </div>
@@ -114,6 +116,10 @@ export function LeadOverviewDialog({ lead, onClose }: { lead: Lead | null; onClo
           </div>
         )}
       </DialogContent>
+      {asking && lead && (
+        <AddToRunningDialog open onOpenChange={(o) => !o && setAsking(false)} campaignId={campaignId} leadName={`${lead.firstName} ${lead.lastName}`.trim()} loading={add.isPending}
+          onConfirm={() => add.mutate(true, { onSuccess: () => { toast.success("Added. Their sequence starts within the campaign's limits."); setCampaignId(""); setAsking(false); }, onError: (e) => { setAsking(false); toast.error(requestFailureMessage(e)); } })} />
+      )}
     </Dialog>
   );
 }

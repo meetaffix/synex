@@ -546,7 +546,8 @@ def _propose_campaign_state(ctx: ToolContext, a: SetCampaignState) -> Plan:
 
 def _apply_campaign_state(ctx: ToolContext, a: SetCampaignState) -> dict:
     _owned(ctx, models.Campaign, a.campaign_id, "campaign")
-    out = campaigns_router._update(a.campaign_id, CampaignUpdateIn(status="paused" if a.action == "pause" else "active"), ctx.db, ctx.workspace)
+    # the assistant's own confirmation card was the person's confirmation
+    out = campaigns_router._update(a.campaign_id, CampaignUpdateIn(status="paused" if a.action == "pause" else "active", confirm_send=True), ctx.db, ctx.workspace)
     return {"campaignId": a.campaign_id, "status": out["status"]}
 
 

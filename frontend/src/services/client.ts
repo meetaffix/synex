@@ -6,7 +6,8 @@ localStorage.removeItem("synex.token");
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -49,9 +50,13 @@ export async function request<T>(
 
   if (!res.ok) {
     let message = res.statusText;
+    let code: string | undefined;
     try {
       const data = await res.json();
-      message = typeof data.detail === "string" ? data.detail : Array.isArray(data.detail) ? data.detail.map((e: { msg: string }) => e.msg).join("; ") : data.message ?? message;
+      const detail = data.detail;
+      const object = detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as { code?: string; message?: string }) : null;
+      code = object?.code;
+      message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((e: { msg: string }) => e.msg).join("; ") : object?.message ?? data.message ?? message;
     } catch {
       /* non-json error body */
     }
@@ -59,7 +64,7 @@ export async function request<T>(
       // Token expired or invalid — drop it so the app returns to login.
       window.dispatchEvent(new Event("synex:unauthorized"));
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, code);
   }
 
   if (res.status === 204) return undefined as T;
