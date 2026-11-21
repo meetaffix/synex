@@ -20,6 +20,9 @@ from typing import Protocol
 from urllib.parse import urlsplit
 
 from playwright.async_api import Error as PlaywrightError, Page, TimeoutError as PlaywrightTimeout
+import logging
+
+log = logging.getLogger("synex.linkedin_session")
 
 
 class PageState(str, Enum):
@@ -332,6 +335,8 @@ class ProfileSelectors:
     comment_submit: str = ""
     # The profile's own header (name, headline, its buttons). Connection buttons are read only inside it. Empty means the whole page.
     top_card: str = ""
+    # A message bubble in an open conversation, used to confirm a send where the page has no data-direction marker (real LinkedIn).
+    sent_body: str = ""
 
 
 # UNVERIFIED against the live site.
@@ -341,7 +346,7 @@ REAL_PROFILE_SELECTORS = ProfileSelectors(
     unavailable_marker=":text('Page not found'), :text('Profile is not available')",
     connect_button="button[aria-label^='Invite'][aria-label$='to connect'], button:has-text('Connect')",
     pending_marker="button:has-text('Pending'), button[aria-label^='Pending']",
-    message_button="a[aria-label^='Message'], button:has-text('Message')",
+    message_button="a[href*='/messaging/compose']:text-is('Message'), button:text-is('Message'), a[aria-label^='Message ']:not([aria-label*='Premium']), button[aria-label^='Message ']",
     follow_button="button[aria-label^='Follow'], button:has-text('Follow')",
     following_marker="button[aria-label^='Following'], button:has-text('Following')",
     note_toggle="button[aria-label='Add a note']",
@@ -351,6 +356,7 @@ REAL_PROFILE_SELECTORS = ProfileSelectors(
     note_error="[data-test-note-error]",
     composer_input="div.msg-form__contenteditable, textarea[name='message']",
     composer_send="button.msg-form__send-button",
+    sent_body=".msg-s-event-listitem__body",
     conversation_item="li.msg-conversation-listitem",
     conversation_profile_link="a[href*='/in/']",
     thread_message="li.msg-s-message-list__event",
@@ -434,9 +440,15 @@ class ProfilePages:
             return "pending"
         if await shows(self.sel.message_button) and not await shows(self.sel.connect_button):
             return "connected"
-        if await shows(self.sel.connect_button):
-            return "not_connected"
-        return "connected" if await shows(self.sel.message_button) else "not_connected"
+        state = "not_connected" if await shows(self.sel.connect_button) else ("connected" if await shows(self.sel.message_button) else "not_connected")
+        if state == "not_connected":
+            try:  # only the labels of the header's buttons and links: no names, no message text
+                labels = await scope.locator("button, a[role='button'], a[href*='/messaging']").evaluate_all(
+                    "els => els.filter(e => e.offsetParent !== null).slice(0, 15).map(e => (e.getAttribute('aria-label') || e.innerText || '').trim().split(' ')[0].slice(0, 20))")
+                log.info("connection check read not_connected; header buttons: %s; scoped to header: %s", labels, scope is not page)
+            except PlaywrightError:
+                pass
+        return state
 
     async def is_following(self, page: Page) -> bool:
         return await _visible(page, self.sel.following_marker)
@@ -462,6 +474,19 @@ class ProfilePages:
         return await _visible(page, self.sel.note_error)
 
     async def start_message(self, page: Page) -> None:
+        if self.sel.top_card:
+            card = page.locator(self.sel.top_card).first
+            try:
+                target = card.locator(self.sel.message_button).first
+                if await card.is_visible() and await target.is_visible():
+                    try:  # the composer opens in place on real LinkedIn; a navigation is tolerated, not required
+                        async with page.expect_navigation(timeout=5_000):
+                            await target.click()
+                    except PlaywrightTimeout:
+                        pass
+                    return
+            except PlaywrightError:
+                pass
         await self._click_and_settle(page, self.sel.message_button)
 
     async def submit_message(self, page: Page, text: str) -> None:
@@ -532,7 +557,16 @@ class ProfilePages:
     async def last_sent_text(self, page: Page) -> str | None:
         out = page.locator(f"{self.sel.thread_message}[data-direction='out']")
         count = await out.count()
-        return (await out.nth(count - 1).inner_text()).strip() if count else None
+        if count:
+            return (await out.nth(count - 1).inner_text()).strip()
+        if self.sel.sent_body:  # real LinkedIn: the newest bubble in the open conversation is the one just sent
+            bodies = page.locator(self.sel.sent_body)
+            for _ in range(20):  # the bubble appears a moment after Send
+                n = await bodies.count()
+                if n:
+                    return (await bodies.nth(n - 1).inner_text()).strip()
+                await page.wait_for_timeout(250)
+        return None
 
     async def list_conversations(self, page: Page, since=None) -> list[ConversationRef]:
         await self.goto(page, self.base_url + "/messaging/")
