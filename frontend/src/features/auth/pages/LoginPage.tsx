@@ -74,7 +74,7 @@ const ClerkSignIn = lazy(() => import("../ClerkSignIn"));
 export function LoginPage() {
   if (!clerkEnabled) return <LocalLoginPage />;
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to your Synex workspace.">
+    <AuthLayout bare title="Welcome back" subtitle="Sign in to your Synex workspace.">
       <Suspense fallback={null}>
         <ClerkSignIn mode="sign-in" />
       </Suspense>

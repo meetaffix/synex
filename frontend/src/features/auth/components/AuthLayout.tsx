@@ -50,7 +50,8 @@ function ProductPreview() {
 }
 
 /** The first screen every person sees: the form on one side and the brand on the other. */
-export function AuthLayout({ children, title, subtitle }: { children: ReactNode; title: string; subtitle: string }) {
+/** `bare` is for a form that brings its own card and heading (Clerk): no second card, and the title stays for screen readers only. */
+export function AuthLayout({ children, title, subtitle, bare = false }: { children: ReactNode; title: string; subtitle: string; bare?: boolean }) {
   return (
     <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-1">
       {/* Phones: the brand is a header band. */}
@@ -62,8 +63,8 @@ export function AuthLayout({ children, title, subtitle }: { children: ReactNode;
       </header>
 
       <main className="flex items-start justify-center bg-surface-muted/50 px-4 py-8 sm:px-8 sm:py-12 lg:items-center">
-        <div className="grid w-full max-w-sm gap-6 rounded-xl border border-border bg-surface p-6 shadow-float sm:p-8">
-          <div className="grid gap-2">
+        <div className={bare ? "grid w-full max-w-sm gap-6" : "grid w-full max-w-sm gap-6 rounded-xl border border-border bg-surface p-6 shadow-float sm:p-8"}>
+          <div className={bare ? "sr-only" : "grid gap-2"}>
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>

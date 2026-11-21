@@ -83,7 +83,7 @@ const ClerkSignIn = lazy(() => import("../ClerkSignIn"));
 export function RegisterPage() {
   if (!clerkEnabled) return <LocalRegisterPage />;
   return (
-    <AuthLayout title="Create your account" subtitle="A workspace for your LinkedIn outreach.">
+    <AuthLayout bare title="Create your account" subtitle="A workspace for your LinkedIn outreach.">
       <Suspense fallback={null}>
         <ClerkSignIn mode="sign-up" />
       </Suspense>
