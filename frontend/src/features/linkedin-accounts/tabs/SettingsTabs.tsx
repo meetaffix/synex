@@ -122,6 +122,16 @@ export function HealthTab({ account, details }: { account: SenderAccount; detail
           </ul>
         )}
       </section>
+      {details.health && (
+        <section aria-labelledby="health-h" className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="health-h" className="text-base font-semibold">Safety score</h2>
+            <span data-testid="safety-score" className={`rounded-full px-3 py-1 text-sm font-semibold ${({ good: "bg-success-soft text-success", watch: "bg-warning-soft text-warning", risk: "bg-danger-soft text-danger" } as Record<string, string>)[details.health.level] ?? ""}`}>{details.health.score} · {details.health.label}</span>
+            {details.health.acceptanceRate !== null && <span className="text-sm text-muted-foreground">{details.health.acceptanceRate}% of requests accepted in 30 days</span>}
+          </div>
+          <ul className="grid gap-1 text-sm">{details.health.advice.map((a) => <li key={a}>{a}</li>)}</ul>
+        </section>
+      )}
       <section className="grid gap-2">
         <h2 className="text-base font-semibold">LinkedIn social selling score</h2>
         <p className="text-sm text-muted-foreground">

@@ -42,6 +42,7 @@ export const detailsSchema = z.object({
   usage: z.array(usageRowSchema),
   ssi: z.number().nullable(),
   ssiReason: z.string(),
+  health: z.object({ score: z.number(), level: z.string(), label: z.string(), acceptanceRate: z.number().nullable(), advice: z.array(z.string()) }).nullable().default(null),
   activity: z.array(z.object({ id: z.string(), step: z.string(), status: z.string(), message: z.string().nullable(), createdAt: z.string() })),
 });
 
@@ -50,6 +51,7 @@ export const accountSummarySchema = z.object({
   connections: rangeSchema,
   messages: rangeSchema,
   smart: z.boolean(),
+  health: z.object({ score: z.number(), level: z.string(), label: z.string() }).nullable().default(null),
   performance: z.object({ invited: z.number(), accepted: z.number(), replied: z.number(), acceptedPercent: z.number().nullable(), replyPercent: z.number().nullable() }),
 });
 export type AccountSummary = z.infer<typeof accountSummarySchema>;

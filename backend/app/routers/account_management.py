@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import account_policy, connections_runner, csv_safe, engine, models, plans, voices
+from .. import account_health, account_policy, connections_runner, csv_safe, engine, models, plans, voices
 from ..database import get_db
 from ..dedup import normalize_linkedin_url
 from ..deps import get_admin_user, get_current_user, get_data_user, get_manager_user
@@ -60,7 +60,8 @@ def overview(db: Session = Depends(get_db), workspace: models.User = Depends(get
         rows = {row["action"]: row for row in account_policy.usage_rows(db, account, now)}
         pick = lambda action: {k: rows[action][k] for k in ("used", "low", "high", "budget")}  # noqa: E731
         per_account[account.id] = {"connections": pick("send_invite"), "messages": pick("send_message"),
-                                   "smart": account_policy.policy_for(account).preset != "off", "performance": performance[account.id]}
+                                   "smart": account_policy.policy_for(account).preset != "off", "performance": performance[account.id],
+                                   "health": {k: v for k, v in account_health.score(db, account, now).items() if k in ("score", "level", "label")}}
     owner = db.get(models.User, workspace.id)
     seats = plans.limits_of(db, owner)["seats"] if owner else None
     return {"plan": plans.plan_of(db, owner).name if owner else "Demo", "planPlaceholder": True, "seatsUsed": used,
@@ -80,6 +81,7 @@ def details(account_id: str, db: Session = Depends(get_db), workspace: models.Us
     return {"accountId": account.id, "lifecycle": account.status, "activeCampaigns": active,
             "canChangePrivacy": service.store.can_change_sync_mode(account, actor.id),
             "policy": policy.model_dump(by_alias=True), "usage": account_policy.usage_rows(db, account, now),
+            "health": account_health.score(db, account, now),
             "voiceId": config.get("voiceId"), "ssi": None, "ssiReason": "No verified LinkedIn SSI data has been collected.",
             "activity": [{"id": a.id, "step": a.step, "status": a.status, "message": a.message,
                           "createdAt": a.created_at.isoformat()} for a in activities]}

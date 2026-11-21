@@ -122,6 +122,7 @@ export function AccountRow({ account, actions, checking, error, summary, index =
               </div>
             </dl>
             <ul aria-label={`${account.name}: performance`} className="flex flex-wrap items-center gap-2 text-xs">
+              {summary.health && <li className={`rounded-full px-2 py-0.5 font-semibold ${({ good: "bg-success-soft text-success", watch: "bg-warning-soft text-warning", risk: "bg-danger-soft text-danger" } as Record<string, string>)[summary.health.level] ?? ""}`} title="Safety score: how safe this account's activity looks to LinkedIn">Safety {summary.health.score}</li>}
               {summary.smart && <li className="rounded-full bg-primary-soft px-2 py-0.5 font-medium text-primary-soft-foreground">Smart limits</li>}
               <li className="rounded-full bg-surface-muted px-2 py-0.5" title="Of the people invited, the share who accepted">
                 Accepted {summary.performance.acceptedPercent === null ? "no data" : `${summary.performance.acceptedPercent}%`}
