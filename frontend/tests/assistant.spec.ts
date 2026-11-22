@@ -355,7 +355,11 @@ test.describe("assistant settings and privacy", () => {
     await expect(meter).toContainText("10 of 60 minutes used (100 in your plan)");
     await page.getByRole("switch", { name: "Turn on the assistant for this workspace" }).click();
     await expect.poll(() => mock.puts).toContainEqual({ enabled: false });
-    await page.getByLabel("Monthly minute limit").fill("90");
+    // The switch click saves and reloads the settings, which can reset the field after it was filled: fill again until Save is enabled.
+    await expect(async () => {
+      await page.getByLabel("Monthly minute limit").fill("90");
+      await expect(page.getByRole("button", { name: "Save limit" })).toBeEnabled({ timeout: 1000 });
+    }).toPass();
     await page.getByRole("button", { name: "Save limit" }).click();
     await expect.poll(() => mock.puts).toContainEqual({ monthlyMinuteCap: 90 });
     await page.getByRole("switch", { name: "Keep conversation history" }).click();
