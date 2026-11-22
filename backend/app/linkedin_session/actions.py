@@ -102,6 +102,8 @@ class InboundConversation:
     thread_id: str
     profile_url: str
     messages: list[ThreadMessage]
+    name: str = ""  # the person's name from the thread header, when known
+    photo: str = ""  # their profile photo address, when the header shows one
 
 
 async def _noop() -> None:
@@ -166,6 +168,16 @@ async def send_connection_request(session: ActionSession, profile_url: str, note
     return InviteResult.SENT
 
 
+async def _save_failure_picture(session: ActionSession, name: str) -> None:
+    """A redacted screenshot of the page into backend/captures (git-ignored). Never raises: it must not hide the real failure."""
+    try:
+        from pathlib import Path
+        from .capture import capture
+        await capture(session.pages.site, session.page, Path(__file__).resolve().parents[2] / "captures", name, None, name)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 async def send_message(session: ActionSession, profile_url: str, text: str) -> MessageResult:
     if not await _open(session, profile_url):
         return MessageResult.PROFILE_UNAVAILABLE
@@ -173,11 +185,20 @@ async def send_message(session: ActionSession, profile_url: str, text: str) -> M
         return MessageResult.NOT_CONNECTED
     await session.pages.start_message(session.page)
     await _guard(session)
+    if hasattr(session.pages, "wait_for_composer") and await session.pages.wait_for_composer(session.page, 12_000) is None:
+        await _save_failure_picture(session, "chat_not_opened")
+        raise RuntimeError("the chat window did not open")  # nothing typed, nothing committed: retried by itself
     await session.before_commit()
-    await session.pages.submit_message(session.page, text)
-    await _guard(session)
-    if await session.pages.last_sent_text(session.page) != text.strip():
-        raise RuntimeError("message was not confirmed in the thread")
+    try:
+        await session.pages.submit_message(session.page, text)
+        await _guard(session)
+        if await session.pages.last_sent_text(session.page) != text.strip():
+            raise RuntimeError("message was not confirmed in the thread")
+    except SessionError:
+        raise
+    except Exception:
+        await _save_failure_picture(session, "send_failed")  # what LinkedIn showed at that moment, local only, so the cause can be seen
+        raise
     return MessageResult.SENT
 
 
@@ -287,5 +308,5 @@ async def fetch_new_messages(session: ActionSession, since: datetime | None) -> 
             continue
         messages = await session.pages.read_thread(session.page, ref.thread_id)
         await _guard(session)
-        conversations.append(InboundConversation(ref.thread_id, ref.profile_url, messages))
+        conversations.append(InboundConversation(ref.thread_id, ref.profile_url, messages, getattr(ref, "name", ""), getattr(ref, "photo", "")))
     return conversations

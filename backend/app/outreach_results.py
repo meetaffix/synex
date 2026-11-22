@@ -603,17 +603,32 @@ def apply_inbox(task_id: str, conversations: list[InboundConversation]) -> None:
         leads = db.query(models.Lead).filter_by(user_id=account.user_id).all()
         by_path = {_path(lead.linkedin_url): lead for lead in leads if lead.linkedin_url}
         stored = skipped = 0
+        by_name: dict[str, list] = {}
+        for lead in leads:
+            by_name.setdefault(f"{lead.first_name or ''} {lead.last_name or ''}".strip().lower(), []).append(lead)
         for conv in conversations:
             lead = by_path.get(_path(conv.profile_url))
+            name = (getattr(conv, "name", "") or "").strip()
+            if lead is None and name and len(by_name.get(name.lower(), [])) == 1:
+                # LinkedIn's chat links use an internal id (/in/ACoAA...), not the profile name the lead was saved with.
+                # Exactly one lead with this name in the workspace is the same person; two or more stay apart.
+                lead = by_name[name.lower()][0]
             if account.sync_mode != "all" and (lead is None or not _contacted_by_synex(db, lead)):
                 skipped += 1  # read from LinkedIn but not kept: the account keeps only Synex conversations
                 continue
             if lead is None:
-                slug = _path(conv.profile_url).rsplit("/", 1)[-1].replace("-", " ").title() or "LinkedIn member"
-                lead = models.Lead(user_id=account.user_id, first_name=slug, last_name="", linkedin_url=conv.profile_url,
+                if name:
+                    first, _, last = name.partition(" ")
+                else:
+                    slug = _path(conv.profile_url).rsplit("/", 1)[-1]
+                    first, last = ("LinkedIn member" if slug.lower().startswith("acoa") else slug.replace("-", " ").title() or "LinkedIn member"), ""
+                lead = models.Lead(user_id=account.user_id, first_name=first, last_name=last, linkedin_url=conv.profile_url,
                                    source="inbox_sync", status="contacted")
                 db.add(lead)
                 db.flush()
+            photo = (getattr(conv, "photo", "") or "").strip()
+            if photo.startswith("https://media.licdn.com/"):
+                lead.avatar_url = photo  # refreshed on every read: LinkedIn's photo addresses expire after a while
             _store_thread(db, account, lead, conv, now)
             stored += 1
         account.last_inbox_sync_at = now

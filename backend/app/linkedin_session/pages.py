@@ -204,9 +204,35 @@ class Site:
 LINKEDIN = Site("https://www.linkedin.com", REAL_SELECTORS, text_profile=True)
 
 
+async def _first_visible(locator):
+    """The first match that is actually on screen, or None. Hidden duplicates are skipped."""
+    try:
+        count = min(await locator.count(), 12)
+        for index in range(count):
+            item = locator.nth(index)
+            if await item.is_visible():
+                return item
+    except PlaywrightError:
+        return None
+    return None
+
+
+async def _visible_anywhere(page: Page, selector: str):
+    """The first on-screen match in the page or in LinkedIn's embedded messaging frame, or None."""
+    frames = [page.main_frame, *[f for f in page.frames if "/preload" in (f.url or "") or "/messaging" in (f.url or "")]]
+    for frame in frames:
+        try:
+            found = await _first_visible(frame.locator(selector))
+        except PlaywrightError:
+            found = None
+        if found is not None:
+            return found
+    return None
+
+
 async def _visible(page: Page, selector: str) -> bool:
     try:
-        return await page.locator(selector).first.is_visible()
+        return await _first_visible(page.locator(selector)) is not None
     except PlaywrightError:
         return False
 
@@ -346,7 +372,9 @@ REAL_PROFILE_SELECTORS = ProfileSelectors(
     unavailable_marker=":text('Page not found'), :text('Profile is not available')",
     connect_button="button[aria-label^='Invite'][aria-label$='to connect'], button:has-text('Connect')",
     pending_marker="button:has-text('Pending'), button[aria-label^='Pending']",
-    message_button="a[href*='/messaging/compose']:text-is('Message'), button:text-is('Message'), a[aria-label^='Message ']:not([aria-label*='Premium']), button[aria-label^='Message ']",
+    # Read only inside the profile header (top_card), so the top bar's Messaging link can never match. The link's text also holds an icon
+    # and hidden screen-reader words, so it is matched by where it goes, not by its exact text. "Message with Premium" is an upsell, not a chat.
+    message_button="a[href*='/messaging/compose']:not([aria-label*='Premium']), button[aria-label^='Message ']:not([aria-label*='Premium'])",
     follow_button="button[aria-label^='Follow'], button:has-text('Follow')",
     following_marker="button[aria-label^='Following'], button:has-text('Following')",
     note_toggle="button[aria-label='Add a note']",
@@ -394,6 +422,8 @@ class ConversationRef:
     thread_id: str
     profile_url: str
     updated_at: str  # ISO 8601
+    name: str = ""  # the person's name from the thread header, when the page shows it
+    photo: str = ""  # the person's profile photo from the thread header (a LinkedIn image address), when shown
 
 
 class ProfilePages:
@@ -431,10 +461,7 @@ class ProfilePages:
                 pass
 
         async def shows(selector: str) -> bool:
-            try:
-                return await scope.locator(selector).first.is_visible()
-            except PlaywrightError:
-                return False
+            return await _first_visible(scope.locator(selector)) is not None
 
         if await shows(self.sel.pending_marker):
             return "pending"
@@ -477,21 +504,69 @@ class ProfilePages:
         if self.sel.top_card:
             card = page.locator(self.sel.top_card).first
             try:
-                target = card.locator(self.sel.message_button).first
-                if await card.is_visible() and await target.is_visible():
-                    try:  # the composer opens in place on real LinkedIn; a navigation is tolerated, not required
-                        async with page.expect_navigation(timeout=5_000):
-                            await target.click()
-                    except PlaywrightTimeout:
-                        pass
+                # A click made the instant the profile appears does nothing: LinkedIn's page scripts are not attached yet. Let it settle.
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=8_000)
+                except PlaywrightTimeout:
+                    pass
+                await page.wait_for_timeout(random.randint(1_200, 2_400))
+                # Verified on real LinkedIn: the Message link's address is LinkedIn's own message page for this person (a New message page
+                # with the box and Send in the page itself). Opening it directly never depends on a click being picked up.
+                link = await _first_visible(card.locator(self.sel.message_button))
+                href = (await link.get_attribute("href")) if link is not None else None
+                if href and "/messaging/compose" in href:
+                    await self.goto(page, self._absolute(href))
                     return
+                for attempt in range(2):  # a second click only if the chat window did not open after the first
+                    target = await _first_visible(card.locator(self.sel.message_button))
+                    if not await card.is_visible() or target is None:
+                        break
+                    await target.hover()
+                    await page.wait_for_timeout(random.randint(250, 600))
+                    await target.click()
+                    if await self.wait_for_composer(page, 5_000) is not None:
+                        return
+                return
             except PlaywrightError:
                 pass
         await self._click_and_settle(page, self.sel.message_button)
 
+    async def wait_for_composer(self, page: Page, timeout_ms: int = 10_000):
+        """The on-screen message box of the chat window that Message opened, or None. Only the page's own document is searched:
+        the hidden spare copy of the messaging app in the /preload/ frame is never used."""
+        waited = 0
+        while waited <= timeout_ms:
+            box = await _first_visible(page.locator(self.sel.composer_input))
+            if box is not None:
+                return box
+            await page.wait_for_timeout(250)
+            waited += 250
+        return None
+
     async def submit_message(self, page: Page, text: str) -> None:
-        await page.fill(self.sel.composer_input, text)
-        await self._click_and_settle(page, self.sel.composer_send)
+        # Real LinkedIn keeps hidden copies of the message box. Wait for the one on screen, type there, and press its own Send.
+        box = await self.wait_for_composer(page, 20_000)
+        if box is None:
+            raise PlaywrightTimeout("the message box did not open")
+        # Type it like a person. LinkedIn's box only registers real key presses: text set in one go leaves Send disabled.
+        try:
+            await box.click(timeout=4_000)
+        except PlaywrightError:  # something covers the box (LinkedIn's floating chat); focus it directly, nothing is lost
+            await box.focus(timeout=4_000)
+        await box.press_sequentially(text, delay=random.randint(25, 70), timeout=60_000)
+        send = None
+        for _ in range(20):  # Send turns on once LinkedIn has registered the text
+            send = await _first_visible(page.locator(self.sel.composer_send))
+            if send is not None and await send.is_enabled():
+                break
+            await page.wait_for_timeout(250)
+        if send is None or not await send.is_enabled():
+            raise PlaywrightTimeout("the Send button did not turn on after typing")
+        try:
+            async with page.expect_navigation(timeout=5_000):
+                await send.click()
+        except PlaywrightTimeout:
+            pass
 
     async def follow(self, page: Page) -> None:
         await self._click_and_settle(page, self.sel.follow_button)
@@ -560,11 +635,14 @@ class ProfilePages:
         if count:
             return (await out.nth(count - 1).inner_text()).strip()
         if self.sel.sent_body:  # real LinkedIn: the newest bubble in the open conversation is the one just sent
-            bodies = page.locator(self.sel.sent_body)
-            for _ in range(20):  # the bubble appears a moment after Send
-                n = await bodies.count()
-                if n:
-                    return (await bodies.nth(n - 1).inner_text()).strip()
+            for _ in range(40):  # the bubble appears a moment after Send (in the open chat window, not the hidden spare frame)
+                try:
+                    bodies = page.locator(self.sel.sent_body)
+                    n = await bodies.count()
+                    if n:
+                        return (await bodies.nth(n - 1).inner_text()).strip()
+                except PlaywrightError:
+                    pass
                 await page.wait_for_timeout(250)
         return None
 
@@ -614,6 +692,7 @@ class LiveProfilePages(ProfilePages):
     ROW_LINK = "div.msg-conversation-listitem__link"
     UNREAD = ".msg-conversation-card__unread-count"
     HEADER_LINK = "a.msg-thread__link-to-profile"
+    HEADER_PHOTO = "img.presence-entity__image"  # the person's photo in the open chat's header
     EVENT = "li.msg-s-message-list__event"
     BODY = "p.msg-s-event-listitem__body"
 
@@ -621,14 +700,29 @@ class LiveProfilePages(ProfilePages):
         super().__init__(site, selectors)
         self._cache: dict[str, list[ThreadMessage]] = {}
 
+    async def _messaging(self, page: Page, wait_for: str, timeout_ms: int = 30_000):
+        """The document that holds the messaging app: the embedded /preload/ frame on today's LinkedIn, or the page itself
+        (the mock site, or LinkedIn if it moves it back). None when neither shows ``wait_for`` in time."""
+        waited = 0
+        while waited <= timeout_ms:
+            for frame in [page.main_frame, *[f for f in page.frames if "/preload" in (f.url or "")]]:
+                try:
+                    if await frame.locator(wait_for).count():
+                        return frame
+                except PlaywrightError:
+                    continue
+            await page.wait_for_timeout(500)
+            waited += 500
+        return None
+
     async def list_conversations(self, page: Page, since=None) -> list[ConversationRef]:
         await self.goto(page, self.base_url + "/messaging/")
-        try:
-            await page.wait_for_selector(f"{self.ROW} {self.ROW_LINK}", timeout=30_000)
-        except Exception:  # noqa: BLE001 - an empty inbox is a normal result
-            return []
+        root = await self._messaging(page, f"{self.ROW} {self.ROW_LINK}")
+        if root is None:
+            # The list did not appear at all. Say so instead of reporting an empty inbox, so "last synced" is not moved forward.
+            raise PlaywrightTimeout("the LinkedIn conversation list did not load")
         await page.wait_for_timeout(1500)
-        rows = page.locator(self.ROW)
+        rows = root.locator(self.ROW)
         wanted = []
         for index in range(await rows.count()):
             if since is not None and not await rows.nth(index).locator(self.UNREAD).count():
@@ -639,16 +733,29 @@ class LiveProfilePages(ProfilePages):
             await rows.nth(index).locator(self.ROW_LINK).first.click()
             try:
                 await page.wait_for_url("**/messaging/thread/**", timeout=15_000)
-                await page.wait_for_selector(self.HEADER_LINK, timeout=15_000)
+                await root.wait_for_selector(self.HEADER_LINK, timeout=15_000)
             except Exception:  # noqa: BLE001 - not a one-to-one thread (group, sponsored): skipped
                 continue
             await page.wait_for_timeout(1200)
             thread_id = urlsplit(page.url).path.rstrip("/").rsplit("/", 1)[-1]
-            href = await page.locator(self.HEADER_LINK).first.get_attribute("href")
+            header = root.locator(self.HEADER_LINK).first
+            href = await header.get_attribute("href")
             if not href or "/in/" not in href:
                 continue
-            self._cache[thread_id] = await self._read_open_thread(page, href)
-            refs.append(ConversationRef(thread_id, self._absolute(href), datetime.now(timezone.utc).isoformat()))
+            name = ((await header.inner_text()) or "").strip().split("\n")[0].strip()
+            if not name:
+                match = re.match(r"Open (.+?)[’']s profile", await header.get_attribute("title") or "")
+                name = match.group(1) if match else ""
+            photo = ""
+            try:
+                img = root.locator(self.HEADER_PHOTO).first
+                if await img.count():
+                    src = await img.get_attribute("src") or ""
+                    photo = src if src.startswith("https://media.licdn.com/") else ""
+            except PlaywrightError:
+                pass
+            self._cache[thread_id] = await self._read_open_thread(root, href)
+            refs.append(ConversationRef(thread_id, self._absolute(href), datetime.now(timezone.utc).isoformat(), name[:120], photo[:1000]))
             await page.wait_for_timeout(random.uniform(2500, 5500))
         return refs
 
@@ -656,10 +763,11 @@ class LiveProfilePages(ProfilePages):
         if thread_id in self._cache:
             return self._cache.pop(thread_id)
         await self.goto(page, f"{self.base_url}/messaging/thread/{thread_id}/")
-        href = await page.locator(self.HEADER_LINK).first.get_attribute("href")
-        return await self._read_open_thread(page, href or "")
+        root = await self._messaging(page, self.HEADER_LINK, timeout_ms=15_000) or page
+        href = await root.locator(self.HEADER_LINK).first.get_attribute("href")
+        return await self._read_open_thread(root, href or "")
 
-    async def _read_open_thread(self, page: Page, other_href: str) -> list[ThreadMessage]:
+    async def _read_open_thread(self, page, other_href: str) -> list[ThreadMessage]:
         """Messages of the thread on screen. Direction: a message from the person in the header is incoming, all others are ours."""
         other = normalize_profile(other_href)
         messages: list[ThreadMessage] = []

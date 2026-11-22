@@ -1507,5 +1507,40 @@ class MyConnectionsTest(OutreachCase):
         self.assertEqual(self.tasks("check_connection"), [])
 
 
+
+class InboxNameTest(OutreachCase):
+    """LinkedIn's chat links use an internal id (/in/ACoAA...). The chat is matched to the lead by the name in its header, and a new person gets their real name, never the id."""
+
+    def sync_with(self, conversation):
+        from app.linkedin_session.actions import InboundConversation  # noqa: F401
+        account_id = self.make_account(sync_mode="all")
+        with SessionLocal() as db:
+            task = models.AgentTask(account_id=account_id, type="sync_inbox", status="running", idempotency_key="sync-1", payload={})
+            db.add(task)
+            db.commit()
+            task_id = task.id
+        results.apply_inbox(task_id, [conversation])
+
+    def chat(self, name, url="https://www.linkedin.com/in/ACoAAFrd0AEB9sAkB"):
+        from app.linkedin_session.actions import InboundConversation
+        from app.linkedin_session.pages import ThreadMessage
+        return InboundConversation("t1", url, [ThreadMessage("e1", "in", "Hiii", datetime.now(timezone.utc).isoformat())], name)
+
+    def test_a_chat_with_an_id_link_lands_on_the_existing_lead_by_name(self):
+        with SessionLocal() as db:
+            db.add(models.Lead(user_id=self.user_id, first_name="Mohan", last_name="Reddy", linkedin_url="https://www.linkedin.com/in/dhani-reddy/", status="connected"))
+            db.commit()
+        self.sync_with(self.chat("Mohan Reddy"))
+        with SessionLocal() as db:
+            self.assertEqual(db.query(models.Lead).count(), 1)
+            self.assertEqual([c.lead.first_name for c in db.query(models.Conversation).all()], ["Mohan"])
+
+    def test_a_new_person_gets_their_name_not_the_id(self):
+        self.sync_with(self.chat("Nisha J"))
+        with SessionLocal() as db:
+            lead = db.query(models.Lead).one()
+            self.assertEqual((lead.first_name, lead.last_name), ("Nisha", "J"))
+
+
 if __name__ == "__main__":
     unittest.main()

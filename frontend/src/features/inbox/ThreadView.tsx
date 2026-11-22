@@ -68,15 +68,23 @@ export function ThreadView({ conversation, onBack }: Props) {
     <div className="flex h-full min-h-[24rem] min-w-0 flex-col">
       <header className="flex items-start gap-3 border-b border-border p-4">
         <Button variant="ghost" size="sm" className="lg:hidden" onClick={onBack}>Back</Button>
-        <UserAvatar name={conversation.leadName} className="size-10" />
+        <UserAvatar name={conversation.leadName} src={conversation.avatarUrl ?? undefined} className="size-10" />
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold">{conversation.leadName}</h2>
-          <p className="truncate text-sm text-muted-foreground">
-            {[conversation.leadTitle, conversation.leadCompany].filter(Boolean).join(" at ") || "No title"}
-            {conversation.campaignName ? ` · Campaign: ${conversation.campaignName}` : ""}
-          </p>
+          <h2 className="truncate text-base font-semibold">
+            {conversation.linkedinUrl
+              ? <a href={conversation.linkedinUrl} target="_blank" rel="noreferrer" className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{conversation.leadName}</a>
+              : conversation.leadName}
+          </h2>
+          {([conversation.leadTitle, conversation.leadCompany].some(Boolean) || conversation.campaignName) && (
+            <p className="truncate text-sm text-muted-foreground">
+              {[conversation.leadTitle, conversation.leadCompany].filter(Boolean).join(" at ")}
+              {conversation.campaignName ? `${[conversation.leadTitle, conversation.leadCompany].some(Boolean) ? " · " : ""}Campaign: ${conversation.campaignName}` : ""}
+            </p>
+          )}
         </div>
-        <span className="ml-auto shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs">LinkedIn</span>
+        {conversation.linkedinUrl
+          ? <a href={conversation.linkedinUrl} target="_blank" rel="noreferrer" className="ml-auto shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-surface-muted">View on LinkedIn</a>
+          : <span className="ml-auto shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs">LinkedIn</span>}
       </header>
       <div className="flex-1 overflow-y-auto p-4" aria-live="polite">
         {thread.isLoading && <div role="status" aria-label="Loading messages" className="grid gap-3"><Skeleton className="h-12 w-2/3" /><Skeleton className="ml-auto h-12 w-2/3" /></div>}

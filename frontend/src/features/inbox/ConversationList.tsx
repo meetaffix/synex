@@ -25,7 +25,7 @@ export function ConversationList({ conversations, selectedId, checked, onSelect,
           <span className="pt-4"><Checkbox aria-label={`Select ${c.leadName}`} checked={checked.has(c.id)} onCheckedChange={(v) => onCheck(c.id, v === true)} /></span>
           <button type="button" onClick={() => onSelect(c.id)} aria-current={c.id === selectedId ? "true" : undefined}
             className="flex min-w-0 flex-1 items-start gap-3 px-2 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-            <UserAvatar name={c.leadName} className="mt-0.5 size-10 ring-2 ring-surface" />
+            <UserAvatar name={c.leadName} src={c.avatarUrl ?? undefined} className="mt-0.5 size-10 ring-2 ring-surface" />
             <span className="grid min-w-0 flex-1 gap-0.5">
               <span className="flex items-baseline justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2">
@@ -34,7 +34,7 @@ export function ConversationList({ conversations, selectedId, checked, onSelect,
                 </span>
                 {c.lastMessageAt && <span className="shrink-0 text-xs text-muted-foreground">{formatSmartTime(c.lastMessageAt)}</span>}
               </span>
-              <span className="truncate text-xs text-muted-foreground">{[c.leadTitle, c.leadCompany].filter(Boolean).join(" at ") || "No title"}</span>
+              {[c.leadTitle, c.leadCompany].some(Boolean) && <span className="truncate text-xs text-muted-foreground">{[c.leadTitle, c.leadCompany].filter(Boolean).join(" at ")}</span>}
               <span className={cn("truncate text-sm", c.unread ? "text-foreground" : "text-muted-foreground")}>{c.hasDraft ? "Draft: " : ""}{c.lastMessagePreview || "No messages yet"}</span>
               <span className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
                 {c.accountName && <span className="rounded-full bg-surface-muted px-2 py-0.5">Received by {c.accountName}</span>}

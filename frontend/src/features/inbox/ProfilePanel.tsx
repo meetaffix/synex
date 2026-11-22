@@ -40,7 +40,7 @@ export function ProfilePanel({ item, onClose }: { item: InboxItem; onClose: () =
         <UserAvatar name={item.leadName} className="size-14" />
         <div className="min-w-0">
           <h2 className="truncate text-base font-semibold">{item.leadName}</h2>
-          <p className="text-muted-foreground">{[item.leadTitle, item.leadCompany].filter(Boolean).join(" at ") || "No title"}</p>
+          {[item.leadTitle, item.leadCompany].some(Boolean) && <p className="text-muted-foreground">{[item.leadTitle, item.leadCompany].filter(Boolean).join(" at ")}</p>}
           {item.linkedinUrl && <a className="underline-offset-2 hover:underline" href={item.linkedinUrl} target="_blank" rel="noreferrer noopener">View LinkedIn profile</a>}
         </div>
         <Button size="sm" variant="ghost" className="ml-auto xl:hidden" onClick={onClose}>Close profile details</Button>

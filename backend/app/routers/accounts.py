@@ -96,6 +96,9 @@ def update_account(account_id: str, body: AccountPatch, db: Session = Depends(ge
     if body.sync_mode and body.sync_mode != (account.sync_mode or "synex_only"):
         service.require_sync_owner(account, actor.id)
         account.sync_mode = body.sync_mode
+        # A different choice of which conversations to keep needs a fresh full read: after one, Synex only opens unread
+        # conversations, so a conversation that was already read (an old "Hi") would otherwise never come in.
+        account.last_inbox_sync_at = None
     if body.daily_action_limit is not None:
         account.daily_action_limit = body.daily_action_limit
     if body.paused is not None:

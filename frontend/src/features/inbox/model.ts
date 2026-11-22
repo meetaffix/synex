@@ -9,6 +9,7 @@ const itemSchema = z.object({
   leadId: z.string(),
   leadName: z.string(),
   leadTitle: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
   leadCompany: z.string().nullable().optional(),
   linkedinUrl: z.string().nullable().optional(),
   accountId: z.string().nullable(),

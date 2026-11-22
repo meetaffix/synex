@@ -215,6 +215,10 @@ class OutreachWorker:
             await asyncio.to_thread(results.handle_session_error, account_id, task_id, error.kind.value)
             return True
         except Exception as error:  # noqa: BLE001 - classified by whether the page was touched
+            import traceback  # where it happened: file, line and function only. Never the message, the page or any value.
+            own = [f for f in traceback.extract_tb(error.__traceback__) if "site-packages" not in f.filename]  # Synex's own steps, not the browser library's
+            frames = [f"{f.filename.rsplit(chr(92), 1)[-1].rsplit('/', 1)[-1]}:{f.lineno} {f.name}" for f in own[-4:]]
+            log.warning("outreach task %s raised %s at %s", task_id, type(error).__name__, " < ".join(reversed(frames)))
             await asyncio.to_thread(results.fail_task, task_id, type(error).__name__)
             return False
         if snapshot.type == "sync_inbox":
