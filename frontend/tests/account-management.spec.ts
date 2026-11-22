@@ -49,7 +49,7 @@ test("a new account is offered recommended limits; applying them saves a policy 
 test("the limits table shows what was used, today's limit with its range, and the hard maximum for every action", async ({ page }) => {
   await open(page);
   const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
-  await expect(table.getByRole("columnheader")).toHaveText(["Action", "Used", "Today's limit", "Range", "Hard maximum"]);
+  await expect(table.getByRole("columnheader")).toHaveText(["Action", "Sent", "Today's limit", "Range", "Hard maximum"]);
   await expect(table.getByRole("row")).toHaveCount(14);
   await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
   await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
