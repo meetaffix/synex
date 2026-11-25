@@ -38,6 +38,31 @@ PEOPLE = """<ul>
 <li><a href="https://www.linkedin.com/in/margaret-h/"><div>Margaret Hamilton</div><div>Software lead</div><div>Boston</div></a></li>
 </ul>"""
 EVENT = f"<html><body><a href='#'>2 attendees</a>{PEOPLE}</body></html>"
+# A post page shaped like the real one (25 Nov 2026): the viewer's profile card, the author, the avatar row inside a link to the
+# post (built by script, as HTML cannot nest links), the full list in a native dialog, a Like button that must never be pressed,
+# a "people you may know" panel and one comment.
+POST = """<main>
+<a href="https://www.linkedin.com/in/viewer-me/">Viewer Me</a>
+<div componentkey="x-pagedCommentsContainer-y"><div>Feed post</div>
+<a href="https://www.linkedin.com/in/post-author/">Post Author</a>
+<p>The post</p><div id="pile"></div>
+<button aria-label="Reaction button state: Like" onclick="document.body.dataset.liked='yes'">2</button>
+<article class="comments-comment-entity"><a href="https://www.linkedin.com/in/grace-h/"><div>Grace Hopper</div></a><div>Rear Admiral</div><p>Great post</p></article>
+</div>
+<aside><h2>People you may know</h2><a href="https://www.linkedin.com/in/stranger/">Stranger Danger</a></aside>
+</main>
+<dialog id="list"><button aria-label="Dismiss" onclick="this.closest('dialog').close()">x</button><ul>
+<li><a aria-label="Viewer Me reacted with Like, You, Something" href="https://www.linkedin.com/in/viewer-me/">Viewer Me</a></li>
+<li><a aria-label="Katherine Johnson reacted with Like, 2nd degree connection, Mathematician" href="https://www.linkedin.com/in/katherine-j/">K</a></li>
+<li><a aria-label="Margaret Hamilton reacted with Celebrate, 3rd+ degree connection, Software lead" href="https://www.linkedin.com/in/margaret-h/">M</a></li>
+</ul></dialog>
+<script>
+const outer = document.createElement('a'); outer.href = location.href;
+outer.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('list').showModal(); });
+const inner = document.createElement('a'); inner.href = 'https://www.linkedin.com/in/katherine-j/';
+inner.setAttribute('aria-label', 'Katherine Johnson reacted with Like');
+outer.appendChild(inner); document.getElementById('pile').appendChild(outer);
+</script>"""
 
 
 def serve(body):
@@ -103,12 +128,43 @@ class CollectorTest(unittest.TestCase):
         async def go(page, progress, stop):
             async def handler(route):
                 url = route.request.url
-                body = posts if "recent-activity" in url else PEOPLE
+                body = posts if "recent-activity" in url else POST
                 await route.fulfill(status=200, content_type="text/html", body=f"<html><body>{body}</body></html>")
             await page.route("https://www.linkedin.com/**", handler)
             return await collect.collect_own_post_engagers(page, 10, progress, stop)
         people = run_collect(go)
-        self.assertEqual({p["name"] for p in people}, {"Katherine Johnson", "Margaret Hamilton"})
+        self.assertEqual({p["name"] for p in people}, {"Katherine Johnson", "Margaret Hamilton", "Grace Hopper"})
+
+    def run_post(self, reactions, comments):
+        state = {}
+
+        async def go(page, progress, stop):
+            await page.route("https://www.linkedin.com/**", serve(POST))
+            state["people"] = await collect.collect_post(page, "https://www.linkedin.com/feed/update/urn:li:activity:1/", reactions,
+                                                         comments, 10, progress, stop)
+            state["liked"] = await page.evaluate("document.body.dataset.liked || ''")
+            state["open"] = await page.evaluate("!!document.querySelector('dialog[open]')")
+        run_collect(go)
+        return state
+
+    def test_post_reactors_come_from_the_reaction_list_only(self):
+        state = self.run_post(None, False)
+        people = {p["name"]: p for p in state["people"]}
+        self.assertEqual(set(people), {"Katherine Johnson", "Margaret Hamilton"})  # not the viewer, author or suggestions
+        self.assertEqual(people["Katherine Johnson"]["degree"], 2)
+        self.assertEqual(people["Katherine Johnson"]["headline"], "Mathematician")
+        self.assertEqual(state["liked"], "")  # the Like button was never pressed
+        self.assertFalse(state["open"])  # the list was closed again
+
+    def test_post_reaction_filter_and_comments(self):
+        state = self.run_post(["celebrate"], True)
+        self.assertEqual([p["name"] for p in state["people"]], ["Margaret Hamilton", "Grace Hopper"])
+        self.assertEqual(state["people"][1]["headline"], "Rear Admiral")
+
+    def test_reactor_label_parsing(self):
+        self.assertIsNone(collect.parse_reactor("x", "Meet Affix reacted with Like, You, Agentic AI"))
+        self.assertEqual(collect.parse_reactor("x", "ARKYA RAY reacted with Like, 3rd+ degree connection, Data, Power BI")["headline"],
+                         "Data, Power BI")
 
 
 class SourceApiTest(unittest.TestCase):

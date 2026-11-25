@@ -130,34 +130,144 @@ async def collect_search(page: Page, url: str, limit: int, max_pages: int, progr
 _REACTION_WORDS = {"like": "like", "celebrate": "celebrate", "support": "support", "love": "love", "insightful": "insightful",
                    "funny": "funny"}
 
+# Seen on the real post page (25 Nov 2026): every reactor is a link to /in/<id> labelled
+# "<Name> reacted with <Reaction>[, <degree>, <headline>]"; the viewer's own row says ", You,". The avatar row under the post is
+# wrapped in a link to the post itself, and clicking it opens the full list in a native <dialog>. Nothing else is clicked: the
+# Like button sits next to it and must never be touched.
+REACTOR_JS = r"""
+() => {
+  const scope = document.querySelector('dialog[open]') || document.querySelector('[role="dialog"]') || document;
+  const out = [];
+  const seen = new Set();
+  for (const a of scope.querySelectorAll('a[aria-label*=" reacted with "][href*="/in/"]')) {
+    const href = a.href.split('?')[0];
+    if (seen.has(href)) continue;
+    seen.add(href);
+    out.push({href, label: a.getAttribute('aria-label') || ''});
+  }
+  return out;
+}
+"""
+
+OPEN_REACTORS_JS = r"""
+() => {
+  const first = document.querySelector('a[aria-label*=" reacted with "]');
+  let el = first && first.parentElement;
+  while (el && !(el.tagName === 'A' && /\/feed\/update\//.test(el.getAttribute('href') || ''))) el = el.parentElement;
+  if (!el) return false;
+  el.click();
+  return true;
+}
+"""
+
+# Comment cards. UNVERIFIED on the new real UI (the test post had no comments): the old class names plus any element whose
+# component key or test id says comment. Each card's first /in/ link is the commenter.
+COMMENT_JS = r"""
+() => {
+  const out = [];
+  const seen = new Set();
+  const cards = [...document.querySelectorAll('article.comments-comment-entity, article.comments-comment-item, ' +
+    '[componentkey*="comment" i], [data-testid*="comment" i], [data-id*="comment" i]')];
+  for (const card of cards) {
+    // On the real page a "pagedCommentsContainer" wraps the whole post with its author: only the innermost boxes are comments,
+    // and never one that holds the post's own reaction controls.
+    if (cards.some((other) => other !== card && card.contains(other))) continue;
+    if (card.querySelector('[aria-label^="Reaction button state"], a[aria-label*=" reacted with "]')) continue;
+    if (/^\s*Feed post\b/.test(card.innerText || '')) continue;
+    const a = card.querySelector('a[href*="/in/"]');
+    if (!a) continue;
+    const href = a.href.split('?')[0];
+    if (seen.has(href)) continue;
+    const text = (card.innerText || '').trim();
+    if (!text) continue;
+    seen.add(href);
+    out.push({href, text});
+  }
+  return out;
+}
+"""
+
+_DEGREE_PART = re.compile(r"^(1st|2nd|3rd)\+?( degree connection)?$", re.I)
+
+
+def parse_reactor(href: str, label: str) -> dict | None:
+    """A reactor from the link's label. None for the viewer's own row and for unreadable labels."""
+    name, _, rest = label.partition(" reacted with ")
+    parts = [p.strip() for p in rest.split(",")]
+    if not name.strip() or not parts[0] or "You" in parts[1:2]:
+        return None
+    degree, headline = None, []
+    for part in parts[1:]:
+        found = _DEGREE_PART.match(part)
+        if found and degree is None:
+            degree = _DEGREE_NUMBER[found.group(1).lower()]
+        elif part:
+            headline.append(part)
+    return {"profile_url": href, "name": name.strip(), "headline": ", ".join(headline), "company": "", "location": "",
+            "degree": degree, "reaction": parts[0].lower()}
+
+
+async def read_reactors(page: Page) -> list[dict]:
+    return [p for p in (parse_reactor(i["href"], i["label"]) for i in await page.evaluate(REACTOR_JS)) if p]
+
+
+async def read_commenters(page: Page) -> list[dict]:
+    people = []
+    for item in await page.evaluate(COMMENT_JS):
+        person = parse_card(item["href"], item["text"])
+        if person:
+            person["location"] = ""  # the line after the headline is the comment itself
+            people.append(person)
+    return people
+
 
 async def collect_post(page: Page, post_url: str, reactions: list[str] | None, comments: bool, limit: int,
                        progress: Progress, should_stop: ShouldStop, pause=_pause) -> list[dict]:
-    """People who reacted to (the chosen reaction types) and/or commented on one post."""
+    """People who reacted to (the chosen reaction types) and/or commented on one post. Only the people on this post are read:
+    the viewer's own profile card, the author and the "people you may know" panel are never taken as leads."""
     found: dict[str, dict] = {}
     await page.goto(post_url, wait_until="domcontentloaded", timeout=45_000)
     await asyncio.sleep(4)
+    author = normalize_linkedin_url(await page.evaluate(
+        """() => { const a = document.querySelector('main a[href*="/in/"]:not([aria-label*=" reacted with "])'); return a ? a.href : ''; }"""))
     if reactions is None or reactions:
-        opener = page.locator("button.social-details-social-counts__count-value, button[aria-label*='reaction' i], "
-                              ".social-details-social-counts__reactions button").first
-        if await opener.count():
-            await opener.click()
-            await asyncio.sleep(2)
-            dialog = page.locator("div[role='dialog']").first
-            wanted = {_REACTION_WORDS[r] for r in (reactions or []) if r in _REACTION_WORDS}
-            if wanted:
-                for tab in await dialog.locator("button[role='tab'], button[aria-label]").all():
-                    label = ((await tab.get_attribute("aria-label")) or (await tab.inner_text()) or "").lower()
-                    if any(word in label for word in wanted):
-                        await tab.click()
-                        await asyncio.sleep(1.5)
-                        await _scroll_collect(page, dialog, found, limit, progress, should_stop)
+        wanted = {_REACTION_WORDS[r.lower()] for r in (reactions or []) if r.lower() in _REACTION_WORDS}
+        opened = await page.evaluate(OPEN_REACTORS_JS)
+        if opened:
+            try:
+                await page.wait_for_selector("dialog[open], [role='dialog']", timeout=10_000)
+            except Exception:  # noqa: BLE001 - the list did not open; the avatar row under the post is still read
+                pass
+            await asyncio.sleep(1.5)
+        for _ in range(12):
+            if await should_stop() or len(found) >= limit:
+                break
+            fresh = [p for p in await read_reactors(page)
+                     if normalize_linkedin_url(p["profile_url"]) not in found and (not wanted or p["reaction"] in wanted)]
+            for person in fresh:
+                found[normalize_linkedin_url(person["profile_url"])] = person
+            if fresh:
+                await progress(fresh)
+            before = len(await page.evaluate(REACTOR_JS))
+            await page.evaluate("""() => { const d = document.querySelector('dialog[open], [role="dialog"]'); if (!d) return;
+                for (const el of [d, ...d.querySelectorAll('*')]) if (el.scrollHeight > el.clientHeight + 4) el.scrollTop = el.scrollHeight; }""")
+            await asyncio.sleep(random.uniform(2.0, 4.0))
+            if not opened or len(await page.evaluate(REACTOR_JS)) == before:
+                break
+        if opened:
+            dismiss = page.locator("dialog[open] button[aria-label='Dismiss'], [role='dialog'] button[aria-label='Dismiss']").first
+            if await dismiss.count():
+                await dismiss.click()
             else:
-                await _scroll_collect(page, dialog, found, limit, progress, should_stop)
-            await page.keyboard.press("Escape")
+                await page.keyboard.press("Escape")
+            await asyncio.sleep(1)
     if comments and len(found) < limit and not await should_stop():
-        await _scroll_collect(page, page.locator("section.comments-comments-list, .comments-comments-list").first, found, limit,
-                              progress, should_stop)
+        fresh = [p for p in await read_commenters(page)
+                 if (key := normalize_linkedin_url(p["profile_url"])) not in found and key != author][: limit - len(found)]
+        for person in fresh:
+            found[normalize_linkedin_url(person["profile_url"])] = person
+        if fresh:
+            await progress(fresh)
     return list(found.values())[:limit]
 
 
@@ -348,9 +458,15 @@ async def collect_event(page: Page, event_url: str, limit: int, progress: Progre
 
 async def collect_own_post_engagers(page: Page, limit: int, progress: Progress, should_stop: ShouldStop, base: str = LINKEDIN_BASE,
                                     max_posts: int = 5) -> list[dict]:
-    """People who reacted to or commented on the sender's own most recent posts."""
+    """People who reacted to or commented on the sender's own most recent posts. "All activity" also lists posts the sender only
+    reacted to, so the posts-only page is read: /in/me/ redirects only on the all-activity page, which gives the real address first.
+    Seen on 25 Nov 2026 with an account that has no posts yet; reading a real list of own posts is UNVERIFIED."""
     await page.goto(f"{base}/in/me/recent-activity/all/", wait_until="domcontentloaded", timeout=45_000)
     await asyncio.sleep(3)
+    profile = re.match(r"(.*/in/[^/]+)/", page.url)
+    if profile and "/in/me/" not in page.url:
+        await page.goto(f"{profile.group(1)}/recent-activity/shares/", wait_until="domcontentloaded", timeout=45_000)
+        await asyncio.sleep(4)
     hrefs = await page.evaluate("""() => [...new Set([...document.querySelectorAll('a[href*="/feed/update/"]')].map(a => a.href.split('?')[0]))]""")
     found: dict[str, dict] = {}
     for post in hrefs[:max_posts]:
