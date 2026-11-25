@@ -39,6 +39,17 @@ LIVE_TASK_STATES = ("pending", "running", "done")
 # and gains WARMUP_STEP more each day until it reaches the configured limit.
 WARMUP_BASE = 5
 WARMUP_STEP = 5
+# An owner can warm an established account up faster, per account (management_config["warmupStepPerDay"]).
+# It is bounded here, and the configured limit and the hard ceilings still cap the result.
+WARMUP_STEP_MIN, WARMUP_STEP_MAX = 1, 25
+
+
+def warmup_step(account: models.LinkedInAccount) -> int:
+    value = (account.management_config or {}).get("warmupStepPerDay")
+    try:
+        return max(WARMUP_STEP_MIN, min(WARMUP_STEP_MAX, int(value))) if value is not None else WARMUP_STEP
+    except (TypeError, ValueError):
+        return WARMUP_STEP
 
 
 def _now() -> datetime:
@@ -267,13 +278,13 @@ def configured_daily_limit(account: models.LinkedInAccount) -> int:
 
 
 def effective_daily_limit(account: models.LinkedInAccount, now: datetime) -> int:
-    """The account's daily cap after warm-up: day 0 = 5, +5/day, up to the configured limit (0 stays 0)."""
+    """The account's daily cap after warm-up: day 0 = 5, then +5 a day (or the account's own step), up to the configured limit (0 stays 0)."""
     ceiling = configured_daily_limit(account)
     start = _aware(account.warmup_started_at)
     if start is None:
         return min(ceiling, WARMUP_BASE)
     days = max((now - start).days, 0)
-    return min(ceiling, WARMUP_BASE + days * WARMUP_STEP)
+    return min(ceiling, WARMUP_BASE + days * warmup_step(account))
 
 
 def remaining_capacity(account: models.LinkedInAccount, now: datetime) -> int:
