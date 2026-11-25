@@ -20,7 +20,7 @@ OWNER RULES (non-negotiable)
 
 SAFETY (non-negotiable)
 - Every LinkedIn action type has a hard daily ceiling, and a test fails if one lacks it. Ceilings: 40 connection requests a day, 150 invites a week, 100 messages, 80 profile visits, 50 follows, 200 actions in total; separate ceilings for check_connection, sync_inbox, collect_leads and the connections reader. A daily limit of 0 means stopped. New accounts start at 0. Warm-up and presets never exceed ceilings.
-- Test account "Meet Affix": at most 5 profile visits, 5 connection requests and 5 messages a day, with random gaps. Stop everything on any LinkedIn warning, checkpoint or restriction.
+- Test account "Meet Affix": the owner raised its limits on 25 Nov 2026 to normal ones (25 connection requests, 30 messages, 25 profile visits a day, see docs/DECISIONS.md item 15), always inside the hard ceilings, with random gaps. Stop everything on any LinkedIn warning, checkpoint or restriction.
 - GO means wait for the owner's yes: before any first action on a real person and before any real LinkedIn read test.
 - The owner types LinkedIn passwords and codes. No CAPTCHA solving, no detection evasion. Never print, log or commit secrets, cookies, passwords or env values; check variables by name only.
 - AI drafts are prepared BEFORE launch with a cost estimate and review; never generate AI text while sending; no external call inside a retryable database transaction; any LinkedIn data the AI uses is collected by paced tasks counted against limits.
