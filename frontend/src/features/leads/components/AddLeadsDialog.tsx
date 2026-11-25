@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Building2, BriefcaseBusiness, CalendarDays, Compass, FileSpreadsheet, Inbox, Landmark, Link2, ListChecks, Megaphone, Search, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 import { announceFinished } from "../BackgroundImports";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,6 +47,13 @@ interface Collection {
   /** Whether an outreach worker has reported in lately. A request that reads LinkedIn waits for one. */
   workerActive?: boolean;
 }
+
+const SOURCE_ICONS: Record<string, LucideIcon> = {
+  post: ThumbsUp, search: Search, connections: Users, own_posts: Megaphone, urls: Link2, csv: FileSpreadsheet, lists: ListChecks,
+  inbox: Inbox, sales_navigator: Compass, recruiter: BriefcaseBusiness, event: CalendarDays, companies: Building2, sales_nav_accounts: Landmark,
+};
+/** The one short thing worth knowing before a source is picked; the full note is the card's tooltip. */
+const SOURCE_TAGS: Record<string, string> = { sales_navigator: "Needs Sales Navigator", recruiter: "Needs Recruiter", sales_nav_accounts: "Needs Sales Navigator", event: "You must attend" };
 
 const HINTS: Record<string, string> = {
   post: "Paste one or more LinkedIn post links, one per line.",
@@ -274,24 +282,42 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogTitle>How would you like to add leads?</DialogTitle>
-        <DialogDescription>Pick a source. You will see an estimate and a preview before anything is added.</DialogDescription>
+        <DialogDescription>You see a preview before anything is added.</DialogDescription>
 
         {!source && (
-          <div className="grid gap-2 sm:grid-cols-2" role="list" aria-label="Lead sources">
+          <div data-testid="lead-sources" className="grid gap-5">
             {sources.isLoading && <p className="text-sm text-muted-foreground">Loading sources…</p>}
-            {(sources.data ?? []).map((s) => (
-              <button
-                key={s.id}
-                role="listitem"
-                type="button"
-                disabled={!s.available}
-                onClick={() => setSource(s)}
-                className="rounded-md border border-border bg-surface p-3 text-left text-sm transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="block font-medium">{s.label}</span>
-                <span className="block text-xs text-muted-foreground">{s.available ? (s.readsLinkedin ? "Reads LinkedIn, paced" : "Nothing is read from LinkedIn") : s.note}</span>
-                {s.available && s.note && <span className="block text-xs text-muted-foreground">{s.note}</span>}
-              </button>
+            {[
+              { title: "From LinkedIn", hint: "Read slowly, within the account's limits", items: (sources.data ?? []).filter((s) => s.readsLinkedin) },
+              { title: "From what you already have", hint: "Nothing is read from LinkedIn", items: (sources.data ?? []).filter((s) => !s.readsLinkedin) },
+            ].filter((group) => group.items.length > 0).map((group) => (
+              <div key={group.title} className="grid gap-2">
+                <h3 className="flex items-baseline gap-2 text-sm font-semibold">
+                  {group.title}
+                  <span className="text-xs font-normal text-muted-foreground">{group.hint}</span>
+                </h3>
+                <div role="list" aria-label={group.title} className="grid gap-2 sm:grid-cols-2">
+                  {group.items.map((s) => {
+                    const Icon = SOURCE_ICONS[s.id] ?? Link2;
+                    const tag = !s.available ? "Soon" : SOURCE_TAGS[s.id];
+                    return (
+                      <button
+                        key={s.id}
+                        role="listitem"
+                        type="button"
+                        disabled={!s.available}
+                        title={s.note ?? undefined}
+                        onClick={() => setSource(s)}
+                        className="flex min-h-14 items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-left text-sm transition-colors duration-150 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-foreground"><Icon className="size-4" /></span>
+                        <span className="min-w-0 flex-1 font-medium">{s.label}</span>
+                        {tag && <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">{tag}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
         )}

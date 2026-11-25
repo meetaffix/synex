@@ -4,7 +4,7 @@ import { API_PORT } from "./support";
 
 /* The "How would you like to add leads?" dialog. The API is mocked; nothing is read from LinkedIn. */
 
-const source = (page: import("@playwright/test").Page, text: RegExp | string) => page.getByRole("list", { name: "Lead sources" }).locator("button").filter({ hasText: text });
+const source = (page: import("@playwright/test").Page, text: RegExp | string) => page.getByTestId("lead-sources").locator("button").filter({ hasText: text });
 
 const open = async (page: import("@playwright/test").Page) => {
   const api = newApi({ accounts: [account("a1", "Ada Lovelace")] });
@@ -16,11 +16,14 @@ const open = async (page: import("@playwright/test").Page) => {
 
 test("every source is listed; the unbuilt one says Coming soon and cannot be chosen", async ({ page }) => {
   await open(page);
-  const list = page.getByRole("list", { name: "Lead sources" });
+  const list = page.getByTestId("lead-sources");
   await expect(list.locator("button")).toHaveCount(9);
   await expect(source(page, /LinkedIn group members/)).toBeDisabled();
-  await expect(list.getByText(/Coming soon: LinkedIn only shows/)).toBeVisible();
-  await expect(list.getByText("Needs a Sales Navigator subscription on the sender account.")).toBeVisible();
+  await expect(source(page, /LinkedIn group members/)).toContainText("Soon");
+  await expect(source(page, /Sales Navigator leads/)).toContainText("Needs Sales Navigator");
+  await expect(list.getByRole("heading", { name: /From LinkedIn/ })).toBeVisible();
+  await expect(list.getByRole("heading", { name: /From what you already have/ })).toBeVisible();
+  await expect(list.getByText("Reads LinkedIn, paced")).toHaveCount(0); // said once per group, not on every card
 });
 
 test("an event: the hint warns about attending, the estimate shows before anything runs, and a wrong address is explained", async ({ page }) => {
@@ -48,7 +51,8 @@ test("company sources say they make a list of companies and hide the people-only
 
 test("a pasted-links source needs no sender and says nothing is read from LinkedIn", async ({ page }) => {
   await open(page);
-  await expect(source(page, /Paste profile links/)).toContainText("Nothing is read from LinkedIn");
+  await expect(page.getByRole("list", { name: "From what you already have" }).locator("button").filter({ hasText: /Paste profile links/ })).toBeVisible();
+  await expect(page.getByText("Nothing is read from LinkedIn")).toBeVisible();
   await source(page, /Paste profile links/).click();
   await expect(page.getByLabel("Sender account (reads LinkedIn)")).toHaveCount(0);
   await expect(page.getByTestId("estimate")).toHaveCount(0);
