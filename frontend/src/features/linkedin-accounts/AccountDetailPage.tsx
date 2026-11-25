@@ -81,34 +81,24 @@ export function AccountDetailPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       {back}
-      <PageHeader
-        title={account.name}
-        description={account.headline ?? "No headline"}
-        actions={
-          <>
-            <StatusBadge kind="account" status={account.status} />
-            <Button size="sm" variant="secondary" loading={actions.check.isPending} disabled={account.status === "disconnected"} onClick={check}>Resync</Button>
-          </>
-        }
-      />
-      <div className="flex items-center gap-3">
+      <header className="flex flex-wrap items-center gap-4">
         <UserAvatar name={account.name} src={account.avatarUrl} className="size-14" />
-        <div className="min-w-0 text-sm text-muted-foreground">
-          {(account.company || account.location) && (
-            <p data-testid="account-place" className="mb-1 text-foreground">{[account.company, account.location].filter(Boolean).join(" · ")}</p>
-          )}
-          <p>
-          {account.profileUrl && <a className="underline-offset-2 hover:underline" href={account.profileUrl} target="_blank" rel="noreferrer noopener">View LinkedIn profile</a>}
-          {account.profileUrl && " · "}
-          {account.connectedAt ? `Connected since ${formatDate(account.connectedAt, "PP")}` : "Not connected yet"}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{account.name}</h1>
+          <p className="truncate text-sm text-muted-foreground">{account.headline ?? "No headline"}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {(account.company || account.location) && <span data-testid="account-place" className="text-foreground">{[account.company, account.location].filter(Boolean).join(" · ")}</span>}
+            <span>{account.connectedAt ? `Connected since ${formatDate(account.connectedAt, "PP")}` : "Not connected yet"}</span>
+            <span>{data.activeCampaigns} active campaign{data.activeCampaigns === 1 ? "" : "s"}</span>
+            <span>Checked {account.lastCheckedAt ? formatRelative(account.lastCheckedAt) : "never"}</span>
+            {account.profileUrl && <a className="text-primary-ink underline-offset-2 hover:underline" href={account.profileUrl} target="_blank" rel="noreferrer noopener">LinkedIn profile</a>}
           </p>
         </div>
-      </div>
-      <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-        <div><dt className="text-muted-foreground">Active campaigns</dt><dd className="font-medium">{data.activeCampaigns}</dd></div>
-        <div><dt className="text-muted-foreground">Last check</dt><dd className="font-medium">{account.lastCheckedAt ? formatRelative(account.lastCheckedAt) : "Never"}</dd></div>
-        <div><dt className="text-muted-foreground">Proxy</dt><dd className="font-medium">{account.proxyConfigured ? "Set" : "None"}</dd></div>
-      </dl>
+        <div className="flex items-center gap-2">
+          <StatusBadge kind="account" status={account.status} />
+          <Button size="sm" variant="secondary" loading={actions.check.isPending} disabled={account.status === "disconnected"} onClick={check}>Resync</Button>
+        </div>
+      </header>
       <div className="min-w-0">
         <Tabs label="Account sections" tabs={TABS} value={tab} idPrefix="acct" onChange={(next) => setParams({ tab: next }, { replace: true })} />
         <TabPanel id="limits" active={tab === "limits"} idPrefix="acct"><SenderLimitsTab accountId={account.id} details={data} /></TabPanel>

@@ -60,9 +60,6 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
   const unconfigured = Object.keys(details.policy.actions).length === 0;
   const suggestions = useMemo(() => recommendedActions(details.usage), [details.usage]);
   const plan = useQuery({ queryKey: ["plan"], queryFn: () => api.get<{ name: string; limits: Record<string, number> }>("/plan"), retry: false, staleTime: 60_000 });
-  const testProfile = useQuery({ queryKey: ["safety", "ceilings"], queryFn: () => api.get<{ testProfile: Record<string, number> }>("/outreach/ceilings"), retry: false, staleTime: 60_000 });
-  const testActions = useMemo(() => Object.fromEntries(Object.entries(testProfile.data?.testProfile ?? {}).map(([action, n]) =>
-    [action, { dailyLimit: n, increaseBy: 0, stopAt: n, intervalDays: 7, dynamicInterval: false }])) as Record<string, ActionPolicy>, [testProfile.data]);
 
   const setAction = (action: string, change: Partial<ActionPolicy>) =>
     setDraft((current) => {
@@ -84,9 +81,9 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
     <div className="grid grid-cols-1 gap-8">
       {unconfigured && !dismissed && (
         <section aria-labelledby={`${id}-rec`} className="grid gap-3 rounded-lg border border-border bg-surface-muted p-4">
-          <h2 id={`${id}-rec`} className="text-base font-semibold">Recommended limits for a new account</h2>
+          <h2 id={`${id}-rec`} className="text-base font-semibold">Set this account's limits</h2>
           <p className="text-sm text-muted-foreground">
-            This account has no per-action limits yet, so nothing can run. Start low and let them grow: every value stays under Synex's hard maximum for that action.
+            No limits are set yet, so this account sends nothing.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" loading={savePolicy.isPending} onClick={() => save({ ...draft, preset: "conservative", actions: suggestions })}>
@@ -109,50 +106,46 @@ export function SenderLimitsTab({ accountId, details }: { accountId: string; det
         </section>
       )}
 
-      {testProfile.data && (
-        <section aria-labelledby={`${id}-test`} className="grid gap-2 rounded-lg border border-dashed border-border p-4">
-          <h2 id={`${id}-test`} className="text-base font-semibold">Test account profile</h2>
-          <p className="text-sm text-muted-foreground">For a test sender: at most 5 profile views, 5 connection requests and 5 messages a day, with random gaps between actions. Everything else is stopped, except the few reads needed to see replies and acceptances.</p>
-          <div><Button size="sm" variant="outline" loading={savePolicy.isPending} onClick={() => save({ ...draft, preset: "off", range: 1, actions: testActions })}>Apply the test profile</Button></div>
-        </section>
-      )}
 
       <section aria-labelledby={`${id}-usage`} className="grid gap-3">
-        <h2 id={`${id}-usage`} className="text-base font-semibold">Last 24 hours</h2>
-        <p className="text-sm text-muted-foreground">
-          Limits belong to this sender account, not to a campaign. Each day Synex picks a number inside the range, so activity is never the same two days running.
-        </p>
-        <div tabIndex={0} role="region" aria-label="Usage in the last 24 hours (scrolls sideways)" className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[34rem] text-sm">
-            <caption className="sr-only">Actions used in the last 24 hours against today's limits</caption>
-            <thead className="bg-surface-muted text-left text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Action</th>
-                <th scope="col" className="px-3 py-2 font-medium">Sent</th>
-                <th scope="col" className="px-3 py-2 font-medium">Today's limit</th>
-                <th scope="col" className="px-3 py-2 font-medium">Range</th>
-                <th scope="col" className="px-3 py-2 font-medium">Hard maximum</th>
-              </tr>
-            </thead>
-            <tbody>
-              {details.usage.map((row) => (
-                <tr key={row.action} className="border-t border-border">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">{row.label}</th>
-                  <td className="px-3 py-2 tabular-nums">{row.sent}{row.queued ? <span className="text-muted-foreground"> (+{row.queued} waiting)</span> : null}</td>
-                  <td className="px-3 py-2 tabular-nums">{row.budget === 0 ? "Stopped" : row.budget}</td>
-                  <td className="px-3 py-2 tabular-nums">{row.high === 0 ? "0" : `${row.low} to ${row.high}`}</td>
-                  <td className="px-3 py-2 tabular-nums text-muted-foreground">{row.ceiling}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 id={`${id}-usage`} className="text-base font-semibold">Today</h2>
+        {(() => {
+          const bar = (row: (typeof details.usage)[number]) => {
+            const limit = row.budget;
+            const share = limit > 0 ? Math.min(100, Math.round((row.sent / limit) * 100)) : 0;
+            return (
+              <li key={row.action} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm" title={`Range ${row.low} to ${row.high} a day, hard maximum ${row.ceiling}`}>
+                <span className="truncate">{row.label}</span>
+                <span className="h-1.5 overflow-hidden rounded-full bg-surface-muted" aria-hidden>
+                  <span className={`block h-full rounded-full ${share >= 80 ? "bg-warning" : "bg-primary"}`} style={{ width: `${share}%` }} />
+                </span>
+                <span className="w-28 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  {limit === 0 ? "Stopped" : `${row.sent} of ${limit}`}{row.queued ? ` +${row.queued}` : ""}
+                </span>
+              </li>
+            );
+          };
+          const main = details.usage.filter((row) => row.budget > 0 || row.sent > 0);
+          const rest = details.usage.filter((row) => !(row.budget > 0 || row.sent > 0));
+          return (
+            <>
+              <ul aria-label="Actions used today against today's limits" className="grid gap-2 rounded-lg border border-border bg-surface p-4">
+                {(main.length ? main : details.usage.slice(0, 4)).map(bar)}
+              </ul>
+              {main.length > 0 && rest.length > 0 && (
+                <details className="rounded-lg border border-border p-3 text-sm">
+                  <summary className="cursor-pointer text-muted-foreground">Stopped actions ({rest.length})</summary>
+                  <ul className="mt-3 grid gap-2">{rest.map(bar)}</ul>
+                </details>
+              )}
+            </>
+          );
+        })()}
       </section>
 
       <section aria-labelledby={`${id}-simple`} className="grid gap-4 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-5">
         <div>
           <h2 id={`${id}-simple`} className="text-base font-semibold">Daily sending</h2>
-          <p className="text-sm text-muted-foreground">How much this account may send in a day. It starts low and grows at the pace you pick.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {MAIN.map((item) => {

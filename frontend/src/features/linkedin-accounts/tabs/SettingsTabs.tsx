@@ -90,7 +90,7 @@ export function HealthTab({ account, details }: { account: SenderAccount; detail
           <div className="grid gap-1">
             <h2 id={`${id}-withdraw`} className="text-base font-semibold">Auto-withdraw stale invitations</h2>
             <p className="text-sm text-muted-foreground">
-              Old unanswered invitations count against you with LinkedIn. When this is on, Synex withdraws invitations that stay unanswered longer than the number of days below, a few at a time within this account's limits.
+              Withdraw invitations nobody answered after the number of days below.
             </p>
           </div>
           <Switch aria-labelledby={`${id}-withdraw`} checked={details.policy.autoWithdraw} disabled={savePolicy.isPending} onCheckedChange={(checked) => save({ autoWithdraw: checked })} />
@@ -102,14 +102,11 @@ export function HealthTab({ account, details }: { account: SenderAccount; detail
         <div>
           <Button size="sm" disabled={days === details.policy.staleInviteDays || days < 7 || days > 365} loading={savePolicy.isPending} onClick={() => save({ staleInviteDays: days })}>Save days</Button>
         </div>
-        <p role="note" className="rounded-lg border border-border bg-surface-muted p-3 text-xs text-muted-foreground">
-          Withdrawing runs a few at a time, only for invitations still pending, and counts against the "Invitation withdrawals" limit on the Limits tab (set it above 0 to allow it).
-        </p>
       </section>
       <section aria-labelledby={`${id}-activity`} className="grid gap-2">
         <h2 id={`${id}-activity`} className="text-base font-semibold">Recent activity</h2>
         {details.activity.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No activity has been recorded for this account yet.</p>
+          <p className="text-sm text-muted-foreground">No activity yet</p>
         ) : (
           <ul className="grid gap-1 text-sm">
             {details.activity.slice(0, 20).map((item) => (
@@ -132,12 +129,12 @@ export function HealthTab({ account, details }: { account: SenderAccount; detail
           <ul className="grid gap-1 text-sm">{details.health.advice.map((a) => <li key={a}>{a}</li>)}</ul>
         </section>
       )}
-      <section className="grid gap-2">
-        <h2 className="text-base font-semibold">LinkedIn social selling score</h2>
-        <p className="text-sm text-muted-foreground">
-          {details.ssi === null ? details.ssiReason : `Score ${details.ssi}`} Synex never shows a made-up score.
-        </p>
-      </section>
+      {details.ssi !== null && (
+        <section className="grid gap-1">
+          <h2 className="text-base font-semibold">LinkedIn social selling score</h2>
+          <p className="font-mono text-2xl tabular-nums">{details.ssi}</p>
+        </section>
+      )}
     </div>
   );
 }
