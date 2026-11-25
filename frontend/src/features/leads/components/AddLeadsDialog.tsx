@@ -253,7 +253,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
       if (done.status !== "completed") watch(done.id);
       else {
         await client.invalidateQueries();
-        toast.success(`${done.created} leads added to ${done.listName}.`);
+        toast.success(`${done.fetched} ${done.fetched === 1 ? "person" : "people"} on ${done.listName}`);
       }
     } catch (e) {
       setError(failure(e));

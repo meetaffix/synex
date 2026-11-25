@@ -13,7 +13,7 @@ test("publishing journey, all routes, and responsive layouts", async ({
     .fill("Browser-Test-Password!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 }),
+    page.getByRole("heading", { name: /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/, level: 1 }),
   ).toBeVisible();
   await page.goto("/others/publishing");
   await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();

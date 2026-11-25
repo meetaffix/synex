@@ -229,6 +229,9 @@ class OutreachWorker:
             log.warning("outreach task %s raised %s at %s", task_id, type(error).__name__, " < ".join(reversed(frames)))
             await asyncio.to_thread(results.fail_task, task_id, type(error).__name__)
             return False
+        if session.seen_name:
+            await asyncio.to_thread(results.fill_lead_name, task_id, session.seen_name)
+            session.seen_name = ""
         if snapshot.type == "sync_inbox":
             await asyncio.to_thread(results.apply_inbox, task_id, outcome)
         elif snapshot.type in ("collect_leads", "sync_connections"):

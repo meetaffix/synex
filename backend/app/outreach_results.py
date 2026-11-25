@@ -348,7 +348,21 @@ def _message(ctx: TaskContext, result: str) -> str | None:
     return None
 
 
+def fill_lead_name(task_id: str, name: str) -> None:
+    """A lead added from a bare profile link has no name until its profile is opened: take it from that page, never overwrite one."""
+    with SessionLocal() as db:
+        task = db.get(models.AgentTask, task_id)
+        lead = _context(db, task).lead if task else None
+        if lead is not None and not (lead.first_name or "").strip() and name.strip():
+            lead.first_name, _, lead.last_name = name.strip().partition(" ")
+            db.commit()
+
+
 def _visit(ctx: TaskContext, result: str) -> str | None:
+    if (ctx.task.payload or {}).get("nameLookup"):  # opened only to learn the name: the step itself is still to come
+        if ctx.run is not None and ctx.run.status == "awaiting_agent":
+            ctx.run.status, ctx.run.next_action_at = "running", ctx.now
+        return "profile_visited" if result == "visited" else None
     if result == "visited":
         _advance(ctx)
         return "profile_visited"

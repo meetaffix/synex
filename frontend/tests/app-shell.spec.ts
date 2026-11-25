@@ -262,7 +262,7 @@ test.describe("dashboard", () => {
     await expect(card("Connections accepted")).toContainText("Not available yet");
     await expect(cards.getByText("Figures for a date range or a single account are not available")).toBeVisible();
     await page.getByLabel("Date range").selectOption("all");
-    await page.getByLabel("Campaign").selectOption("c2");
+    await page.getByLabel("Campaign", { exact: true }).selectOption("c2");
     await expect(card("Connections accepted")).toContainText("3");
   });
 

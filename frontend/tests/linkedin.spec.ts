@@ -4,7 +4,7 @@ test("separate LinkedIn sign-in and publishing consent in the browser (mock prov
   await page.goto("/login");await page.getByRole("link",{name:"Continue with LinkedIn"}).click();
   await expect(page.locator("#scopes")).toHaveText("openid profile email");
   await page.getByRole("link",{name:"Approve test grant"}).click();
-  await expect(page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/, level: 1 })).toBeVisible();
   await page.goto("/others/publishing/connections");
   await page.getByRole("button",{name:"Connect LinkedIn",exact:true}).click();
   await expect(page.locator("#scopes")).toContainText("w_member_social");

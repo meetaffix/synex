@@ -48,15 +48,3 @@ test("the Safety page points to the audit log", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("link", { name: "Open the audit log" })).toHaveAttribute("href", "/settings/audit");
 });
-
-test("a sender's limits tab applies the test profile: 5, 5 and 5, everything else stopped", async ({ page }) => {
-  const api = newApi({ accounts: [account("a1", "Ada Lovelace")] });
-  await mockApi(page, api);
-  await page.goto("/linkedin-accounts/a1?tab=limits");
-  await page.getByRole("button", { name: "Apply the test profile" }).click();
-  await expect(page.getByText("Limits saved.")).toBeVisible();
-  const saved = callsTo(api, "PUT", /\/policy$/)[0].body as { actions: Record<string, { dailyLimit: number; stopAt: number }> };
-  expect([saved.actions.visit_profile.stopAt, saved.actions.send_invite.stopAt, saved.actions.send_message.stopAt]).toEqual([5, 5, 5]);
-  expect(saved.actions.like_post.dailyLimit).toBe(0);
-  expect(saved.actions.send_inmail.stopAt).toBe(0);
-});

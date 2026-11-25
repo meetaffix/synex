@@ -219,7 +219,7 @@
     margin-bottom: var(--space-3);
   }
   .step-label {
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
   }
   .footnote {
     font-size: var(--text-xs);
@@ -227,7 +227,7 @@
     color: rgb(var(--muted-foreground));
   }
   .footnote a {
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
     text-decoration: underline;
     text-underline-offset: 4px;
   }
@@ -324,7 +324,7 @@
     color: rgb(var(--muted-foreground));
   }
   .section-heading a:hover {
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
   }
   .quiet-empty {
     display: flex;
@@ -470,7 +470,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
   }
   .connection-header {
     display: flex;
@@ -741,7 +741,7 @@
     display: flex;
     gap: var(--space-2);
     margin: var(--space-4) var(--space-6);
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
   }
 
   /* Calendar */
@@ -926,7 +926,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
   }
 
   @media (max-width: 1100px) {

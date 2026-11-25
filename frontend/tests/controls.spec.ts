@@ -12,7 +12,7 @@ test("manual CRM, preferences, calendar controls and sign-out persist", async ({
     .fill("Browser-Test-Password!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 }),
+    page.getByRole("heading", { name: /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/, level: 1 }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Collapse sidebar" }).click();
   await page.getByRole("button", { name: "Expand sidebar" }).click();
@@ -25,6 +25,7 @@ test("manual CRM, preferences, calendar controls and sign-out persist", async ({
   await expect(page.getByLabel("Time zone", { exact: true })).toHaveValue(
     "Europe/Amsterdam",
   );
+  await openAdvanced(page); // the reload closed the folds again
   await page.getByRole("button", { name: "Refresh diagnostics" }).click();
   await page.goto("/others/publishing/calendar");
   await page.getByRole("button", { name: "Next month" }).click();
@@ -99,7 +100,7 @@ test("a time zone typed before the saved one has loaded is kept, saved and shown
     .fill("Browser-Test-Password!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 }),
+    page.getByRole("heading", { name: /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/, level: 1 }),
   ).toBeVisible();
   await page.goto("/settings");
   await openAdvanced(page);

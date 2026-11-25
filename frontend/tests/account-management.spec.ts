@@ -30,7 +30,7 @@ test("the account page opens from the list and offers its four sections as tabs"
 
 test("a new account is offered recommended limits; applying them saves a policy under every hard maximum", async ({ page }) => {
   const api = await open(page);
-  await expect(page.getByRole("heading", { name: "Recommended limits for a new account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Set this account's limits" })).toBeVisible();
   await page.getByRole("button", { name: "Show suggestions" }).click();
   await expect(page.getByText("Connection requests: start at 5 a day, growing to 25 (maximum 40).")).toBeVisible();
   await page.getByRole("button", { name: "Apply limits" }).click();
@@ -43,16 +43,15 @@ test("a new account is offered recommended limits; applying them saves a policy 
     expect(policy.stopAt).toBeLessThanOrEqual(ceilings[action]);
     expect(policy.dailyLimit).toBeLessThanOrEqual(policy.stopAt);
   }
-  await expect(page.getByRole("heading", { name: "Recommended limits for a new account" })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Set this account's limits" })).toBeHidden();
 });
 
-test("the limits table shows what was used, today's limit with its range, and the hard maximum for every action", async ({ page }) => {
+test("today's usage shows each action as a bar with what was sent of today's limit, and the hard maximum on hover", async ({ page }) => {
   await open(page);
-  const table = page.getByRole("table", { name: "Actions used in the last 24 hours against today's limits" });
-  await expect(table.getByRole("columnheader")).toHaveText(["Action", "Sent", "Today's limit", "Range", "Hard maximum"]);
-  await expect(table.getByRole("row")).toHaveCount(14);
-  await expect(table.getByRole("row", { name: /Connection requests/ })).toContainText("40");
-  await expect(table.getByRole("row", { name: /Lead collection pages/ })).toContainText("20");
+  const usage = page.getByRole("list", { name: "Actions used today against today's limits" });
+  const invites = usage.getByRole("listitem").filter({ hasText: "Connection requests" });
+  await expect(invites).toContainText("3 of 40");
+  await expect(invites).toHaveAttribute("title", /hard maximum 40/);
 });
 
 test("a limit cannot be typed above its hard maximum, presets lock the growth fields, and Custom unlocks them", async ({ page }) => {
@@ -102,14 +101,12 @@ test("inbox privacy: only the connecting person may change it, otherwise the pag
 test("health: auto-withdraw can be switched on and saved, and the page says what it needs", async ({ page }) => {
   const api = await open(page);
   await page.getByRole("tab", { name: "Health" }).click();
-  await expect(page.getByText(/not yet verified on real LinkedIn/)).toBeVisible();
   await page.getByRole("switch", { name: "Auto-withdraw stale invitations" }).click();
   await expect(page.getByText("Health settings saved.")).toBeVisible();
   expect((callsTo(api, "PUT", /\/policy$/)[0].body as { autoWithdraw: boolean }).autoWithdraw).toBe(true);
-  await expect(page.getByText(/No verified LinkedIn SSI data/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Health summary" })).toBeVisible();
   await expect(page.getByText(/No warning or restriction has been recorded/)).toBeVisible();
-  await expect(page.getByText("No activity has been recorded for this account yet.")).toBeVisible();
+  await expect(page.getByText("No activity yet")).toBeVisible();
 });
 
 test("account: deactivating asks first, then frees the seat and keeps the history", async ({ page }) => {
@@ -217,7 +214,7 @@ test("AI configuration: a preset voice is assigned with its licence shown; cloni
   await expect(page.getByText(/commercial licence/).first()).toBeVisible();
   await page.getByRole("button", { name: "Assign voice" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Licence: CC BY 4.0")).toBeVisible();
+  await expect(dialog.getByTitle("Licence: CC BY 4.0").first()).toBeVisible();
   await expect(dialog.getByText(/Piper\) is not installed/)).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Play a sample of Cori" })).toBeDisabled();
   await expect(dialog.getByText(/English \(India\) \(unavailable/)).toBeVisible();

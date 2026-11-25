@@ -99,7 +99,7 @@ test("My connections with no worker running says so, and how to start it", async
   await openConnections(page, [{ status: "queued", workerActive: false }]);
   await source(page, /My connections/).click();
   await page.getByRole("button", { name: "Add all my connections" }).click();
-  await expect(page.getByText("No worker is running, so this cannot start yet")).toBeVisible();
+  await expect(page.getByText("Waiting for Synex to start reading LinkedIn")).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("Synex is not reading LinkedIn right now");
 });
 

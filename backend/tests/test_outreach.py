@@ -1508,6 +1508,45 @@ class MyConnectionsTest(OutreachCase):
 
 
 
+class NameLookupTest(OutreachCase):
+    """A lead added from a bare profile link has no name. A step that greets by name opens the profile first, takes the name from
+    its page, and only then sends; nobody is ever greeted with "Hi ,"."""
+
+    def nameless(self, user):
+        with SessionLocal() as db:
+            lead = db.query(models.Lead).filter_by(first_name=user.title()).one()
+            lead.first_name, lead.last_name = "", ""
+            db.commit()
+            return lead.id
+
+    def test_the_name_is_read_before_the_greeting_is_sent(self):
+        self.make_campaign(["fresh"], steps=[{"type": "connection_request", "message": "Hi {{first_name}}, glad to connect"}])
+        lead_id = self.nameless("fresh")
+        self.drive(lambda: bool(MOCK.invites))
+        self.assertEqual(MOCK.invites, [("fresh", "Hi Mock, glad to connect")])
+        lookups = [t for t in self.tasks("visit_profile") if (t.payload or {}).get("nameLookup")]
+        self.assertEqual(len(lookups), 1)
+        with SessionLocal() as db:
+            lead = db.get(models.Lead, lead_id)
+            self.assertEqual((lead.first_name, lead.last_name), ("Mock", "Fresh"))
+
+    def test_an_unreadable_name_stops_the_run_instead_of_sending(self):
+        self.make_campaign(["gone"], steps=[{"type": "connection_request", "message": "Hi {{first_name}}"}])
+        lead_id = self.nameless("gone")
+
+        def stopped():
+            with SessionLocal() as db:
+                return db.query(models.SequenceRun).filter_by(lead_id=lead_id).one().status == "stopped"
+        self.drive(stopped)
+        self.assertEqual(MOCK.invites, [])
+
+    def test_a_step_without_a_name_needs_no_lookup(self):
+        self.make_campaign(["fresh"], steps=[{"type": "connection_request", "message": "Glad to connect"}])
+        self.nameless("fresh")
+        self.drive(lambda: bool(MOCK.invites))
+        self.assertEqual([t for t in self.tasks("visit_profile") if (t.payload or {}).get("nameLookup")], [])
+
+
 class InboxNameTest(OutreachCase):
     """LinkedIn's chat links use an internal id (/in/ACoAA...). The chat is matched to the lead by the name in its header, and a new person gets their real name, never the id."""
 

@@ -89,7 +89,7 @@ test.describe("dialog behaviour", () => {
     await expect(page.getByRole("heading", { name: "Approve the sign-in in your LinkedIn app" })).toBeVisible({ timeout: 15_000 });
 
     await page.goBack(); // a client-side navigation: the dialog and its polling unmount
-    await expect(page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/, level: 1 })).toBeVisible();
     await expect.poll(() => callsTo(api, "DELETE", /\/connect\/a1$/).length).toBe(1);
     const polls = callsTo(api, "GET", /\/connect\/a1$/).length;
     await page.waitForTimeout(5000); // two and a half polling intervals

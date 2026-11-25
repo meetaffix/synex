@@ -222,7 +222,7 @@ class MockLinkedIn:
                 mock.seen += 1  # a cookie that changes on every visit proves the browser's state was saved back
                 self._send(cookies=[f"li_seen={mock.seen}; Path=/"],
                            body=(f'<title>Mock {user.title()} | LinkedIn</title><main><h2>Mock {user.title()}</h2>' if mock.real_shape
-                                 else f'<h1>Mock {user.title()}</h1>') + f'<div class="headline">Engineer at Mock Co</div>'
+                                 else f'<title>Mock {user.title()} | LinkedIn</title><h1>Mock {user.title()}</h1>') + f'<div class="headline">Engineer at Mock Co</div>'
                                 f'<img class="avatar" src="{mock.base_url}/avatar-{user}.png">{connect}{follow}')
 
             def do_GET(self):

@@ -45,7 +45,7 @@ WARMUP_STEP_MIN, WARMUP_STEP_MAX = 1, 25
 
 
 def warmup_step(account: models.LinkedInAccount) -> int:
-    value = (account.management_config or {}).get("warmupStepPerDay")
+    value = (getattr(account, "management_config", None) or {}).get("warmupStepPerDay")
     try:
         return max(WARMUP_STEP_MIN, min(WARMUP_STEP_MAX, int(value))) if value is not None else WARMUP_STEP
     except (TypeError, ValueError):
@@ -526,8 +526,36 @@ def emit_task(
     return task
 
 
+_NAME_TOKENS = ("{{first_name}}", "{{last_name}}", "{{name}}", "{{full_name}}", "{{linkedin_firstName}}", "{{linkedin_lastName}}")
+
+
+def _needs_name(step, lead, ttype: str) -> bool:
+    """A lead added from a bare link has no name yet, and this step would greet it by name."""
+    return (ttype in ("send_invite", "send_message", "send_inmail") and not (lead.first_name or "").strip()
+            and any(token in (step.message or "") for token in _NAME_TOKENS))
+
+
 def _emit_for_run(db, campaign, run, step, ttype, lead, message, account, now, extra: dict | None = None) -> None:
     from .providers import render_sender_variables
+    if _needs_name(step, lead, ttype):
+        # Open the profile first (one paced profile visit) to learn the name, so nobody gets "Hi ,". If the visit is done and
+        # the name is still unknown, the run stops instead of sending a broken greeting.
+        lookup_key = f"{run.id}:{step.id}:name"
+        earlier = db.query(models.AgentTask).filter_by(idempotency_key=lookup_key).first()
+        if earlier is not None and earlier.status not in ("pending", "running"):
+            stop_run(run, "name_unknown", now)
+            return
+        if earlier is None:
+            task = emit_task(db, account, "visit_profile", {"leadId": lead.id, "linkedinUrl": lead.linkedin_url or "",
+                                                             "stepId": step.id, "campaignId": campaign.id, "nameLookup": True},
+                             lookup_key, run)
+            if task is None:
+                run.next_action_at = _retry_later(now)
+                return
+            _reserve_daily(account, now)
+        run.status = "awaiting_agent"
+        run.next_action_at = now + timedelta(hours=24)  # parked; the visit's result wakes it
+        return
     message = render_sender_variables(message, account)  # the sender is known only now, when an account is picked
     payload = {"leadId": lead.id, "linkedinUrl": lead.linkedin_url or "", "message": message or "",
                "stepId": step.id, "campaignId": campaign.id, **(extra or {})}

@@ -18,7 +18,7 @@ from enum import Enum
 
 from playwright.async_api import Page
 
-from .pages import NOTE_LIMIT, ProfilePages, SessionProblem, ThreadMessage
+from .pages import NOTE_LIMIT, ProfilePages, SessionProblem, ThreadMessage, name_from_title
 
 
 class SessionError(Exception):
@@ -116,13 +116,23 @@ class ActionSession:
     pages: ProfilePages
     # Awaited right before an irreversible click (send, invite, follow).
     before_commit: Callable[[], Awaitable[None]] = field(default=_noop)
+    # The name on the last profile opened (from its page title, "<Name> | LinkedIn"), so a lead added from a bare link gets one.
+    seen_name: str = ""
 
 
 async def _open(session: ActionSession, profile_url: str) -> bool:
     """Open a profile; False when it is unavailable. Raises SessionError on a bad session."""
+    session.seen_name = ""
     await session.pages.goto(session.page, profile_url)
     await _guard(session)
-    return not await session.pages.profile_unavailable(session.page)
+    if await session.pages.profile_unavailable(session.page):
+        return False
+    try:
+        if "/in/" in session.page.url:  # a profile page, not a redirect to the feed or a sign-in page
+            session.seen_name = name_from_title(await session.page.title()) or ""
+    except Exception:  # noqa: BLE001 - a name is a bonus; the action goes on without it
+        session.seen_name = ""
+    return True
 
 
 async def _guard(session: ActionSession) -> None:
