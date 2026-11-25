@@ -31,6 +31,7 @@ export const accountSchema = z.object({
   status: accountStatusSchema,
   dailyActionLimit: z.number(),
   dailyActionsUsed: z.number(),
+  dailyActionLimitToday: z.number().optional(),
   ceilings: ceilingsSchema,
   proxyConfigured: z.boolean(),
   syncMode: syncModeSchema,

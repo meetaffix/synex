@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openAdvanced } from "./advanced";
 import { callsTo, mockApi, newApi } from "./mock-api";
 
 /* The free local-model assistant card in Settings. The API is mocked; no model runs. */
@@ -7,6 +8,7 @@ test("it says the model is ready, answers a typed request, and a proposed change
   const api = newApi();
   await mockApi(page, api);
   await page.goto("/settings");
+  await openAdvanced(page);
   await expect(page.getByText("Free local model", { exact: true })).toBeVisible();
   await expect(page.getByText("Ready: llama3.2 is running.")).toBeVisible();
   await page.getByLabel("Ask the local assistant").fill("Which conversations need a reply?");
@@ -25,6 +27,7 @@ test("when the local model is not running it says how to start it and the box is
   api.syncStatus = "ollama-off";
   await mockApi(page, api);
   await page.goto("/settings");
+  await openAdvanced(page);
   await expect(page.getByText(/Ollama is not running/)).toBeVisible();
   await expect(page.getByLabel("Ask the local assistant")).toBeDisabled();
 });

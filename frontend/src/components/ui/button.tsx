@@ -10,8 +10,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** The one primary action on a view: a filled teal pill. */
-        default: "rounded-full bg-gradient-to-b from-primary to-primary-hover font-semibold text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_10px_20px_-10px_rgb(var(--primary)/0.7)] hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:brightness-95",
+        /** The one primary action on a view: filled orange, the same 8px corners as every other button. */
+        default: "bg-primary font-semibold text-primary-foreground hover:bg-primary-hover active:scale-[0.98]",
         /** Quieter actions. "outline" is the same look, kept for existing callers. */
         secondary: "border border-border-strong bg-surface text-foreground hover:bg-surface-muted",
         outline: "border border-border-strong bg-surface text-foreground hover:bg-surface-muted",
@@ -19,7 +19,7 @@ const buttonVariants = cva(
         /** Destructive actions are never primary: danger text on a soft tint. */
         danger: "border border-danger/40 bg-danger-soft text-danger hover:border-danger",
         destructive: "border border-danger/40 bg-danger-soft text-danger hover:border-danger",
-        link: "h-auto px-0 text-primary underline underline-offset-4 hover:text-primary-hover",
+        link: "h-auto px-0 text-primary-ink underline underline-offset-4 hover:text-primary-hover",
       },
       size: {
         // 40px; 36px compact for dense tables; at least 44px on phones.

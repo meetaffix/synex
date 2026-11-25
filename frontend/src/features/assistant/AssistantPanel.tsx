@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Check, Loader2, Mic, MicOff, Send, Sparkles, Volume2, VolumeX, WifiOff, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Mic, MicOff, Send, MessagesSquare, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -201,7 +201,7 @@ export function AssistantPanel() {
       className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-border bg-surface text-foreground shadow-float animate-rise motion-reduce:animate-none sm:w-[420px]"
     >
       <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Sparkles className="size-4 text-primary" aria-hidden />
+        <MessagesSquare className="size-4 text-primary-ink" aria-hidden />
         <h2 className="text-base font-semibold">Assistant</h2>
         <StatusPill />
         <div className="ml-auto flex items-center gap-1">
@@ -215,7 +215,7 @@ export function AssistantPanel() {
       </header>
       <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground" data-testid="assistant-disclosure">
         Voice and workspace data are processed by Deepgram and the language model it uses. Synex stores no audio.{" "}
-        <Link to="/privacy" className="text-primary underline underline-offset-2">
+        <Link to="/privacy" className="text-primary-ink underline underline-offset-2">
           Privacy
         </Link>
       </p>

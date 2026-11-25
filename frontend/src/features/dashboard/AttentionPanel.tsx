@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useCleared } from "./WorkPanels";
 import { AlertTriangle, ChevronRight, MessageSquare, PauseCircle, type LucideIcon } from "lucide-react";
 import { Illustration } from "@/components/brand/Illustration";
 import { UserAvatar } from "@/components/ui/avatar";
@@ -98,19 +100,27 @@ function ago(value: string): string {
 
 /** The latest conversations, with the people in them. */
 export function ActivityFeed({ conversations }: { conversations: Conversation[] }) {
-  const recent = [...conversations].sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)).slice(0, 5);
+  const cleared = useCleared("activity");
+  const recent = [...conversations].filter((c) => cleared.isNew(c.lastMessageAt)).sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)).slice(0, 5);
   return (
     <section aria-labelledby="activity-title" className="grid min-w-0 self-start grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 id="activity-title" className="text-base font-semibold">
           Recent activity
         </h2>
-        <Link to="/inbox" className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          Open inbox
-        </Link>
+        <span className="flex items-center gap-1">
+          {recent.length > 0 ? (
+            <Button size="sm" variant="ghost" onClick={cleared.clear}>Clear</Button>
+          ) : cleared.clearedAt && conversations.length > 0 ? (
+            <Button size="sm" variant="ghost" onClick={cleared.showAll}>Show all</Button>
+          ) : null}
+          <Link to="/inbox" className="rounded-sm text-sm font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Open inbox
+          </Link>
+        </span>
       </div>
       {recent.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Replies from your campaigns appear here as they arrive.</p>
+        <p className="text-sm text-muted-foreground">{cleared.clearedAt ? "Nothing new since you cleared it" : "Replies from your campaigns appear here as they arrive"}</p>
       ) : (
         <ul className="grid gap-1">
           {recent.map((conversation, index) => (

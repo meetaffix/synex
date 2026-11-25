@@ -100,14 +100,14 @@ test("My connections with no worker running says so, and how to start it", async
   await source(page, /My connections/).click();
   await page.getByRole("button", { name: "Add all my connections" }).click();
   await expect(page.getByText("No worker is running, so this cannot start yet")).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText("python -m app.outreach_worker");
+  await expect(page.getByRole("alert")).toContainText("Synex is not reading LinkedIn right now");
 });
 
 test("My connections: closing the window while it is read still tells you when the leads are added", async ({ page }) => {
   await openConnections(page, [{ status: "queued", workerActive: true }, { status: "queued", workerActive: true }, { status: "completed", created: 3, listId: "l9" }]);
   await source(page, /My connections/).click();
   await page.getByRole("button", { name: "Add all my connections" }).click();
-  await expect(page.getByText("Waiting for the worker…")).toBeVisible();
+  await expect(page.getByText("Starting…")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(page.getByText("3 leads added to My connections.")).toBeVisible({ timeout: 15_000 });

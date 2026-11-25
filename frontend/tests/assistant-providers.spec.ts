@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openAdvanced } from "./advanced";
 import { callsTo, mockApi, newApi } from "./mock-api";
 
 /* Choosing what answers in the assistant panel: Deepgram (default) or local models (Ollama, Whisper, Piper). The API is mocked; no model runs. */
@@ -13,6 +14,7 @@ const open = async (page: Page, over: (api: ReturnType<typeof newApi>) => void =
 test("settings lists both providers with cost, where they run, licence and what is ready, and choosing local really switches", async ({ page }) => {
   const api = await open(page);
   await page.goto("/settings");
+  await openAdvanced(page);
   const choice = page.getByTestId("provider-choice");
   await expect(choice.getByRole("radio", { name: "Deepgram voice agent" })).toBeChecked();
   await expect(choice).toContainText("Paid per minute. Runs on Deepgram's servers.");
@@ -29,6 +31,7 @@ test("settings lists both providers with cost, where they run, licence and what 
 test("local cannot be chosen while the language model is not running, and the old choice stays with the reason shown", async ({ page }) => {
   await open(page, (api) => { api.syncStatus = "ollama-off"; });
   await page.goto("/settings");
+  await openAdvanced(page);
   const choice = page.getByTestId("provider-choice");
   await choice.getByRole("radio", { name: "Local models" }).click(); // the choice follows the saved setting, so it changes once the server agrees
   await expect(page.getByText(/The local language model is not ready, so the assistant cannot switch to it/)).toBeVisible();

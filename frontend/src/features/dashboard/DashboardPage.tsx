@@ -14,8 +14,9 @@ import { OnboardingChecklist } from "@/features/onboarding/OnboardingChecklist";
 import { FunnelPanel } from "./FunnelPanel";
 import { AccountTable } from "./AccountTable";
 import { ActivityFeed, AttentionPanel } from "./AttentionPanel";
+import { RepliedLeads, RunningCampaigns } from "./WorkPanels";
 import { HeroMetric } from "./HeroMetric";
-import { greetingFor, pointsOf, replyRates, valuesOf } from "./insights";
+import { pointsOf, replyRates, valuesOf } from "./insights";
 import { useAccountStats, useSummary, useTimeseries } from "./hooks";
 import { MetricCards, noMetrics, type MetricValues } from "./MetricCards";
 import { PerformanceChart } from "./PerformanceChart";
@@ -76,7 +77,7 @@ export function DashboardPage() {
   const waiting = (conversations.data ?? []).filter((conversation) => conversation.unread).length;
   const header = (
     <PageHeader
-      title={first ? `${greetingFor(new Date())}, ${first}` : greetingFor(new Date())}
+      title={new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
       description={accounts.data ? todayLine(actionsToday, waiting) : "How your outreach is performing across sender accounts."}
     />
   );
@@ -129,6 +130,10 @@ export function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <HeroMetric replies={values.replies} contacted={values.leadsContacted} rates={replyRates(points)} unit={unit} loading={summary.isLoading || campaigns.isLoading} />
         <AttentionPanel conversations={conversations.data ?? []} accounts={accounts.data ?? []} campaigns={campaigns.data ?? []} />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <RunningCampaigns campaigns={campaigns.data ?? []} />
+        <RepliedLeads />
       </div>
       <form aria-label="Filters" className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={(event) => event.preventDefault()}>
         <div className="grid min-w-[10rem] flex-1 gap-1 sm:max-w-[16rem]">

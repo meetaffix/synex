@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openAdvanced } from "./advanced";
 import AxeBuilder from "@axe-core/playwright";
 import { mockApi, newApi } from "./mock-api";
 import { API_PORT, API_URL } from "./support";
@@ -341,6 +342,7 @@ test.describe("assistant settings and privacy", () => {
   test("the monthly limit cannot be set above what the plan includes: the box says the maximum and Save stays off", async ({ page }) => {
     const mock = await mockAssistant(page);
     await page.goto("/settings");
+    await openAdvanced(page);
     await expect(page.getByText(/Your Free plan includes up to 100 minutes a month/)).toBeVisible();
     await page.getByLabel("Monthly minute limit").fill("1000");
     await expect(page.getByText("Enter a whole number from 0 to 100.")).toBeVisible();
@@ -351,6 +353,7 @@ test.describe("assistant settings and privacy", () => {
   test("an admin sees the usage meter and changes the settings; a member sees them read-only", async ({ page }) => {
     const mock = await mockAssistant(page);
     await page.goto("/settings");
+    await openAdvanced(page);
     const meter = page.getByTestId("usage-meter");
     await expect(meter).toContainText("10 of 60 minutes used (100 in your plan)");
     await page.getByRole("switch", { name: "Turn on the assistant for this workspace" }).click();
@@ -368,6 +371,7 @@ test.describe("assistant settings and privacy", () => {
     const member = await page.context().newPage();
     await mockAssistant(member, { settings: { ...SETTINGS, canEdit: false } });
     await member.goto("/settings");
+    await openAdvanced(member);
     await expect(member.getByText("Only a workspace admin can change these settings.")).toBeVisible();
     await expect(member.getByRole("switch", { name: "Turn on the assistant for this workspace" })).toBeDisabled();
   });
@@ -422,6 +426,7 @@ test.describe("axe: no serious or critical violations", () => {
         await scan("offline");
         await page.context().setOffline(false);
         await page.goto("/settings");
+        await openAdvanced(page);
         await expect(page.getByTestId("usage-meter")).toBeVisible();
         await scan("settings");
         await page.goto("/privacy");

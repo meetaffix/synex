@@ -56,7 +56,7 @@ export function BackgroundImports() {
           <div key={c.id} role="status" className="grid gap-2 rounded-lg border border-border bg-surface p-4 shadow-float">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-semibold"><Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden />{c.source === "connections" ? "Importing your connections" : `Importing from ${c.label}`}</p>
+                <p className="flex items-center gap-2 text-sm font-semibold"><Loader2 className="size-4 shrink-0 animate-spin text-primary-ink" aria-hidden />{c.source === "connections" ? "Importing your connections" : `Importing from ${c.label}`}</p>
                 <p className="truncate text-xs text-muted-foreground">Into “{c.listName}”. You can keep working.</p>
               </div>
               <Button size="sm" variant="ghost" onClick={() => void stop(c.id)}>Stop</Button>

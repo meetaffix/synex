@@ -1,57 +1,23 @@
-import { useId } from "react";
 import { cn } from "@/lib/utils";
 
-/** The Synex mark: two profiles joined by a rising path, on the brand gradient. Draws the same in both themes. */
+/** The Synex mark, as the owner supplied it: one solid orange shape, the same in both themes. */
+export const MARK_PATH = "M196 236H325A84 84 0 0 1 408 320V405A103 103 0 0 0 510 508H567A103 103 0 0 0 670 405V320A84 84 0 0 1 755 236H884A36 36 0 0 1 920 272V380C920 428 886 469 840 483L770 503C716 520 680 566 680 620V768A108 108 0 0 1 572 876H510A108 108 0 0 1 402 768V620C402 566 366 520 312 503L240 483C194 469 160 428 160 380V272A36 36 0 0 1 196 236Z";
+
 export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
-  const gradient = useId();
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" role="img" aria-label="Synex" className={cn("shrink-0", className)}>
-      <defs>
-        <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" style={{ stopColor: "rgb(var(--brand-from))" }} />
-          <stop offset="1" style={{ stopColor: "rgb(var(--brand-to))" }} />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill={`url(#${gradient})`} />
-      {/* the rising path */}
-      <path d="M9.5 22.5c0-6.5 13-3.5 13-11" fill="none" stroke="rgb(var(--brand-text))" strokeWidth="2.6" strokeLinecap="round" />
-      {/* the two profiles it joins */}
-      <circle cx="9.5" cy="22.5" r="3" fill="rgb(var(--brand-text))" />
-      <circle cx="22.5" cy="11.5" r="3" fill="rgb(var(--brand-accent))" />
+    <svg width={size} height={size} viewBox="140 156 800 800" role="img" aria-label="Synex" className={cn("shrink-0", className)}>
+      <path d={MARK_PATH} fill="rgb(var(--logo))" />
     </svg>
   );
 }
 
-/** Mark and wordmark as one SVG. The wordmark is set in the app's own font (Plus Jakarta Sans, bundled). */
+/** Mark and wordmark together. The wordmark is set in the app's own font. */
 export function Logo({ size = 32, showWordmark = true, className }: { size?: number; showWordmark?: boolean; className?: string }) {
   if (!showWordmark) return <LogoMark size={size} className={className} />;
-  const width = size * 3.6;
   return (
-    <span className={cn("inline-flex items-center", className)}>
-      <svg width={width} height={size} viewBox="0 0 115 32" role="img" aria-label="Synex" className="overflow-visible">
-        <LogoMarkInner />
-        <text x="41" y="22.5" fontFamily='"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif' fontSize="22" fontWeight="700" letterSpacing="-0.4" fill="currentColor">
-          Synex
-        </text>
-      </svg>
+    <span className={cn("inline-flex items-center gap-2", className)} role="img" aria-label="Synex">
+      <LogoMark size={size} className="[&]:pointer-events-none" />
+      <span aria-hidden className="font-semibold tracking-tight text-foreground" style={{ fontSize: size * 0.66 }}>Synex</span>
     </span>
-  );
-}
-
-function LogoMarkInner() {
-  const gradient = useId();
-  return (
-    <>
-      <defs>
-        <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" style={{ stopColor: "rgb(var(--brand-from))" }} />
-          <stop offset="1" style={{ stopColor: "rgb(var(--brand-to))" }} />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill={`url(#${gradient})`} />
-      <path d="M9.5 22.5c0-6.5 13-3.5 13-11" fill="none" stroke="rgb(var(--brand-text))" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="9.5" cy="22.5" r="3" fill="rgb(var(--brand-text))" />
-      <circle cx="22.5" cy="11.5" r="3" fill="rgb(var(--brand-accent))" />
-    </>
   );
 }

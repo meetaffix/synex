@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Advanced } from "@/components/shared/Advanced";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -40,6 +41,7 @@ export function PlanCard() {
           </div>
           <Progress value={percent} aria-label={`${data.assistantMinutes.used} of ${data.assistantMinutes.limit} assistant minutes used this month`} />
         </div>
+        <Advanced label="Compare plans">
         <ul aria-label="Plans" className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
           {data.plans.map((p) => (
             <li key={p.id} className={`grid content-start gap-0.5 rounded-lg border px-3 py-3 ${p.current ? "border-primary bg-primary-soft shadow-raised" : "border-border"}`}>
@@ -52,7 +54,7 @@ export function PlanCard() {
           ))}
         </ul>
         <p role="note" className="text-sm text-muted-foreground">{data.upgradeNote}</p>
-        <div><Button variant="outline" disabled title={data.upgradeNote}>Change plan (not available yet)</Button></div>
+        </Advanced>
       </CardContent>
     </Card>
   );

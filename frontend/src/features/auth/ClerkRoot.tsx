@@ -28,7 +28,7 @@ export default function ClerkRoot({ children }: { children: ReactNode }) {
       signUpFallbackRedirectUrl="/welcome"
       routerPush={(to: string) => go(to)}
       routerReplace={(to: string) => go(to, true)}
-      appearance={{ variables: { colorPrimary: "#0F766E", fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif', borderRadius: "0.75rem" } }}
+      appearance={{ variables: { colorPrimary: "#E5650A", fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif', borderRadius: "0.75rem" } }}
     >
       {children}
     </ClerkProvider>

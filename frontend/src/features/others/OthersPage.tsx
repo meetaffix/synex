@@ -23,7 +23,7 @@ export function OthersPage() {
           <li key={tool.to}>
             <Link
               to={tool.to}
-              className="grid h-full gap-2 rounded-lg border border-border bg-surface p-4 shadow-raised transition-transform duration-200 hover:-translate-y-0.5 sm:p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid h-full gap-2 rounded-lg border border-border bg-surface p-4 shadow-raised transition-colors duration-150 hover:border-border-strong sm:p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="text-base font-semibold">{tool.title}</span>
               <span className="text-sm text-muted-foreground">{tool.description}</span>

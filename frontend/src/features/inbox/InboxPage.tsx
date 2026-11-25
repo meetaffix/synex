@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Download, Filter, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Illustration } from "@/components/brand/Illustration";
@@ -25,7 +25,9 @@ export function InboxPage() {
   const [filter, setFilter] = useState<InboxFilter>(emptyFilter);
   const [showFilters, setShowFilters] = useState(false);
   const [showProfile, setShowProfile] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A link such as /inbox?conversation=<id> (from the dashboard) opens that conversation.
+  const [params] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get("conversation"));
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [tag, setTag] = useState("");
   const query = useInboxList({ ...filter, q: useDeferredValue(filter.q) });

@@ -278,7 +278,7 @@ export function TemplatesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {templates.map((t) => (
-            <Card key={t.id} className={`group flex flex-col border-t-4 shadow-raised transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-float ${EDGE[t.category]}`}>
+            <Card key={t.id} className={`group flex flex-col border-t-4 shadow-raised transition-[transform,box-shadow] duration-200 hover:border-border-strong hover:shadow-float ${EDGE[t.category]}`}>
               <CardContent className="flex flex-1 flex-col p-5">
                 <div className="flex items-start justify-between">
                   <Badge variant={CATEGORY_VARIANT[t.category]}>

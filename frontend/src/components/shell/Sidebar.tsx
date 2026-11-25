@@ -23,7 +23,7 @@ function Item({ item, collapsed, count }: { item: NavItem; collapsed: boolean; c
           "relative flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-lg:min-h-11",
           collapsed && "justify-center px-0",
           isActive
-            ? "bg-primary-soft text-primary-soft-foreground shadow-[0_8px_18px_-10px_rgb(var(--primary)/0.55)] before:absolute before:-left-3 before:top-2 before:h-6 before:w-1 before:rounded-full before:bg-primary max-lg:before:-left-3"
+            ? "bg-surface-muted text-foreground before:absolute before:-left-3 before:top-2 before:h-6 before:w-1 before:rounded-full before:bg-primary max-lg:before:-left-3"
             : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
         )
       }
@@ -48,7 +48,7 @@ function Item({ item, collapsed, count }: { item: NavItem; collapsed: boolean; c
 export function Sidebar({ collapsed = false, onToggleCollapsed, onOpenPalette }: Props) {
   const counts = useNavCounts();
   return (
-    <div className="flex h-full flex-col gap-4 bg-gradient-to-b from-primary-soft/80 via-primary-soft/30 to-transparent px-3 py-4">
+    <div className="flex h-full flex-col gap-4 bg-surface px-3 py-4">
       <WorkspaceSwitcher collapsed={collapsed} />
       {onOpenPalette && (
         <button

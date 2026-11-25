@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssistant } from "./AssistantProvider";
 
@@ -15,7 +15,7 @@ export function AssistantButton() {
       aria-keyshortcuts="Control+J Meta+J"
       title="Assistant (Ctrl or Cmd + J)"
     >
-      <Sparkles aria-hidden />
+      <MessagesSquare aria-hidden />
       <span className="max-sm:sr-only">Assistant</span>
     </Button>
   );

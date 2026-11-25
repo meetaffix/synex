@@ -65,7 +65,7 @@ function KillSwitch() {
           <p role="status" className={on ? "font-semibold text-danger" : "font-medium"}>{on ? "Stopped: nothing is sent." : "Running: senders act within their limits."}</p>
           {status.data?.forcedBySetting && <p className="text-xs text-muted-foreground">Forced on by the server setting OUTREACH_KILL_SWITCH; it cannot be turned off here.</p>}
           <Button variant={on ? "outline" : "destructive"} disabled={status.data?.forcedBySetting} onClick={() => setConfirm(!on)}>{on ? "Resume sending" : "Stop all sending now"}</Button>
-          <span className="text-xs text-muted-foreground">{status.data?.workersActive ?? 0} worker{status.data?.workersActive === 1 ? "" : "s"} running</span>
+          <span className="text-xs text-muted-foreground">{(status.data?.workersActive ?? 0) > 0 ? "LinkedIn sending is running" : "LinkedIn sending is not running"}</span>
         </div>
       )}
       <Dialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>

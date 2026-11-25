@@ -53,7 +53,7 @@ const COLORS = [
   { value: "danger", name: "Red" },
   { value: "muted-foreground", name: "Grey" },
   { value: "foreground", name: "Charcoal" },
-  { value: "primary-soft-foreground", name: "Deep teal" },
+  { value: "primary-soft-foreground", name: "Deep orange" },
 ];
 
 /** Names saved by earlier versions, mapped to today's tokens. */
@@ -155,7 +155,7 @@ function ListDialog({
                   type="button"
                   onClick={() => setValue("color", c.value)}
                   className={cn(
-                    "h-8 w-8 rounded-full ring-offset-2 ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "h-8 w-8 rounded-full ring-offset-2 ring-offset-background transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     color === c.value && "ring-2 ring-foreground"
                   )}
                   style={{ backgroundColor: tone(c.value).solid }}
@@ -285,7 +285,7 @@ export function LeadListsPage() {
           {shown.map((list) => (
             <Card
               key={list.id}
-              className="group relative overflow-hidden transition-transform duration-200 hover:-translate-y-0.5"
+              className="group relative overflow-hidden transition-colors duration-150 hover:border-border-strong"
             >
               <div
                 className="absolute inset-x-0 top-0 h-1"

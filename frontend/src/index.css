@@ -7,20 +7,22 @@
 @layer base {
   :root {
     color-scheme: light;
-    --background: 246 248 247;          /* #F6F8F7 */
-    --surface: 255 255 255;             /* #FFFFFF */
-    --surface-muted: 238 243 241;       /* #EEF3F1 */
-    --border: 227 233 230;              /* #E3E9E6  decorative lines */
-    --border-strong: 201 212 207;       /* #C9D4CF  dividers that need more weight */
-    --input: 122 139 133;               /* #7A8B85  field and control boundaries (3:1) */
-    --foreground: 18 32 28;             /* #12201C  text */
-    --muted-foreground: 81 98 92;       /* #51625C  text-muted */
-    --subtle: 94 111 105;               /* #5E6F69  text-subtle (starting value #6B7C76 failed 4.5:1) */
-    --primary: 15 118 110;              /* #0F766E */
-    --primary-hover: 11 95 89;          /* #0B5F59 */
-    --primary-foreground: 255 255 255;  /* #FFFFFF */
-    --primary-soft: 227 244 241;        /* #E3F4F1 */
-    --primary-soft-foreground: 11 95 89;/* #0B5F59 */
+    --logo: 255 115 10; /* #FF730A, the owner's logo orange (both themes) */
+    --background: 247 246 244; /* #F7F6F4 */
+    --surface: 255 255 255; /* #FFFFFF */
+    --surface-muted: 241 239 236; /* #F1EFEC */
+    --border: 230 227 222; /* #E6E3DE */
+    --border-strong: 207 202 195; /* #CFCAC3 */
+    --input: 132 125 116; /* #847D74 */
+    --foreground: 31 27 23; /* #1F1B17 */
+    --muted-foreground: 92 85 77; /* #5C554D */
+    --subtle: 102 95 87; /* #665F57 */
+    --primary: 229 101 10; /* #E5650A */
+    --primary-ink: 179 78 6; /* #B34E06 */
+    --primary-hover: 210 90 8; /* #D25A08 */
+    --primary-foreground: 31 14 8; /* #1F0E08 */
+    --primary-soft: 255 241 230; /* #FFF1E6 */
+    --primary-soft-foreground: 156 68 5; /* #9C4405 */
     --success: 22 101 52;               /* #166534  (starting value #15803D was 4.49:1 on its tint) */
     --success-soft: 231 246 236;        /* #E7F6EC */
     --success-foreground: 255 255 255;
@@ -33,23 +35,20 @@
     --info: 29 78 216;                  /* #1D4ED8 */
     --info-soft: 232 239 253;           /* #E8EFFD */
     --info-foreground: 255 255 255;
-    --ring: 15 118 110;                 /* #0F766E */
-    --overlay: 18 32 28;                /* dialog backdrop, used at 40% */
-    --shadow-float: 0 8px 24px -8px rgb(18 32 28 / 0.18), 0 2px 6px -2px rgb(18 32 28 / 0.08);
-    --shadow-raised: 0 1px 2px rgb(18 32 28 / 0.05), 0 2px 6px -2px rgb(18 32 28 / 0.06), 0 22px 40px -22px rgb(15 118 110 / 0.38);
+    --ring: 204 90 8; /* #CC5A08 */
+    --overlay: 31 27 23; /* #1F1B17 */
+    --shadow-float: 0 8px 24px -8px rgb(31 27 23 / 0.18), 0 2px 6px -2px rgb(31 27 23 / 0.08);
+    --shadow-raised: 0 1px 2px rgb(31 27 23 / 0.05), 0 8px 20px -14px rgb(31 27 23 / 0.16);
 
     /* The warm accent, paired with teal. Highlights, illustrations, the one number that matters most. */
-    --accent: 181 68 47;                /* #B5442F */
-    --accent-soft: 252 235 230;         /* #FCEBE6 */
-    --accent-foreground: 255 255 255;
-
-    /* Brand moments only (sign-in panel, welcome, launch celebration, hero metric): never on buttons,
-       inputs, rows or ordinary cards. Text on it uses brand-text and brand-text-muted. */
-    --brand-from: 15 118 110;           /* #0F766E */
-    --brand-to: 10 77 73;               /* #0A4D49 */
-    --brand-text: 255 255 255;          /* #FFFFFF */
-    --brand-text-muted: 213 242 238;    /* #D5F2EE */
-    --brand-accent: 255 230 220;        /* #FFE6DC  the warm highlight inside a gradient */
+    --accent: 156 68 5; /* #9C4405 */
+    --accent-soft: 255 241 230; /* #FFF1E6 */
+    --accent-foreground: 255 255 255; /* #FFFFFF */
+    --brand-from: 156 68 5; /* #9C4405 */
+    --brand-to: 107 47 3; /* #6B2F03 */
+    --brand-text: 255 255 255; /* #FFFFFF */
+    --brand-text-muted: 255 226 204; /* #FFE2CC */
+    --brand-accent: 255 233 217; /* #FFE9D9 */
     --gradient-brand: linear-gradient(135deg, rgb(var(--brand-from)) 0%, rgb(var(--brand-to)) 100%);
 
     --radius-sm: 0.5rem;   /* 8: inputs, small controls */
@@ -83,20 +82,21 @@
   /* Dark is designed, not inverted: surfaces get lighter as they rise, and borders replace shadows. */
   .dark {
     color-scheme: dark;
-    --background: 14 21 19;             /* #0E1513 */
-    --surface: 21 30 27;                /* #151E1B */
-    --surface-muted: 27 38 35;          /* #1B2623 */
-    --border: 37 50 46;                 /* #25322E */
-    --border-strong: 52 68 63;          /* #34443F */
-    --input: 95 117 111;                /* #5F756F */
-    --foreground: 232 239 236;          /* #E8EFEC */
-    --muted-foreground: 157 176 169;    /* #9DB0A9 */
-    --subtle: 127 146 139;              /* #7F928B */
-    --primary: 45 212 191;              /* #2DD4BF */
-    --primary-hover: 94 234 212;        /* #5EEAD4 */
-    --primary-foreground: 6 32 28;      /* #06201C */
-    --primary-soft: 18 51 46;           /* #12332E */
-    --primary-soft-foreground: 127 231 216; /* #7FE7D8 */
+    --background: 21 19 17; /* #151311 */
+    --surface: 28 25 22; /* #1C1916 */
+    --surface-muted: 36 32 28; /* #24201C */
+    --border: 48 43 38; /* #302B26 */
+    --border-strong: 66 59 52; /* #423B34 */
+    --input: 119 111 102; /* #776F66 */
+    --foreground: 237 234 230; /* #EDEAE6 */
+    --muted-foreground: 168 160 152; /* #A8A098 */
+    --subtle: 143 135 126; /* #8F877E */
+    --primary: 255 115 10; /* #FF730A */
+    --primary-ink: 255 138 51; /* #FF8A33 */
+    --primary-hover: 255 138 51; /* #FF8A33 */
+    --primary-foreground: 31 14 8; /* #1F0E08 */
+    --primary-soft: 61 34 15; /* #3D220F */
+    --primary-soft-foreground: 255 178 122; /* #FFB27A */
     --success: 110 231 160;             /* #6EE7A0 */
     --success-soft: 18 48 31;           /* #12301F */
     --success-foreground: 6 32 18;      /* #062012 */
@@ -109,21 +109,21 @@
     --info: 157 187 253;                /* #9DBBFD */
     --info-soft: 20 38 74;              /* #14264A */
     --info-foreground: 8 20 46;         /* #08142E */
-    --ring: 45 212 191;                 /* #2DD4BF */
+    --ring: 255 115 10; /* #FF730A */
     --overlay: 0 0 0;
     --shadow-float: none;
     /* In dark, depth is a subtle highlight along the top edge instead of a shadow. */
     --shadow-raised: inset 0 1px 0 rgb(255 255 255 / 0.07);
 
-    --accent: 255 163 141;              /* #FFA38D */
-    --accent-soft: 58 30 25;            /* #3A1E19 */
-    --accent-foreground: 40 14 8;       /* #280E08 */
+    --accent: 255 178 122; /* #FFB27A */
+    --accent-soft: 61 34 15; /* #3D220F */
+    --accent-foreground: 31 14 8; /* #1F0E08 */
 
-    --brand-from: 15 61 56;             /* #0F3D38 */
-    --brand-to: 10 31 28;               /* #0A1F1C */
-    --brand-text: 232 239 236;          /* #E8EFEC */
-    --brand-text-muted: 169 196 189;    /* #A9C4BD */
-    --brand-accent: 255 194 179;        /* #FFC2B3 */
+    --brand-from: 74 42 18; /* #4A2A12 */
+    --brand-to: 36 21 10; /* #24150A */
+    --brand-text: 237 234 230; /* #EDEAE6 */
+    --brand-text-muted: 227 203 184; /* #E3CBB8 */
+    --brand-accent: 255 178 122; /* #FFB27A */
   }
 
   * {
@@ -896,8 +896,8 @@
     background:
       linear-gradient(to right, rgb(var(--surface)) 30%, transparent) left center / 40px 100% no-repeat local,
       linear-gradient(to left, rgb(var(--surface)) 30%, transparent) right center / 40px 100% no-repeat local,
-      radial-gradient(farthest-side at 0 50%, rgb(18 32 28 / 0.14), transparent) left center / 14px 100% no-repeat scroll,
-      radial-gradient(farthest-side at 100% 50%, rgb(18 32 28 / 0.14), transparent) right center / 14px 100% no-repeat scroll;
+      radial-gradient(farthest-side at 0 50%, rgb(31 27 23 / 0.14), transparent) left center / 14px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(31 27 23 / 0.14), transparent) right center / 14px 100% no-repeat scroll;
   }
   .settings-grid section p {
     margin-top: var(--space-2);
@@ -1037,37 +1037,14 @@
 }
 
 
-/* Visual polish layer (19 Nov 2026): depth, ambient colour and motion on top of the tokens above.
-   Text colours are untouched, so contrast is unchanged; every effect is decorative. */
+/* Quiet chrome (25 Nov 2026, unslop pass): no colour washes, glows or gradients on surfaces. The colour lives in the
+   content: the reply-rate figure, the charts and the conversation. One short fade for the page on load, nothing staggered. */
 @layer base {
-  body {
-    background-image:
-      radial-gradient(60rem 28rem at 88% -8%, rgb(var(--primary) / 0.10), transparent 62%),
-      radial-gradient(44rem 26rem at -8% 4%, rgb(var(--accent) / 0.07), transparent 58%),
-      radial-gradient(rgb(var(--primary) / 0.07) 1px, transparent 1px);
-    background-size: auto, auto, 22px 22px;
-    background-attachment: fixed;
-  }
-  .dark body {
-    background-image:
-      radial-gradient(60rem 28rem at 88% -8%, rgb(var(--primary) / 0.14), transparent 62%),
-      radial-gradient(44rem 26rem at -8% 4%, rgb(var(--accent) / 0.08), transparent 58%),
-      radial-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px);
-  }
-  ::selection { background: rgb(var(--primary) / 0.25); }
+  ::selection { background: rgb(var(--primary) / 0.2); }
   :focus-visible { outline-color: rgb(var(--ring)); }
   * { scrollbar-width: thin; scrollbar-color: rgb(var(--border-strong)) transparent; }
 }
-@layer utilities {
-  /* A soft teal edge that lights the top of a card. Opt in with .card-glow on hero cards. */
-  .card-glow { position: relative; }
-  .card-glow::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; border-radius: inherit; background: linear-gradient(90deg, transparent, rgb(var(--primary) / 0.7), rgb(var(--accent) / 0.6), transparent); opacity: 0.8; pointer-events: none; }
-}
-@keyframes synex-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes synex-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: no-preference) {
-  main > * { animation: synex-rise 0.5s var(--ease) backwards; }
-  main > *:nth-child(2) { animation-delay: 60ms; }
-  main > *:nth-child(3) { animation-delay: 120ms; }
-  main > *:nth-child(4) { animation-delay: 180ms; }
-  main > *:nth-child(n+5) { animation-delay: 240ms; }
+  main > :first-child { animation: synex-enter 0.36s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 }

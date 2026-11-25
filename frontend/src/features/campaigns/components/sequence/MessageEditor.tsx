@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { PenLine } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { aiService } from "@/services/resources";
@@ -78,11 +78,11 @@ export function MessageEditor({
             type="button"
             variant="ghost"
             size="sm"
-            className="ml-auto h-6 px-2 text-xs text-primary"
+            className="ml-auto h-6 px-2 text-xs text-primary-ink"
             loading={generating}
             onClick={generate}
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <PenLine className="h-3.5 w-3.5" />
             Suggest draft
           </Button>
         )}

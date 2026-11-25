@@ -86,7 +86,7 @@ export function MetricCards({ values, loading, source, series, unit = "weekly" }
             <Reveal
               key={key}
               index={index}
-              className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised transition-transform duration-200 hover:-translate-y-0.5 sm:p-6"
+              className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-raised transition-colors duration-150 hover:border-border-strong sm:p-6"
             >
               <dt className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                 {label}

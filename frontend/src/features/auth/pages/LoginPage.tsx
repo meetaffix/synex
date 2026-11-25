@@ -48,7 +48,7 @@ function LocalLoginPage() {
           label="Password"
           error={errors.password?.message}
           aside={
-            <Link to="/forgot-password" className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Link to="/forgot-password" className="rounded-sm text-sm font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               Forgot password?
             </Link>
           }
@@ -61,7 +61,7 @@ function LocalLoginPage() {
       </form>
       <p className="text-center text-sm text-muted-foreground">
         New to Synex?{" "}
-        <Link to="/register" className="rounded-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Link to="/register" className="rounded-sm font-medium text-primary-ink underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Create an account
         </Link>
       </p>

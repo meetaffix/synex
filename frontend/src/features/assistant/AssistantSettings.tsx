@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Advanced } from "@/components/shared/Advanced";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -81,6 +82,23 @@ export function AssistantSettings() {
           <Switch aria-labelledby="assistant-enabled-label" checked={s.enabled} disabled={readOnly || save.isPending} onCheckedChange={(enabled) => save.mutate({ enabled })} />
         </div>
 
+        <div className="grid gap-2" data-testid="usage-meter">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm font-medium">Usage this month</p>
+            <p className="text-sm text-muted-foreground">
+              {used} of {s.monthlyMinuteCap} minutes used ({s.planMinuteLimit} in your plan)
+            </p>
+          </div>
+          <Progress value={percent} aria-label={`${used} of ${s.monthlyMinuteCap} assistant minutes used this month`} indicatorClassName={s.capReached ? "bg-danger" : undefined} />
+          {s.capReached && (
+            <p role="alert" className="text-sm text-danger">
+              The monthly limit is reached, so the assistant is paused until next month or until the limit is raised.
+            </p>
+          )}
+        </div>
+
+        <Advanced label="Advanced: assistant engine and limits">
+        <div className="grid gap-6">
         <fieldset className="grid gap-2" data-testid="provider-choice" disabled={readOnly || save.isPending}>
           <legend className="text-sm font-medium">What answers in the assistant panel</legend>
           {choices.isError && <p role="status" className="text-sm text-muted-foreground">The list of providers could not be loaded.</p>}
@@ -100,21 +118,6 @@ export function AssistantSettings() {
             </div>
           ))}
         </fieldset>
-
-        <div className="grid gap-2" data-testid="usage-meter">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="text-sm font-medium">Usage this month</p>
-            <p className="text-sm text-muted-foreground">
-              {used} of {s.monthlyMinuteCap} minutes used ({s.planMinuteLimit} in your plan)
-            </p>
-          </div>
-          <Progress value={percent} aria-label={`${used} of ${s.monthlyMinuteCap} assistant minutes used this month`} indicatorClassName={s.capReached ? "bg-danger" : undefined} />
-          {s.capReached && (
-            <p role="alert" className="text-sm text-danger">
-              The monthly limit is reached, so the assistant is paused until next month or until the limit is raised.
-            </p>
-          )}
-        </div>
 
         <form
           className="grid gap-4 sm:grid-cols-3"
@@ -147,6 +150,8 @@ export function AssistantSettings() {
             </Button>
           </div>
         </form>
+        </div>
+        </Advanced>
 
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -163,7 +168,7 @@ export function AssistantSettings() {
 
         <p className="text-xs text-muted-foreground">
           Voice and workspace data are processed by Deepgram and the language model it uses. Synex stores no audio.{" "}
-          <Link to="/privacy" className="text-primary underline underline-offset-2">
+          <Link to="/privacy" className="text-primary-ink underline underline-offset-2">
             Read the privacy notice
           </Link>
         </p>

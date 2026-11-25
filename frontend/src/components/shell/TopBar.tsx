@@ -6,6 +6,7 @@ import { breadcrumbsFor } from "./navigation";
 import { UserMenu } from "./UserMenu";
 import { AssistantButton } from "@/features/assistant/AssistantButton";
 import { WhatsNew } from "./WhatsNew";
+import { TodayBudget } from "@/components/shared/TodayBudget";
 
 export function TopBar({ onOpenNavigation, openerRef }: { onOpenNavigation: () => void; openerRef: Ref<HTMLButtonElement> }) {
   const crumbs = breadcrumbsFor(useLocation().pathname);
@@ -38,6 +39,7 @@ export function TopBar({ onOpenNavigation, openerRef }: { onOpenNavigation: () =
           ))}
         </ol>
       </nav>
+      <TodayBudget className="max-md:hidden" />
       <WhatsNew />
       <AssistantButton />
       <UserMenu compact />

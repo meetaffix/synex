@@ -42,8 +42,8 @@ const pairs = [
   ["subtle", "surface-muted", "Subtle text on muted surfaces", 4.5],
   ["primary-foreground", "primary", "Primary button label", 4.5],
   ["primary-foreground", "primary-hover", "Primary button label, hovered", 4.5],
-  ["primary", "background", "Links on the page", 4.5],
-  ["primary", "surface", "Links on cards", 4.5],
+  ["primary-ink", "background", "Links on the page", 4.5],
+  ["primary-ink", "surface", "Links on cards", 4.5],
   ["primary-soft-foreground", "primary-soft", "Active sidebar item, primary pill, empty-state icon", 4.5],
   ["background", "foreground", "Tooltip text", 4.5],
   ...["success", "warning", "danger", "info"].flatMap((name) => [

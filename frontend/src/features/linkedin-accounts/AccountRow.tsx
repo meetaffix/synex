@@ -55,7 +55,7 @@ export function AccountRow({ account, actions, checking, error, summary, index =
     <Reveal
       as="li"
       index={index}
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4 rounded-lg border border-border bg-surface p-4 shadow-raised transition-transform duration-200 hover:-translate-y-0.5 sm:p-6"
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4 rounded-lg border border-border bg-surface p-4 shadow-raised transition-colors duration-150 hover:border-border-strong sm:p-6"
     >
       <div className="flex items-start gap-3">
         <UserAvatar name={account.name} src={account.avatarUrl} className="size-12" />

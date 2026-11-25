@@ -10,7 +10,7 @@ export function PrivacyPage() {
           <Link to="/" aria-label="Synex home">
             <Logo />
           </Link>
-          <Link to="/login" className="text-sm text-primary underline underline-offset-2">
+          <Link to="/login" className="text-sm text-primary-ink underline underline-offset-2">
             Sign in
           </Link>
         </div>

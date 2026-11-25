@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Advanced } from "@/components/shared/Advanced";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppProviders } from "./providers";
 import { ProtectedRoute, PublicOnlyRoute } from "@/routes/ProtectedRoute";
@@ -107,7 +108,7 @@ export function App() {
               <Route path="/settings/integrations" element={<IntegrationsPage />} />
               <Route path="/settings/safety" element={<SafetyPage />} />
               <Route path="/settings/audit" element={<AuditLogPage />} />
-              <Route path="/settings" element={<Stack><SettingsPage /><PlanCard /><AssistantSettings /><LocalAssistantCard /></Stack>} />
+              <Route path="/settings" element={<Stack><SettingsPage /><PlanCard /><AssistantSettings /><Advanced label="Advanced: free local assistant model"><LocalAssistantCard /></Advanced></Stack>} />
             </Route>
             <Route path="/help" element={<HelpPage />} />
             {redirects.map(([from, to]) => (

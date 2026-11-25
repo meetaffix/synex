@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openAdvanced } from "./advanced";
 import { account, mockApi, newApi } from "./mock-api";
 import { API_PORT } from "./support";
 
@@ -20,10 +21,11 @@ test("the settings page shows the plan from the server, and changing plan says i
   await page.route(api("/plan"), (route) => route.fulfill({ json: { plan: "free", name: "Demo", limits: { assistantMinutes: 60 }, seats: { used: 1, limit: 1 }, assistantMinutes: { used: 12, limit: 60, month: "2026-11" },
     plans: [{ id: "free", name: "Demo", assistantMinutes: 60, seats: 1, dailyInvites: 10, dailyMessages: 20, dailyVisits: 20, current: true }, { id: "pro", name: "Pro", assistantMinutes: 600, seats: 15, dailyInvites: 30, dailyMessages: 80, dailyVisits: 60, current: false }], canManage: true, upgradeAvailable: false, upgradeNote: "Changing plan is not available yet: billing is not built." } }));
   await page.goto("/settings");
+  await openAdvanced(page);
   await expect(page.getByText("Plan: Demo")).toBeVisible();
   await expect(page.getByTestId("plan-seats")).toContainText("1 of 1 in use");
   await expect(page.getByTestId("plan-usage")).toContainText("12 of 60 used in 2026-11");
-  await expect(page.getByRole("button", { name: /Change plan/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Change plan/ })).toHaveCount(0); // no control that does nothing
 });
 
 test("the audit log can be deleted only by typing DELETE, and an admin sees the button", async ({ page }) => {

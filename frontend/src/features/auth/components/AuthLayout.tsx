@@ -22,7 +22,7 @@ function ProductPreview() {
             { icon: MessageSquare, label: "Replies", value: "14" },
           ].map((metric) => (
             <div key={metric.label} className="rounded-md bg-surface-muted p-3">
-              <metric.icon className="size-4 text-primary" />
+              <metric.icon className="size-4 text-primary-ink" />
               <p className="mt-2 text-xl font-semibold">{metric.value}</p>
               <p className="text-xs text-muted-foreground">{metric.label}</p>
             </div>
@@ -74,8 +74,6 @@ export function AuthLayout({ children, title, subtitle, bare = false }: { childr
 
       {/* Desktop: the brand panel. */}
       <aside aria-label="About Synex" className="relative hidden overflow-hidden bg-brand p-12 text-brand-text lg:flex lg:flex-col lg:justify-between">
-        <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-brand-accent/15 blur-2xl" />
-        <span aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 size-96 rounded-full bg-brand-text/5" />
         <Link to="/" aria-label="Synex home" className="relative w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-text">
           <Logo size={32} />
         </Link>

@@ -11,7 +11,7 @@ import {
   Users,
   Download,
   Tag,
-  Sparkles,
+  PenLine,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -272,7 +272,7 @@ export function LeadsPage() {
                 key={job.id}
                 className="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm shadow-raised"
               >
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary-ink" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="font-medium capitalize">
@@ -600,7 +600,7 @@ export function LeadsPage() {
                           )}
                           {lead.linkedinUrl && (
                             <DropdownMenuItem disabled title="Requires an approved data provider">
-                              <Sparkles className="h-4 w-4" />
+                              <PenLine className="h-4 w-4" />
                               Enrich from LinkedIn
                             </DropdownMenuItem>
                           )}

@@ -131,6 +131,11 @@ class CeilingsOut(CamelModel):
                    profile_visits_per_day=DAILY_TYPE_CEILINGS["visit_profile"], follows_per_day=DAILY_TYPE_CEILINGS["follow_profile"])
 
 
+def _today_limit(account: models.LinkedInAccount, now: datetime | None) -> int:
+    from ..engine import effective_daily_limit  # imported here: the engine imports this package
+    return effective_daily_limit(account, now or datetime.now(timezone.utc))
+
+
 class AccountOut(CamelModel):
     id: str
     name: str
@@ -141,6 +146,8 @@ class AccountOut(CamelModel):
     avatar_url: str | None
     status: AccountStatus
     daily_action_limit: int
+    # What the account may really do today: the configured limit after warm-up. Shown as "18 of 50 today".
+    daily_action_limit_today: int = 0
     daily_actions_used: int
     ceilings: CeilingsOut
     proxy_configured: bool
@@ -160,6 +167,7 @@ class AccountOut(CamelModel):
             avatar_url=account.avatar_url,
             status="paused" if account.status in ("paused", "deactivated", "archived") else (account.session_status or "disconnected"),
             daily_action_limit=configured_daily_limit(account),
+            daily_action_limit_today=_today_limit(account, now),
             daily_actions_used=(account.daily_actions_used or 0) if account.last_action_date == today else 0,
             ceilings=CeilingsOut.current(),
             proxy_configured=bool(account.proxy_url_encrypted),

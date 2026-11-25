@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openAdvanced } from "./advanced";
 
 test("manual CRM, preferences, calendar controls and sign-out persist", async ({
   page,
@@ -16,6 +17,7 @@ test("manual CRM, preferences, calendar controls and sign-out persist", async ({
   await page.getByRole("button", { name: "Collapse sidebar" }).click();
   await page.getByRole("button", { name: "Expand sidebar" }).click();
   await page.goto("/settings");
+  await openAdvanced(page);
   await page.getByLabel("Time zone", { exact: true }).fill("Europe/Amsterdam");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByText("Preferences saved")).toBeVisible();
@@ -74,6 +76,7 @@ test("manual CRM, preferences, calendar controls and sign-out persist", async ({
     page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   await page.goto("/settings");
+  await openAdvanced(page);
   await expect(
     page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
@@ -99,6 +102,7 @@ test("a time zone typed before the saved one has loaded is kept, saved and shown
     page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/, level: 1 }),
   ).toBeVisible();
   await page.goto("/settings");
+  await openAdvanced(page);
   const zone = page.getByLabel("Time zone", { exact: true });
   await zone.fill("Europe/Amsterdam");
   await page.waitForTimeout(2500); // longer than the delayed response

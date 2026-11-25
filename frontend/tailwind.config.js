@@ -44,6 +44,7 @@ export default {
         brand: { text: c("brand-text"), "text-muted": c("brand-text-muted"), accent: c("brand-accent"), from: c("brand-from"), to: c("brand-to") },
         primary: {
           DEFAULT: c("primary"),
+          ink: c("primary-ink"),
           hover: c("primary-hover"),
           foreground: c("primary-foreground"),
           soft: c("primary-soft"),

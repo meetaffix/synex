@@ -565,7 +565,7 @@ export function Studio() {
           <DialogDescription>
             {confirm === "publish"
               ? "This approves your post for public publishing to the selected LinkedIn account."
-              : "Choose the date, local time, and time zone. The worker will publish this approved post when it is due."}
+              : "Choose the date, local time, and time zone. Synex publishes this approved post when it is due."}
           </DialogDescription>
           <p>
             <strong>

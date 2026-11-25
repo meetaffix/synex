@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Advanced } from "@/components/shared/Advanced";
 import { useQuery } from "@tanstack/react-query";
 import { Settings, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -260,6 +260,7 @@ export function SettingsPage() {
         </div>
       </div>
       {team.data?.seat.role === "admin" && (
+        <Advanced label="Advanced: connection diagnostics">
         <div className="settings-grid">
           <section>
             <h2>Connection diagnostics</h2>
@@ -313,26 +314,8 @@ export function SettingsPage() {
             </Button>
           </div>
         </div>
+        </Advanced>
       )}
-      <div className="settings-grid">
-        <section>
-          <h2>Resources</h2>
-        </section>
-        <div className="resource-links">
-          <Link to="/others/publishing/connections">
-            LinkedIn connections <ArrowUpRight size={16} />
-          </Link>
-          <Link to="/leads?tab=lists">
-            Contact lists <ArrowUpRight size={16} />
-          </Link>
-          <Link to="/campaigns">
-            Campaign archive <ArrowUpRight size={16} />
-          </Link>
-          <Link to="/inbox">
-            Conversation archive <ArrowUpRight size={16} />
-          </Link>
-        </div>
-      </div>
     </>
   );
 }

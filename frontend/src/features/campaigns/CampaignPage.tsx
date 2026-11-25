@@ -31,7 +31,7 @@ const STATUS: Record<string, { label: string; variant: NonNullable<BadgeProps["v
   active: { label: "Running", variant: "success" }, paused: { label: "Paused", variant: "warning" }, draft: { label: "Draft", variant: "muted" },
   completed: { label: "Finished", variant: "secondary" }, archived: { label: "Archived", variant: "muted" },
 };
-const RUN: Record<string, string> = { running: "In progress", waiting_connection: "Waiting for them to accept", awaiting_agent: "Waiting for the worker", needs_review: "Needs review", completed: "Finished", stopped: "Stopped" };
+const RUN: Record<string, string> = { running: "In progress", waiting_connection: "Waiting for them to accept", awaiting_agent: "Waiting to send", needs_review: "Needs review", completed: "Finished", stopped: "Stopped" };
 const STOP: Record<string, string> = { replied: "Replied", interested: "Interested", not_interested: "Not interested", ended: "Sequence ended", send_failed: "Could not send", not_messageable: "LinkedIn offered no Message button" };
 const STEP: Record<string, string> = { connection_request: "Connection request", message: "Message", follow_up: "Follow-up", wait: "Waiting", if_connected: "Waiting for acceptance", profile_visit: "Profile visit", follow: "Follow", like_post: "Like a post", withdraw_invite: "Withdraw invite", voice_note: "Voice note", inmail: "InMail", free_inmail: "Free InMail", end: "End" };
 const ACTION: Record<string, string> = { send_invite: "Connection request", send_message: "Message", visit_profile: "Profile visit", sync_inbox: "Inbox read", check_connection: "Connection check" };

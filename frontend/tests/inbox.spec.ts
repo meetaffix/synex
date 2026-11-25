@@ -109,7 +109,7 @@ test("opening a thread reads it, shows date separators, and the profile panel of
   await expect(page.getByText(/Sunday, Nov 15|Monday, Nov 16|Saturday, Nov 14/).first()).toBeVisible();
   expect(callsTo(api, "POST", /\/inbox\/bulk$/).some((c) => (c.body as { action: string }).action === "read")).toBe(true);
   const profile = page.getByRole("complementary", { name: "Profile details" });
-  await expect(profile.getByRole("button", { name: "Fetch profile (coming soon)" })).toBeDisabled();
+  await expect(profile.getByRole("button", { name: /Fetch profile/ })).toHaveCount(0); // nothing that does not work yet
   await profile.getByRole("button", { name: "Mark as answered" }).click();
   await profile.getByLabel("Interest").selectOption("meeting_booked");
   await profile.getByPlaceholder("New tag").fill("vip");
@@ -143,8 +143,7 @@ test("a suggested reply shows its cost before it is written, fills the box, and 
 test("scheduling a message lists it and can cancel it; attachments and voice are disabled as coming soon", async ({ page }) => {
   const api = await open(page);
   await names(page).first().getByRole("button", { name: /Ann Archer/ }).first().click();
-  await expect(page.getByRole("button", { name: "Attach (coming soon)" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Voice message (coming soon)" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /coming soon/i })).toHaveCount(0); // the composer shows only what works
   await page.getByLabel("Reply", { exact: true }).fill("See you Thursday");
   await page.getByRole("button", { name: "Schedule message" }).first().click();
   await page.getByLabel("Send at").fill("2099-01-01T10:00");

@@ -33,7 +33,7 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
         <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
         <DropdownMenuItem className="justify-between" onSelect={(event) => event.preventDefault()}>
           {name}
-          <Check className="size-4 text-primary" aria-hidden />
+          <Check className="size-4 text-primary-ink" aria-hidden />
         </DropdownMenuItem>
         <p className="px-3 pb-2 pt-1 text-xs text-muted-foreground">Each account has one workspace for now. Teams with several workspaces come later.</p>
       </DropdownMenuContent>

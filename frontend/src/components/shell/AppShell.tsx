@@ -90,7 +90,7 @@ function Shell() {
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <div className={cn("flex min-h-dvh flex-col transition-[padding] motion-reduce:transition-none", collapsed ? "lg:pl-16" : "lg:pl-60")}>
         <TopBar onOpenNavigation={() => setDrawerOpen(true)} openerRef={opener} />
-        <main id="main-content" ref={main} tabIndex={-1} className="mx-auto w-full min-w-0 max-w-screen-xl flex-1 px-4 py-6 focus-visible:outline-none sm:py-8 lg:px-8">
+        <main id="main-content" ref={main} tabIndex={-1} className="mx-auto w-full min-w-0 max-w-screen-xl flex-1 px-4 py-5 focus-visible:outline-none sm:py-6 lg:px-8">
           <ErrorBoundary key={pathname}>
             {/* Each page fades and rises into place (200ms); reduced motion shows it at once. */}
             <div key={pathname} className="animate-rise">

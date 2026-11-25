@@ -45,10 +45,6 @@ export function ProfilePanel({ item, onClose }: { item: InboxItem; onClose: () =
         </div>
         <Button size="sm" variant="ghost" className="ml-auto xl:hidden" onClick={onClose}>Close profile details</Button>
       </div>
-      <div>
-        <Button size="sm" variant="outline" disabled title="Coming soon">Fetch profile (coming soon)</Button>
-        <p className="mt-1 text-xs text-muted-foreground">Reading more of the profile needs the paced profile reader, which is not built yet. What Synex already knows is shown here.</p>
-      </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="This conversation">
         <Button size="sm" variant="outline" aria-pressed={item.starred} onClick={() => run(item.starred ? "unstar" : "star")}>{item.starred ? "Starred" : "Mark as starred"}</Button>
         <Button size="sm" variant="outline" aria-pressed={item.answered} onClick={() => run(item.answered ? "unanswered" : "answered")}>{item.answered ? "Answered" : "Mark as answered"}</Button>

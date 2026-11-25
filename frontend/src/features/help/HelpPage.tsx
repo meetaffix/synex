@@ -57,7 +57,7 @@ export function HelpPage() {
         ))}
       </div>
       <p className="text-sm text-muted-foreground">
-        Looking for posting? It lives under <Link className="text-primary underline underline-offset-4" to="/others">Others</Link>.
+        Looking for posting? It lives under <Link className="text-primary-ink underline underline-offset-4" to="/others">Others</Link>.
       </p>
     </div>
   );

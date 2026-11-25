@@ -19,7 +19,6 @@ export function WelcomePage() {
   return (
     <main className="grid min-h-dvh bg-background text-foreground">
       <div className="relative overflow-hidden bg-brand px-4 py-10 text-brand-text sm:px-8 sm:py-14">
-        <span aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-brand-accent/10" />
         <div className="relative mx-auto grid max-w-3xl gap-6">
           <Logo size={32} />
           <div className="grid gap-3">
@@ -47,7 +46,7 @@ export function WelcomePage() {
               <ArrowRight />
             </Link>
           </Button>
-          <Link to="/dashboard" className="rounded-sm text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link to="/dashboard" className="rounded-sm text-sm font-medium text-primary-ink underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Go to the dashboard first
           </Link>
         </div>

@@ -76,9 +76,8 @@ export function AiConfigTab({ accountId, details }: { accountId: string; details
                   <li key={voice.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
                     <Radio id={`voice-${voice.id}`} name="voice" checked={choice === voice.id} onChange={() => setChoice(voice.id)} />
                     <div className="grid min-w-0 flex-1 gap-0.5">
-                      <label htmlFor={`voice-${voice.id}`} className="text-sm font-medium">{voice.label}</label>
+                      <label htmlFor={`voice-${voice.id}`} title={`Licence: ${voice.licence}`} className="text-sm font-medium">{voice.label}</label>
                       <p className="text-xs text-muted-foreground">{voice.accent}, {voice.gender}</p>
-                      <p className="text-xs text-muted-foreground">Licence: {voice.licence}</p>
                     </div>
                     <Button size="sm" variant="outline" disabled={!catalogue.data.engine.available} aria-label={`Play a sample of ${voice.label}`}>Sample</Button>
                   </li>

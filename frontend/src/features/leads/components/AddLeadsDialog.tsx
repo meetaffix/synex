@@ -459,7 +459,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
             <p className="text-sm font-medium">
               {collection.status === "previewing" && "Reading the first results…"}
               {collection.status === "preview_ready" && `Preview: ${collection.preview?.total ?? 0} people found so far`}
-              {collection.status === "queued" && (collection.workerActive === false ? "No worker is running, so this cannot start yet" : "Waiting for the worker…")}
+              {collection.status === "queued" && (collection.workerActive === false ? "Waiting for Synex to start reading LinkedIn" : "Starting…")}
               {collection.status === "running" && `Collecting: ${collection.fetched.toLocaleString()} found so far`}
               {collection.status === "completed" && `Done: ${collection.created} new ${collection.created === 1 ? "lead" : "leads"} added to “${collection.listName}”${collection.fetched > collection.created ? `, ${collection.fetched - collection.created} already in Synex and put on the list` : ""}`}
               {collection.status === "stopped" && "Stopped"}
@@ -467,7 +467,7 @@ export function AddLeadsDialog({ open, onOpenChange, onCompleted }: { open: bool
             </p>
             {collection.status === "queued" && collection.workerActive === false && (
               <p role="alert" className="text-sm text-danger">
-                The part of Synex that reads LinkedIn is not running. This request waits and starts by itself as soon as it is running. On your own computer, start it with <code>python -m app.outreach_worker</code> from the backend folder.
+                Synex is not reading LinkedIn right now. This request waits and starts by itself as soon as it is.
               </p>
             )}
             {collection.detail && <p className="text-sm text-muted-foreground">{collection.detail}</p>}

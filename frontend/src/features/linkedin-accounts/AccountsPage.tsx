@@ -112,7 +112,7 @@ export function SenderAccountsPage() {
             <p className="grid content-start gap-0.5 rounded-md bg-surface-muted px-3 py-2.5" data-testid="usage-meter"><span className="text-xs text-muted-foreground">Last 24 hours</span> <span className="text-base font-semibold">{usage.connections} connection requests, {usage.messages} messages sent{usage.waiting ? `, ${usage.waiting} waiting` : ""}</span></p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Link className="font-medium text-primary underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
+            <Link className="font-medium text-primary-ink underline underline-offset-2" to="/settings/integrations?tab=usage">View usage</Link>
           </div>
         </section>
       )}

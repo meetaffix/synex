@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clock, Paperclip, Mic, Smile, Sparkles } from "lucide-react";
+import { Clock, Smile, PenLine } from "lucide-react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useTemplates } from "@/hooks/api";
 import { requestFailureMessage } from "@/features/linkedin-accounts/copy";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/format";
+import { TodayBudget } from "@/components/shared/TodayBudget";
 import { useInboxActions, useScheduled, useSuggestCost, useThread, type InboxItem } from "./model";
 
 const EMOJI = ["🙂", "👍", "🙏", "😊", "🎉", "👋", "🤝", "✅"];
@@ -151,15 +152,14 @@ export function ThreadView({ conversation, onBack }: Props) {
             )}
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" size="sm" variant="outline" aria-pressed={emoji} onClick={() => setEmoji(!emoji)}><Smile aria-hidden /> Emoji</Button>
-              <Button type="button" size="sm" variant="outline" disabled title="Coming soon"><Paperclip aria-hidden /> Attach (coming soon)</Button>
-              <Button type="button" size="sm" variant="outline" disabled title="Coming soon"><Mic aria-hidden /> Voice message (coming soon)</Button>
               <NativeSelect aria-label="Insert a saved reply" className="w-auto" value="" onChange={(e) => { const t = replies.find((x) => x.id === e.target.value); if (t) edit(text + (text && !text.endsWith(" ") ? " " : "") + t.body); }}>
                 <option value="">Saved replies</option>
                 {replies.map((t) => <option key={t.id} value={t.id}>{t.shortcut ? `/${t.shortcut}: ${t.name}` : t.name}</option>)}
               </NativeSelect>
               <Button type="button" size="sm" variant="outline" aria-pressed={showSchedule} onClick={() => setShowSchedule(!showSchedule)}><Clock aria-hidden /> Schedule message</Button>
-              <Button type="button" size="sm" variant="outline" loading={actions.suggest.isPending} disabled={!thread.data?.some((m) => m.direction === "inbound")} onClick={suggest}><Sparkles aria-hidden /> Suggest a reply</Button>
+              <Button type="button" size="sm" variant="outline" loading={actions.suggest.isPending} disabled={!thread.data?.some((m) => m.direction === "inbound")} onClick={suggest}><PenLine aria-hidden /> Suggest a reply</Button>
               <span className="ml-auto text-xs text-muted-foreground">Sending from {conversation.accountName ?? "this account"}</span>
+              <TodayBudget accountId={conversation.accountId} />
               <Button type="submit" disabled={!text.trim()} loading={actions.reply.isPending}>Send reply</Button>
             </div>
             <p className="text-xs text-muted-foreground">

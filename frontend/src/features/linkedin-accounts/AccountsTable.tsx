@@ -23,11 +23,11 @@ export function AccountsTable({ accounts, summaries, actionsFor, checkingId, err
   return (
     <div className="max-w-full overflow-x-auto rounded-lg border border-border bg-surface shadow-raised">
       <table aria-label="Connected accounts" className="w-full min-w-[640px] border-collapse text-left text-sm">
-        <thead className="bg-surface-muted text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="bg-surface-muted text-xs text-muted-foreground">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">LinkedIn account</th>
             <th scope="col" className="px-4 py-3 font-medium">Status</th>
-            <th scope="col" className="px-4 py-3 font-medium">Usage (last 24 h)</th>
+            <th scope="col" className="px-4 py-3 font-medium">Usage, last 24 h</th>
             <th scope="col" className="px-4 py-3 font-medium">Performance</th>
             <th scope="col" className="px-4 py-3 text-right font-medium"><span className="sr-only">Actions</span></th>
           </tr>
