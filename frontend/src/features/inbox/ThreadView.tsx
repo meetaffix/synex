@@ -47,7 +47,7 @@ export function ThreadView({ conversation, onBack }: Props) {
   };
   const send = () =>
     actions.reply.mutate({ id: conversation.id, body: text.trim() }, {
-      onSuccess: () => { setText(""); actions.saveDraft.mutate({ id: conversation.id, body: "" }); toast.success("Reply queued. It sends within your sender's limits."); void thread.refetch(); },
+      onSuccess: () => { setText(""); actions.saveDraft.mutate({ id: conversation.id, body: "" }); toast.success("Sending now."); void thread.refetch(); },
       onError: (error) => toast.error(requestFailureMessage(error)),
     });
   const schedule = () =>
@@ -113,7 +113,7 @@ export function ThreadView({ conversation, onBack }: Props) {
                   {(run || flagged) ? (
                     <p className="mb-1 text-xs text-muted-foreground">
                       {out ? "You" : conversation.leadName} · <span className="tabular-nums">{time}</span>
-                      {flagged ? ` · ${message.deliveryStatus === "queued" ? "Queued" : "Not delivered"}` : ""}
+                      {flagged ? ` · ${message.deliveryStatus === "queued" ? "Sending…" : "Not delivered"}` : ""}
                     </p>
                   ) : <span className="sr-only">{out ? "You" : conversation.leadName}, {time}</span>}
                   <p title={time} className={cn("max-w-prose whitespace-pre-wrap break-words rounded-md border px-3 py-2 text-left text-sm", out ? "border-transparent bg-primary-soft text-primary-soft-foreground" : "border-border bg-surface")}>{message.body}</p>

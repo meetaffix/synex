@@ -489,9 +489,12 @@ def record_outbound(db: Session, campaign, lead, account, body: str, now: dateti
 # --------------------------------------------------------------------------
 # Task emission
 # --------------------------------------------------------------------------
+MANUAL_PRIORITY = 10  # a message the person typed in the inbox: sent now, still inside the hard daily ceiling
+
+
 def emit_task(
     db: Session, account: models.LinkedInAccount, ttype: str, payload: dict, key: str,
-    run: models.SequenceRun | None = None,
+    run: models.SequenceRun | None = None, priority: int = 0,
 ) -> models.AgentTask | None:
     """Queue a task unless one with this idempotency key already exists. The unique
     index backs this up when two processes race."""
@@ -505,7 +508,7 @@ def emit_task(
         return None
     task = models.AgentTask(
         account_id=account.id, sequence_run_id=run.id if run else None, type=ttype,
-        payload=payload, status="pending", idempotency_key=key, version=0, created_at=_now(),
+        payload=payload, status="pending", idempotency_key=key, version=0, created_at=_now(), priority=priority,
     )
     db.add(task)
     db.flush()  # the session does not autoflush: later limit counts in this same tick must see this task
@@ -751,6 +754,15 @@ def emit_stale_withdrawals(db: Session, now: datetime, per_tick: int = 3) -> int
     return emitted
 
 
+def _recent_manual_send(db: Session, account: models.LinkedInAccount, now: datetime) -> bool:
+    """Whether a message typed in the inbox went out from this account within the boost window."""
+    since = now - timedelta(minutes=settings.outreach_inbox_boost_window_minutes)
+    return db.query(models.AgentTask.id).filter(
+        models.AgentTask.account_id == account.id, models.AgentTask.type == "send_message",
+        models.AgentTask.priority > 0, models.AgentTask.status == "done", models.AgentTask.updated_at >= since,
+    ).first() is not None
+
+
 def emit_inbox_syncs(db: Session, now: datetime) -> int:
     """Queue one inbox read per live account when its interval has elapsed (and one right after connecting).
     sync_mode decides what is STORED (outreach_results.apply_inbox), not whether the inbox is read."""
@@ -764,6 +776,8 @@ def emit_inbox_syncs(db: Session, now: datetime) -> int:
         if budget <= 0:
             continue  # the sender's own inbox-read limit is 0: stopped, by the owner's choice
         interval = max(base_interval, timedelta(hours=24) / budget) if base_interval else base_interval  # an interval of 0 means as often as the budget allows; otherwise spread the day's reads, so the budget lasts until tonight
+        if _recent_manual_send(db, account, now):  # reply boost: a conversation is live, so look sooner (the ceiling still caps the day)
+            interval = min(interval, timedelta(minutes=settings.outreach_inbox_boost_interval_minutes))
         last = _aware(account.last_inbox_sync_at)
         if last is not None and now - last < interval:
             continue

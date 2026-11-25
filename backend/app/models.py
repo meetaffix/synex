@@ -617,6 +617,8 @@ class AgentTask(Base):
     claimed_at = Column(DateTime(timezone=True), nullable=True)
     version = Column(Integer, default=0)
     next_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    # Higher runs first. A message typed in the inbox is MANUAL_PRIORITY: it goes ahead of campaign work and is not paced.
+    priority = Column(Integer, default=0)
     # Set just before the irreversible click. A task with this set is never retried automatically.
     committed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)

@@ -164,10 +164,18 @@ class OutreachWorker:
                 if executed < settings.outreach_batch_max_actions and await asyncio.to_thread(self._has_more, account_id):
                     gap = random.uniform(settings.outreach_action_gap_min_seconds,
                                          max(settings.outreach_action_gap_min_seconds, settings.outreach_action_gap_max_seconds))
-                    try:
-                        await asyncio.wait_for(lost.wait(), timeout=gap)  # the pause ends early if the lease is lost
-                    except asyncio.TimeoutError:
-                        pass
+                    # The pause ends early if the lease is lost, or as soon as a message typed in the inbox is waiting:
+                    # a person replying by hand is not paced like campaign work (the daily ceiling still applies).
+                    waited = 0.0
+                    while waited < gap and not lost.is_set():
+                        if await asyncio.to_thread(self._manual_waiting, account_id):
+                            break
+                        step = min(1.0, gap - waited)
+                        try:
+                            await asyncio.wait_for(lost.wait(), timeout=step)
+                        except asyncio.TimeoutError:
+                            pass
+                        waited += step
         finally:
             keeper.cancel()
             try:
@@ -285,6 +293,11 @@ class OutreachWorker:
         with SessionLocal() as db:
             return engine.kill_switch_active(db)
 
+    @staticmethod
+    def _manual_waiting(account_id: str | None = None) -> bool:
+        with SessionLocal() as db:
+            return results.manual_pending(db, account_id)
+
     def _claim(self, account_id: str) -> str | None:
         with SessionLocal() as db:
             return results.claim_next_task(db, account_id, self.id, datetime.now(timezone.utc))
@@ -328,9 +341,26 @@ def run(worker: OutreachWorker) -> None:
         if hasattr(signal, name):
             signal.signal(getattr(signal, name), lambda *_: worker.stopping.set())
     log.info("outreach worker %s started", worker.id)
+    seen: set[str] = set()
     while not worker.stopping.is_set():
         cycle(worker)
-        worker.stopping.wait(settings.outreach_tick_interval_seconds)
+        # Between cycles, look every second for a NEW message typed in the inbox, so it goes out at once
+        # instead of waiting for the next tick. One that is still waiting (its account is offline) does not wake it again.
+        waited = 0.0
+        while waited < settings.outreach_tick_interval_seconds and not worker.stopping.is_set():
+            if worker.stopping.wait(1.0):
+                break
+            waited += 1.0
+            try:
+                with SessionLocal() as db:
+                    waiting = results.manual_pending_ids(db)
+                fresh = waiting - seen
+                seen.intersection_update(waiting)
+                if fresh:
+                    seen.update(fresh)
+                    break
+            except Exception as exc:  # noqa: BLE001 - a database hiccup just means the normal tick
+                log_failure(log, "outreach manual check failed", exc)
     worker.shutdown()
     log.info("outreach worker %s stopped", worker.id)
 

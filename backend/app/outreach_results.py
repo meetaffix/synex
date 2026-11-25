@@ -89,6 +89,19 @@ def release_lease(db: Session, account_id: str, holder: str) -> None:
     db.commit()
 
 
+def manual_pending(db: Session, account_id: str | None = None) -> bool:
+    """Whether a message someone typed in the inbox is waiting (for one account, or any)."""
+    query = db.query(models.AgentTask.id).filter(models.AgentTask.status == "pending", models.AgentTask.priority > 0)
+    if account_id is not None:
+        query = query.filter(models.AgentTask.account_id == account_id)
+    return query.first() is not None
+
+
+def manual_pending_ids(db: Session) -> set[str]:
+    """The ids of every waiting inbox message, so the worker wakes once for each new one and not every second for a stuck one."""
+    return {row[0] for row in db.query(models.AgentTask.id).filter(models.AgentTask.status == "pending", models.AgentTask.priority > 0)}
+
+
 def claim_next_task(db: Session, account_id: str, worker_id: str, now: datetime) -> str | None:
     """Atomically claim the account's oldest runnable task. The caller must hold the account's lease (this
     renews it), and exactly one caller can win a given task: the UPDATE only matches while the task is
@@ -99,7 +112,7 @@ def claim_next_task(db: Session, account_id: str, worker_id: str, now: datetime)
         db.query(models.AgentTask.id, models.AgentTask.version)
         .filter(models.AgentTask.account_id == account_id, models.AgentTask.status == "pending",
                 (models.AgentTask.next_attempt_at.is_(None)) | (models.AgentTask.next_attempt_at <= now))
-        .order_by(models.AgentTask.created_at).limit(5).all()
+        .order_by(models.AgentTask.priority.desc(), models.AgentTask.created_at).limit(5).all()
     )
     for task_id, version in candidates:
         won = db.query(models.AgentTask).filter(

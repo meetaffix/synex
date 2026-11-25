@@ -127,7 +127,7 @@ test("reply: a draft is saved as you type, Send queues the reply and says it is 
   await expect.poll(() => callsTo(api, "PUT", /\/inbox\/c1\/draft$/).length, { timeout: 5000 }).toBeGreaterThan(0);
   await expect(page.getByText(/Sending from Ada Lovelace/)).toBeVisible();
   await page.getByRole("button", { name: "Send reply" }).click();
-  await expect(page.getByText(/Reply queued/)).toBeVisible();
+  await expect(page.getByText(/Sending now/)).toBeVisible();
   expect((callsTo(api, "POST", /^\/conversations$/)[0].body as { body: string }).body).toBe("Happy to share more.");
 });
 

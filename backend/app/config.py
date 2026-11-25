@@ -112,6 +112,10 @@ class Settings(BaseSettings):
     outreach_stale_task_seconds: float = 600  # a task running longer than this was abandoned: needs_review
     outreach_acceptance_check_interval_hours: float = 12
     outreach_inbox_sync_interval_minutes: float = 15
+    # Reply boost: right after someone sends a message from the inbox, read that inbox more often for a while, because
+    # an answer usually comes soon. Every read still counts against the sync_inbox hard ceiling (48 a day).
+    outreach_inbox_boost_interval_minutes: float = 3
+    outreach_inbox_boost_window_minutes: float = 30
 
     # Which service writes AI drafts: "auto" (Deepgram when its key is set, else the built-in templates), "deepgram", "ollama" (a model on
     # this computer or network, free and private) or "template". Paid services stay optional.

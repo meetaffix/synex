@@ -504,19 +504,26 @@ class ProfilePages:
         if self.sel.top_card:
             card = page.locator(self.sel.top_card).first
             try:
-                # A click made the instant the profile appears does nothing: LinkedIn's page scripts are not attached yet. Let it settle.
+                # Verified on real LinkedIn: the Message link's address is LinkedIn's own message page for this person (a New message page
+                # with the box and Send in the page itself). Opening it directly never depends on a click being picked up, so it needs no
+                # settling wait: read the link as soon as it is on the page (it is part of the page's own markup) and go.
+                link = None
+                for _ in range(16):  # up to about 4 seconds for the top card's Message link to appear
+                    link = await _first_visible(card.locator(self.sel.message_button))
+                    if link is not None:
+                        break
+                    await page.wait_for_timeout(250)
+                href = (await link.get_attribute("href")) if link is not None else None
+                if href and "/messaging/compose" in href:
+                    await self.goto(page, self._absolute(href))
+                    return
+                # No direct link: the chat opens with a click. A click made the instant the profile appears does nothing (LinkedIn's
+                # page scripts are not attached yet), so only this path waits for the page to settle.
                 try:
                     await page.wait_for_load_state("networkidle", timeout=8_000)
                 except PlaywrightTimeout:
                     pass
                 await page.wait_for_timeout(random.randint(1_200, 2_400))
-                # Verified on real LinkedIn: the Message link's address is LinkedIn's own message page for this person (a New message page
-                # with the box and Send in the page itself). Opening it directly never depends on a click being picked up.
-                link = await _first_visible(card.locator(self.sel.message_button))
-                href = (await link.get_attribute("href")) if link is not None else None
-                if href and "/messaging/compose" in href:
-                    await self.goto(page, self._absolute(href))
-                    return
                 for attempt in range(2):  # a second click only if the chat window did not open after the first
                     target = await _first_visible(card.locator(self.sel.message_button))
                     if not await card.is_visible() or target is None:

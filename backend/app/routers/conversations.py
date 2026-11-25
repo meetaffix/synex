@@ -84,8 +84,10 @@ def _queue_outbound(
             "leadId": convo.lead_id,
             "linkedinUrl": convo.lead.linkedin_url if convo.lead else "",
             "message": body,
+            "manual": True,
         },
         f"reply:{msg.id}",
+        priority=engine.MANUAL_PRIORITY,
     )
     db.commit()
     db.refresh(msg)

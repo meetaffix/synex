@@ -102,10 +102,13 @@ function read<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {
 }
 
 export const useInboxList = (f: InboxFilter) =>
-  useQuery({ queryKey: ["inbox", "list", toParams(f).toString()], queryFn: async () => read(listSchema, await api.get(`/inbox/conversations?${toParams(f)}`)), refetchInterval: 30_000, placeholderData: (previous) => previous });
+  useQuery({ queryKey: ["inbox", "list", toParams(f).toString()], queryFn: async () => read(listSchema, await api.get(`/inbox/conversations?${toParams(f)}`)), refetchInterval: 10_000, placeholderData: (previous) => previous });
 export const useInboxMeta = () => useQuery({ queryKey: ["inbox", "meta"], queryFn: async () => read(metaSchema, await api.get("/inbox/meta")), staleTime: 60_000 });
 export const useThread = (id: string | null) =>
-  useQuery({ queryKey: ["inbox", "thread", id], enabled: !!id, queryFn: async () => read(z.array(messageSchema), await api.get(`/conversations?conversationId=${encodeURIComponent(id!)}`)) });
+  useQuery({ queryKey: ["inbox", "thread", id], enabled: !!id, queryFn: async () => read(z.array(messageSchema), await api.get(`/conversations?conversationId=${encodeURIComponent(id!)}`)),
+    // While a reply is on its way, look again every 2 seconds so it turns from "Sending…" to sent without a reload.
+    // While a reply is on its way, look every 2 seconds; otherwise every 10, so a new message from the other side appears on its own.
+    refetchInterval: (query) => (query.state.data?.some((m) => m.direction === "outbound" && m.deliveryStatus === "queued") ? 2000 : 10_000) });
 export const useScheduled = (id: string | null) => useQuery({ queryKey: ["inbox", "scheduled", id], enabled: !!id, queryFn: async () => read(scheduledSchema, await api.get(`/inbox/${id}/scheduled`)) });
 export const useSuggestCost = () => useQuery({ queryKey: ["inbox", "suggest-cost"], queryFn: async () => read(z.object({ provider: z.string(), estimatedUsd: z.number() }), await api.get("/inbox/suggest-cost")), staleTime: 300_000 });
 
